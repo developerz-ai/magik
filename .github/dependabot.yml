@@ -1,7 +1,15 @@
 version: 2
 
-# Weekly, grouped, and small. A dependency PR that nobody can review in one sitting gets merged
+# Fortnightly, grouped, and small. A dependency PR that nobody can review in one sitting gets merged
 # without being read, which is worse than being a version behind.
+#
+# WHY `interval: cron` AND NOT AN INTERVAL NAME. Dependabot's named intervals are daily, weekly,
+# monthly, quarterly, semiannually and yearly — there is no fortnightly one, and `monthly` is twice
+# as slow as wanted. `interval: cron` with a `cronjob` expression is the supported way to say every
+# two weeks; `0 6 1,15 * *` is the 1st and the 15th, which is predictable in a way `*/14` is not
+# (day-of-month stepping restarts each month, so `*/14` drifts). Verified against the published
+# schema: https://json.schemastore.org/dependabot-2.0.json — `cronjob` is required when, and only
+# when, the interval is `cron`.
 #
 # Grouping is the point of this file. Ungrouped, a Ruby project with a rubocop family, a yard and a
 # minitest stack produces five or six PRs on a quiet week, each with its own CI run and its own
@@ -21,16 +29,17 @@ updates:
   - package-ecosystem: bundler
     directory: /
     schedule:
-      interval: weekly
-      day: monday
-      time: '06:00'
+      interval: cron
+      cronjob: '0 6 1,15 * *'
       timezone: Europe/Berlin
     open-pull-requests-limit: 5
     labels: [dependencies, ruby]
     commit-message:
       prefix: 'chore(deps)'
     # Let a release sit for 14 days before it is proposed. Most yanked versions and supply-chain
-    # incidents are caught inside that window, and the default is 3.
+    # incidents are caught inside that window, and the default is 3. Paired with the fortnightly
+    # schedule above this is a real two-week delay rather than a two-week batch: a gem published on
+    # the 14th is not proposed on the 15th, it waits for the 1st.
     cooldown:
       default-days: 14
     groups:
@@ -65,10 +74,18 @@ updates:
   # with all of them moved".
   - package-ecosystem: github-actions
     directory: /
+    # The 8th and the 22nd rather than the 1st and the 15th: offset by a week from the bundle above
+    # so a quiet fortnight produces one PR to read, not two on the same morning.
+    #
+    # NO `cooldown:` HERE, and that is not an oversight. Dependabot's cooldown option does not
+    # support the github-actions ecosystem — it is accepted for bundler and roughly thirty others,
+    # and silently unsupported for this one. An unsupported key here would read like protection that
+    # is not there, which is worse than the gap it pretends to close. What actually guards a bad
+    # action release is the gate: every workflow bump arrives as one PR whose only question is
+    # whether `bin/check` still passes with all of them moved.
     schedule:
-      interval: weekly
-      day: monday
-      time: '06:00'
+      interval: cron
+      cronjob: '0 6 8,22 * *'
       timezone: Europe/Berlin
     open-pull-requests-limit: 5
     labels: [dependencies, ci]
