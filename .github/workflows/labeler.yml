@@ -36,7 +36,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
-      - uses: actions/labeler@v5
+      - uses: actions/labeler@v7
         with:
           configuration-path: .github/labeler.yml
           # Labels come OFF again when the files that earned them leave the diff. Without this, a
