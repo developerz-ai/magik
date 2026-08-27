@@ -18,7 +18,7 @@
 # is a real one — `dummy/` is what `wiki/Project-Layout.md` points readers at,
 # and a demo app with a syntax error is a demo app nobody can read.
 #
-#   MAGIK_DUMMY_PARSE_ERROR   a file under dummy/ is not valid Ruby
+#   MAGIK_DEV_DUMMY_PARSE_ERROR   a file under dummy/ is not valid Ruby
 #
 # The day `magik server` can boot `dummy/`, this check is replaced by one that
 # boots it. Until then, do not widen it: an assertion the reference app cannot
@@ -141,7 +141,7 @@ module MagikScripts
       # @param message [String] the parse error
       # @return [MagikScripts::Finding]
       def self.finding(path, message)
-        Finding.new(code: "MAGIK_DUMMY_PARSE_ERROR", at: path,
+        Finding.new(code: "MAGIK_DEV_DUMMY_PARSE_ERROR", at: path,
                     cause: "#{path} is not valid Ruby: #{message}",
                     fix: "ruby -c #{path}   # then fix the syntax it names")
       end

@@ -31,7 +31,7 @@ module MagikScripts
   class Check
     # The finding code every check raises when its corpus is empty.
     # @return [String]
-    NOTHING_SCANNED = "MAGIK_CHECK_NOTHING_SCANNED"
+    NOTHING_SCANNED = "MAGIK_DEV_CHECK_NOTHING_SCANNED"
 
     # Flags this check accepts beyond the universal ones, as flag => option key.
     # The runner turns `--write` into `options[:write] = true`.

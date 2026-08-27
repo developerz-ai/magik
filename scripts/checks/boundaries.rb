@@ -21,12 +21,12 @@
 #
 # Three findings:
 #
-#   MAGIK_BOUNDARY_TIER               a sideways or upward require, or a
-#                                     sideways or upward constant reference
-#   MAGIK_BOUNDARY_INTERNAL_REQUIRE   reaching past another subsystem's front
-#                                     door, even when the tier would allow it
-#   MAGIK_BOUNDARY_TABLE_DRIFT        a document restates the table and no
-#                                     longer agrees with the code
+#   MAGIK_DEV_BOUNDARY_TIER               a sideways or upward require, or a
+#                                         sideways or upward constant reference
+#   MAGIK_DEV_BOUNDARY_INTERNAL_REQUIRE   reaching past another subsystem's front
+#                                         door, even when the tier would allow it
+#   MAGIK_DEV_BOUNDARY_TABLE_DRIFT        a document restates the table and no
+#                                         longer agrees with the code
 #
 # `lib/magik.rb` and `lib/magik/version.rb` are exempt and are not subsystems.
 # The entry point's whole job is to know every subsystem — it registers the
@@ -48,15 +48,15 @@ module MagikScripts
     class Boundaries < Check
       # A sideways or upward dependency.
       # @return [String]
-      TIER_CODE = "MAGIK_BOUNDARY_TIER"
+      TIER_CODE = "MAGIK_DEV_BOUNDARY_TIER"
 
       # A require that reaches past another subsystem's front door.
       # @return [String]
-      INTERNAL_CODE = "MAGIK_BOUNDARY_INTERNAL_REQUIRE"
+      INTERNAL_CODE = "MAGIK_DEV_BOUNDARY_INTERNAL_REQUIRE"
 
       # A document whose tier table no longer matches `scripts/lib/tiers.rb`.
       # @return [String]
-      DRIFT_CODE = "MAGIK_BOUNDARY_TABLE_DRIFT"
+      DRIFT_CODE = "MAGIK_DEV_BOUNDARY_TABLE_DRIFT"
 
       # Everything this check reads.
       # @return [String]

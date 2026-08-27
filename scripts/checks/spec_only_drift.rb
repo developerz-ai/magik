@@ -13,15 +13,15 @@
 #
 # So the list is checked against the modules themselves, in both directions:
 #
-#   MAGIK_SPEC_ONLY_IMPLEMENTED   listed as spec only, but `.define` no longer
-#                                 raises NotImplementedError — a phase landed
-#                                 and the list was not updated
-#   MAGIK_SPEC_ONLY_UNLISTED      not on the list, yet still raises — the docs
-#                                 now promise something that refuses to run
-#   MAGIK_SPEC_ONLY_STATUS_DRIFT  the module's own STATUS constant disagrees
-#                                 with the list
-#   MAGIK_SPEC_ONLY_UNKNOWN       the list names a subsystem that is not in
-#                                 Magik::SUBSYSTEMS
+#   MAGIK_DEV_SPEC_ONLY_IMPLEMENTED   listed as spec only, but `.define` no longer
+#                                     raises NotImplementedError — a phase landed
+#                                     and the list was not updated
+#   MAGIK_DEV_SPEC_ONLY_UNLISTED      not on the list, yet still raises — the docs
+#                                     now promise something that refuses to run
+#   MAGIK_DEV_SPEC_ONLY_STATUS_DRIFT  the module's own STATUS constant disagrees
+#                                     with the list
+#   MAGIK_DEV_SPEC_ONLY_UNKNOWN       the list names a subsystem that is not in
+#                                     Magik::SUBSYSTEMS
 #
 # `.define` is called for real rather than grepped for, because `raise
 # NotImplementedError` in a file proves nothing about whether the entry point
@@ -70,7 +70,7 @@ module MagikScripts
       # @return [MagikScripts::Finding]
       def self.implemented(subsystem)
         detail = subsystem.defines ? "no longer raises NotImplementedError" : "has no .define at all"
-        Finding.new(code: "MAGIK_SPEC_ONLY_IMPLEMENTED", at: subsystem.at,
+        Finding.new(code: "MAGIK_DEV_SPEC_ONLY_IMPLEMENTED", at: subsystem.at,
                     cause: "Magik::SPEC_ONLY_SUBSYSTEMS lists :#{subsystem.name}, but " \
                            "#{subsystem.constant}.define #{detail}",
                     fix: "remove :#{subsystem.name} from SPEC_ONLY_SUBSYSTEMS in lib/magik.rb, set " \
@@ -81,7 +81,7 @@ module MagikScripts
       # @param subsystem [MagikScripts::Checks::SpecOnlyDrift::Observed]
       # @return [MagikScripts::Finding]
       def self.unlisted(subsystem)
-        Finding.new(code: "MAGIK_SPEC_ONLY_UNLISTED", at: subsystem.at,
+        Finding.new(code: "MAGIK_DEV_SPEC_ONLY_UNLISTED", at: subsystem.at,
                     cause: "#{subsystem.constant}.define raises NotImplementedError, and " \
                            "Magik::SPEC_ONLY_SUBSYSTEMS does not list :#{subsystem.name} — the docs " \
                            "generated from that list promise behaviour that refuses to run",
@@ -95,7 +95,7 @@ module MagikScripts
         expected = subsystem.listed ? SPEC_ONLY_STATUS : nil
         return nil if expected.nil? || subsystem.status == expected
 
-        Finding.new(code: "MAGIK_SPEC_ONLY_STATUS_DRIFT", at: subsystem.at,
+        Finding.new(code: "MAGIK_DEV_SPEC_ONLY_STATUS_DRIFT", at: subsystem.at,
                     cause: "#{subsystem.constant}::STATUS is #{subsystem.status.inspect}, and the " \
                            "subsystem is listed as spec only, which reads #{expected.inspect}",
                     fix: "set STATUS to #{expected.inspect} in #{subsystem.at}")
@@ -104,7 +104,7 @@ module MagikScripts
       # @param subsystem [MagikScripts::Checks::SpecOnlyDrift::Observed]
       # @return [MagikScripts::Finding]
       def self.unknown(subsystem)
-        Finding.new(code: "MAGIK_SPEC_ONLY_UNKNOWN", at: "lib/magik.rb",
+        Finding.new(code: "MAGIK_DEV_SPEC_ONLY_UNKNOWN", at: "lib/magik.rb",
                     cause: "SPEC_ONLY_SUBSYSTEMS names :#{subsystem.name}, which is not a key of " \
                            "Magik::SUBSYSTEMS, so nothing resolves it",
                     fix: "remove :#{subsystem.name} from SPEC_ONLY_SUBSYSTEMS in lib/magik.rb, " \

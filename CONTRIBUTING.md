@@ -39,13 +39,23 @@ installed on a contributor's machine; anything TruffleRuby-specific is verified 
 | `ruby -Ilib exe/magik version --json` | the CLI, from source |
 
 **`bin/` is not the gem.** Nothing in it ships, and no app author can reach one of these scripts —
-`exe/magik` is the binary. When one of them refuses, it prints a `MAGIK_DEV_*` code with a cause and
-a runnable `fix:`, in the same shape a framework error uses, so that it is searchable the same way:
-`MAGIK_DEV_NO_RUBY`, `MAGIK_DEV_RUBY_TOO_OLD`, `MAGIK_DEV_NO_RAKE`, `MAGIK_DEV_NO_WATCHER`,
-`MAGIK_DEV_NO_VERSION`. `DEV` is the one subsystem token reserved for them, they are deliberately
-absent from [`wiki/Error-Codes.md`](wiki/Error-Codes.md) — which is the app author's manual —
-and `ruby scripts/checks/error_codes.rb` holds them to the format. A new refusal in `bin/` takes a
-`MAGIK_DEV_*` code and a row in
+`exe/magik` is the binary. Neither can they reach [`scripts/checks/`](scripts/README.md). So both
+speak the repository's other namespace, and there are only two:
+
+> A `MAGIK_` code is either a **framework** code, whose token comes from the closed set and which an
+> app author can hit — or a **repo-internal** code under `MAGIK_DEV_*`, emitted by this repository's
+> own scripts and checks, which ships to nobody. There is no third kind.
+
+When a `bin/` script refuses it prints a `MAGIK_DEV_*` code with a cause and a runnable `fix:`, in
+the same shape a framework error uses, so that it is searchable the same way: `MAGIK_DEV_NO_RUBY`,
+`MAGIK_DEV_RUBY_TOO_OLD`, `MAGIK_DEV_NO_RAKE`, `MAGIK_DEV_NO_WATCHER`, `MAGIK_DEV_NO_VERSION`. Every
+finding a check emits carries the same token — `MAGIK_DEV_MANIFEST_DRIFT`,
+`MAGIK_DEV_CHANGELOG_HEADING`, `MAGIK_DEV_BOUNDARY_TIER` — and on a red gate that prefix is signal:
+it says *this is about the repository, not about your app*. Both are deliberately absent from
+[`wiki/Error-Codes.md`](wiki/Error-Codes.md) — which is the app author's manual — and
+`ruby scripts/checks/error_codes.rb` holds all of them to the format and refuses one that turns up
+in a catalogue. A new refusal in `bin/`, or a new finding under `scripts/`, takes a `MAGIK_DEV_*`
+code and a row in
 [`docs/architecture/03-error-codes.md`](docs/architecture/03-error-codes.md#the-dev-namespace-codes-that-never-reach-an-app).
 
 ## The gate

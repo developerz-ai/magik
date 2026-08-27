@@ -10,15 +10,15 @@
 # commit."* A rule enforced by review erodes; this is the same rule enforced by
 # the gate.
 #
-#   MAGIK_CHANGELOG_MISSING          no CHANGELOG.md
-#   MAGIK_CHANGELOG_FORMAT_UNDECLARED   the page does not name Keep a Changelog
-#   MAGIK_CHANGELOG_NO_UNRELEASED    no `## [Unreleased]` to write the next entry into
-#   MAGIK_CHANGELOG_VERSION_MISSING  lib/magik/version.rb names a version the log
-#                                    has never heard of
-#   MAGIK_CHANGELOG_HEADING          a `## [x]` heading with no ` - YYYY-MM-DD` date
-#   MAGIK_CHANGELOG_ORDER            releases are not newest-first
-#   MAGIK_CHANGELOG_LINK_MISSING     a section with no `[x]: <url>` link definition
-#   MAGIK_CHANGELOG_UNKNOWN_SECTION  a `###` that is not a Keep a Changelog change type
+#   MAGIK_DEV_CHANGELOG_MISSING             no CHANGELOG.md
+#   MAGIK_DEV_CHANGELOG_FORMAT_UNDECLARED   the page does not name Keep a Changelog
+#   MAGIK_DEV_CHANGELOG_NO_UNRELEASED       no `## [Unreleased]` to write the next entry into
+#   MAGIK_DEV_CHANGELOG_VERSION_MISSING     lib/magik/version.rb names a version the log
+#                                           has never heard of
+#   MAGIK_DEV_CHANGELOG_HEADING             a `## [x]` heading with no ` - YYYY-MM-DD` date
+#   MAGIK_DEV_CHANGELOG_ORDER               releases are not newest-first
+#   MAGIK_DEV_CHANGELOG_LINK_MISSING        a section with no `[x]: <url>` link definition
+#   MAGIK_DEV_CHANGELOG_UNKNOWN_SECTION     a `###` that is not a Keep a Changelog change type
 #
 # `Notes` is accepted alongside the six Keep a Changelog types. `0.0.1` uses it
 # to say what has *not* been measured, which is this repo's central honesty
@@ -78,7 +78,7 @@ module MagikScripts
       def self.format_declared(markdown)
         return [] if markdown.include?(FORMAT_URL)
 
-        [Finding.new(code: "MAGIK_CHANGELOG_FORMAT_UNDECLARED", at: PATH,
+        [Finding.new(code: "MAGIK_DEV_CHANGELOG_FORMAT_UNDECLARED", at: PATH,
                      cause: "#{PATH} does not link #{FORMAT_URL}, so the format it is being held to " \
                             "is not stated anywhere a reader can find it",
                      fix: "add the Keep a Changelog link to the preamble of #{PATH}")]
@@ -89,7 +89,7 @@ module MagikScripts
       def self.unreleased(headings)
         return [] if headings.any? { |(label, _)| label == UNRELEASED }
 
-        [Finding.new(code: "MAGIK_CHANGELOG_NO_UNRELEASED", at: PATH,
+        [Finding.new(code: "MAGIK_DEV_CHANGELOG_NO_UNRELEASED", at: PATH,
                      cause: "#{PATH} has no `## [#{UNRELEASED}]` heading, so the next change has " \
                             "nowhere to be written as it lands",
                      fix: "add `## [#{UNRELEASED}]` above the newest release heading in #{PATH}")]
@@ -101,7 +101,7 @@ module MagikScripts
       def self.covers(headings, version)
         return [] if headings.any? { |(label, _)| label == version }
 
-        [Finding.new(code: "MAGIK_CHANGELOG_VERSION_MISSING", at: PATH,
+        [Finding.new(code: "MAGIK_DEV_CHANGELOG_VERSION_MISSING", at: PATH,
                      cause: "lib/magik/version.rb is stamped #{version} and #{PATH} has no " \
                             "`## [#{version}]` section; the released version has no release notes",
                      fix: "add `## [#{version}] - #{Time.now.strftime("%Y-%m-%d")}` to #{PATH}, " \
@@ -114,7 +114,7 @@ module MagikScripts
         headings.filter_map do |(label, date)|
           next if label == UNRELEASED || !date.nil?
 
-          Finding.new(code: "MAGIK_CHANGELOG_HEADING", at: PATH,
+          Finding.new(code: "MAGIK_DEV_CHANGELOG_HEADING", at: PATH,
                       cause: "`## [#{label}]` carries no release date, so nobody can tell when it shipped",
                       fix: "write it as `## [#{label}] - YYYY-MM-DD` in #{PATH}")
         end
@@ -127,7 +127,7 @@ module MagikScripts
         sorted = released.sort_by { |label| Gem::Version.new(label) }.reverse
         return [] if released == sorted || released.any? { |label| !semver?(label) }
 
-        [Finding.new(code: "MAGIK_CHANGELOG_ORDER", at: PATH,
+        [Finding.new(code: "MAGIK_DEV_CHANGELOG_ORDER", at: PATH,
                      cause: "#{PATH} lists #{released.join(", ")}; Keep a Changelog is newest-first, " \
                             "which is #{sorted.join(", ")}",
                      fix: "reorder the `## [x]` sections of #{PATH} to #{sorted.join(", ")}")]
@@ -138,7 +138,7 @@ module MagikScripts
       # @return [Array<MagikScripts::Finding>]
       def self.linked(headings, links)
         (headings.map(&:first) - links).map do |label|
-          Finding.new(code: "MAGIK_CHANGELOG_LINK_MISSING", at: PATH,
+          Finding.new(code: "MAGIK_DEV_CHANGELOG_LINK_MISSING", at: PATH,
                       cause: "`[#{label}]` is a heading with no `[#{label}]: <url>` definition, so the " \
                              "link renders as literal brackets",
                       fix: "add a `[#{label}]: https://github.com/developerz-ai/magik/...` line to " \
@@ -152,7 +152,7 @@ module MagikScripts
         markdown.scan(SUBSECTION).flatten.uniq.filter_map do |name|
           next if SECTIONS.include?(name)
 
-          Finding.new(code: "MAGIK_CHANGELOG_UNKNOWN_SECTION", at: PATH,
+          Finding.new(code: "MAGIK_DEV_CHANGELOG_UNKNOWN_SECTION", at: PATH,
                       cause: "`### #{name}` is not a Keep a Changelog change type; the types are " \
                              "#{SECTIONS.join(", ")}",
                       fix: "rename `### #{name}` in #{PATH} to one of #{SECTIONS.join(", ")}")
@@ -184,7 +184,7 @@ module MagikScripts
         failure(reason: "changelog_missing", expected: expectation,
                 fix: "restore #{PATH} — see https://#{FORMAT_URL}/en/1.1.0/ for the format",
                 got: "#{PATH} does not exist",
-                findings: [Finding.new(code: "MAGIK_CHANGELOG_MISSING", at: PATH,
+                findings: [Finding.new(code: "MAGIK_DEV_CHANGELOG_MISSING", at: PATH,
                                        cause: "there is no #{PATH}, so no released change is recorded",
                                        fix: "create #{PATH} with an `## [#{UNRELEASED}]` section")])
       end

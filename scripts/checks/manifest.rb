@@ -14,8 +14,8 @@
 #     ruby scripts/checks/manifest.rb            is it current?
 #     ruby scripts/checks/manifest.rb --write    make it current
 #
-#   MAGIK_MANIFEST_DRIFT      the committed file no longer matches the tree
-#   MAGIK_MANIFEST_UNBUILDABLE  the generator itself raised
+#   MAGIK_DEV_MANIFEST_DRIFT        the committed file no longer matches the tree
+#   MAGIK_DEV_MANIFEST_UNBUILDABLE  the generator itself raised
 #
 # Stale and broken are separate findings on purpose. "Regenerate it" and "the
 # generator is broken" are different problems with different fixes, and a step
@@ -45,7 +45,7 @@ module MagikScripts
       # @param sections [Array<String>] from {MagikScripts::Manifest.drift}
       # @return [MagikScripts::Finding]
       def self.drift_finding(sections)
-        Finding.new(code: "MAGIK_MANIFEST_DRIFT", at: Manifest::PATH,
+        Finding.new(code: "MAGIK_DEV_MANIFEST_DRIFT", at: Manifest::PATH,
                     cause: "#{Manifest::PATH} no longer describes this tree: #{sections.join(", ")}",
                     fix: "ruby scripts/checks/manifest.rb --write   # then commit #{Manifest::PATH}")
       end
@@ -53,7 +53,7 @@ module MagikScripts
       # @param error [Exception] whatever the generator raised
       # @return [MagikScripts::Finding]
       def self.broken_finding(error)
-        Finding.new(code: "MAGIK_MANIFEST_UNBUILDABLE", at: "scripts/lib/manifest.rb",
+        Finding.new(code: "MAGIK_DEV_MANIFEST_UNBUILDABLE", at: "scripts/lib/manifest.rb",
                     cause: "the generator raised #{error.class}: #{error.message.to_s.lines.first.to_s.strip}",
                     fix: "ruby scripts/checks/manifest.rb --write   # this is a bug in the generator, " \
                          "not stale data")

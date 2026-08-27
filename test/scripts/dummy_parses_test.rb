@@ -12,7 +12,7 @@ class MagikScriptsDummyParsesTest < Minitest::Test
     refute_nil message
     finding = DummyParses.finding("dummy/app/models/magik_example.rb", message)
 
-    assert_equal "MAGIK_DUMMY_PARSE_ERROR", finding.code
+    assert_equal "MAGIK_DEV_DUMMY_PARSE_ERROR", finding.code
     assert_equal "dummy/app/models/magik_example.rb", finding.at
     assert_includes finding.fix, "ruby -c dummy/app/models/magik_example.rb"
   end

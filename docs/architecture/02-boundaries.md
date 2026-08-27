@@ -18,7 +18,7 @@ tier 5   check, testing
 tier 6   cli
 ```
 
-The table is duplicated in [`01-module-map.md`](01-module-map.md) and has an executable copy in [`../../scripts/lib/tiers.rb`](../../scripts/lib/tiers.rb). Prose and code must agree; when they diverge, the code is right and the prose is a bug — and `MAGIK_BOUNDARY_TABLE_DRIFT` is what says so, because [`../../scripts/checks/boundaries.rb`](../../scripts/checks/boundaries.rb) re-parses both documents against the code on every run.
+The table is duplicated in [`01-module-map.md`](01-module-map.md) and has an executable copy in [`../../scripts/lib/tiers.rb`](../../scripts/lib/tiers.rb). Prose and code must agree; when they diverge, the code is right and the prose is a bug — and `MAGIK_DEV_BOUNDARY_TABLE_DRIFT` is what says so, because [`../../scripts/checks/boundaries.rb`](../../scripts/checks/boundaries.rb) re-parses both documents against the code on every run.
 
 | Rule | Detail |
 |---|---|
@@ -59,7 +59,7 @@ Each of these was the tempting sideways import, and the design that removed the 
 
 | Property | Detail |
 |---|---|
-| Codes | `MAGIK_BOUNDARY_TIER` (sideways or upward) · `MAGIK_BOUNDARY_INTERNAL_REQUIRE` (past the front door) · `MAGIK_BOUNDARY_TABLE_DRIFT` (a document restates the table and no longer agrees with the code) |
+| Codes | `MAGIK_DEV_BOUNDARY_TIER` (sideways or upward) · `MAGIK_DEV_BOUNDARY_INTERNAL_REQUIRE` (past the front door) · `MAGIK_DEV_BOUNDARY_TABLE_DRIFT` (a document restates the table and no longer agrees with the code). Repo-internal, because a check is something only this checkout can run — the framework codes `MAGIK_BOUNDARY_TIER` and `MAGIK_BOUNDARY_INTERNAL_REQUIRE` stay reserved for the `magik check` that will raise them inside somebody's application ([`03-error-codes.md`](03-error-codes.md#the-dev-namespace-codes-that-never-reach-an-app)) |
 | Cost | a source scan, no boot, no database |
 | Where it runs | `ruby scripts/checks/boundaries.rb`, and CI. Not in `magik server` — a tier violation is a repo defect, not an app one |
 | `--json` | one finding object per violation, same schema as every other check ([`03-error-codes.md`](03-error-codes.md)) |

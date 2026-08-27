@@ -13,7 +13,7 @@ class MagikScriptsSpecOnlyDriftTest < Minitest::Test
   def test_a_listed_subsystem_that_no_longer_refuses_is_reported
     finding = only(observed(listed: true, raises: false))
 
-    assert_equal "MAGIK_SPEC_ONLY_IMPLEMENTED", finding.code
+    assert_equal "MAGIK_DEV_SPEC_ONLY_IMPLEMENTED", finding.code
     assert_includes finding.cause, "no longer raises NotImplementedError"
     assert_includes finding.fix, "remove :model from SPEC_ONLY_SUBSYSTEMS"
   end
@@ -21,28 +21,28 @@ class MagikScriptsSpecOnlyDriftTest < Minitest::Test
   def test_a_listed_subsystem_with_no_define_at_all_is_reported
     finding = only(observed(listed: true, raises: false, defines: false))
 
-    assert_equal "MAGIK_SPEC_ONLY_IMPLEMENTED", finding.code
+    assert_equal "MAGIK_DEV_SPEC_ONLY_IMPLEMENTED", finding.code
     assert_includes finding.cause, "has no .define at all"
   end
 
   def test_an_unlisted_subsystem_that_still_refuses_is_reported
     finding = only(observed(listed: false, raises: true, status: "Working"))
 
-    assert_equal "MAGIK_SPEC_ONLY_UNLISTED", finding.code
+    assert_equal "MAGIK_DEV_SPEC_ONLY_UNLISTED", finding.code
     assert_includes finding.cause, "promise behaviour that refuses to run"
   end
 
   def test_a_status_constant_that_disagrees_with_the_list_is_reported
     finding = only(observed(listed: true, raises: true, status: "Shipping"))
 
-    assert_equal "MAGIK_SPEC_ONLY_STATUS_DRIFT", finding.code
+    assert_equal "MAGIK_DEV_SPEC_ONLY_STATUS_DRIFT", finding.code
     assert_includes finding.fix, SpecOnlyDrift::SPEC_ONLY_STATUS
   end
 
   def test_a_list_entry_that_is_not_a_subsystem_is_reported
     finding = only(observed(listed: true, known: false, name: :nonesuch))
 
-    assert_equal "MAGIK_SPEC_ONLY_UNKNOWN", finding.code
+    assert_equal "MAGIK_DEV_SPEC_ONLY_UNKNOWN", finding.code
     assert_equal "lib/magik.rb", finding.at
   end
 

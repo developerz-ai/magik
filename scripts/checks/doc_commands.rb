@@ -20,11 +20,11 @@
 #     commands marked `planned`, because `magik help` listing a command as
 #     planned is itself the documentation that it exists as an idea.
 #
-#   MAGIK_DOC_COMMAND_MISSING     `bin/x` or `exe/x` is documented and absent
-#   MAGIK_DOC_COMMAND_UNKNOWN     a program neither allowlisted nor provided here
-#   MAGIK_DOC_SUBCOMMAND_UNKNOWN     `magik x` or `rake x` where x is not a command
-#   MAGIK_DOC_SLASH_COMMAND_UNKNOWN  `/x` with no `.claude/commands/x.md`, in this
-#                                    repo or in the app template `magik new` writes
+#   MAGIK_DEV_DOC_COMMAND_MISSING        `bin/x` or `exe/x` is documented and absent
+#   MAGIK_DEV_DOC_COMMAND_UNKNOWN        a program neither allowlisted nor provided here
+#   MAGIK_DEV_DOC_SUBCOMMAND_UNKNOWN     `magik x` or `rake x` where x is not a command
+#   MAGIK_DEV_DOC_SLASH_COMMAND_UNKNOWN  `/x` with no `.claude/commands/x.md`, in this
+#                                        repo or in the app template `magik new` writes
 #
 # Only fenced blocks are read. A command in a table cell or a sentence is prose
 # a human is reading; a command in a fence is one an agent will paste. Only
@@ -102,7 +102,7 @@ module MagikScripts
         return subcommand(sighting, surface.rake_tasks, "rake", "Rakefile") if head == "rake"
         return nil if ALLOWED.include?(head)
 
-        Finding.new(code: "MAGIK_DOC_COMMAND_UNKNOWN", at: sighting.at,
+        Finding.new(code: "MAGIK_DEV_DOC_COMMAND_UNKNOWN", at: sighting.at,
                     cause: "#{sighting.raw.inspect} starts with #{head.inspect}, which is neither on " \
                            "doc-commands' allowlist nor a command this repository provides",
                     fix: "replace #{head.inspect} at #{sighting.at} with a command this repo ships, " \
@@ -118,7 +118,7 @@ module MagikScripts
         name = head.delete_prefix("/")
         return nil if known.include?(name)
 
-        Finding.new(code: "MAGIK_DOC_SLASH_COMMAND_UNKNOWN", at: sighting.at,
+        Finding.new(code: "MAGIK_DEV_DOC_SLASH_COMMAND_UNKNOWN", at: sighting.at,
                     cause: "#{sighting.at} shows #{head} as a command to run, and no " \
                            "#{name}.md exists in #{SLASH_COMMANDS.join(" or ")} — this repo " \
                            "ships: #{known.sort.map { |c| "/#{c}" }.join(", ")}",
@@ -134,7 +134,7 @@ module MagikScripts
         path = head.delete_prefix("./")
         return nil if surface.executables.include?(path)
 
-        Finding.new(code: "MAGIK_DOC_COMMAND_MISSING", at: sighting.at,
+        Finding.new(code: "MAGIK_DEV_DOC_COMMAND_MISSING", at: sighting.at,
                     cause: "#{sighting.at} tells the reader to run #{head}, and #{path} is missing or " \
                            "not executable in this checkout",
                     fix: "create #{path} and `chmod +x #{path}`, or correct the command at #{sighting.at}")
@@ -149,7 +149,7 @@ module MagikScripts
         name = sighting.tokens[1]
         return nil if name.nil? || name.start_with?("-") || known.include?(name)
 
-        Finding.new(code: "MAGIK_DOC_SUBCOMMAND_UNKNOWN", at: sighting.at,
+        Finding.new(code: "MAGIK_DEV_DOC_SUBCOMMAND_UNKNOWN", at: sighting.at,
                     cause: "#{sighting.raw.inspect} names #{program} #{name}, and #{source} does not " \
                            "define it — #{known.size} #{program} commands exist: #{known.sort.join(", ")}",
                     fix: "add #{name} to #{source}, or correct the command at #{sighting.at}")

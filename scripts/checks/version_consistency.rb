@@ -10,13 +10,13 @@
 # is a thing that goes stale. This check finds the copies and holds them to the
 # original.
 #
-#   MAGIK_VERSION_GEMSPEC_MISMATCH    magik.gemspec does not read version.rb
-#   MAGIK_VERSION_CHANGELOG_MISMATCH  the newest release in CHANGELOG.md is not
-#                                     the version this tree is stamped at
-#   MAGIK_VERSION_STAMP_STALE         a document states a magik version that is
-#                                     no longer the one in version.rb
-#   MAGIK_VERSION_UNSTAMPED           no document states the version at all, so
-#                                     this check is asleep rather than satisfied
+#   MAGIK_DEV_VERSION_GEMSPEC_MISMATCH    magik.gemspec does not read version.rb
+#   MAGIK_DEV_VERSION_CHANGELOG_MISMATCH  the newest release in CHANGELOG.md is not
+#                                         the version this tree is stamped at
+#   MAGIK_DEV_VERSION_STAMP_STALE         a document states a magik version that is
+#                                         no longer the one in version.rb
+#   MAGIK_DEV_VERSION_UNSTAMPED           no document states the version at all, so
+#                                         this check is asleep rather than satisfied
 #
 # Only stamps that **name magik** are read. A bare `1.2.3` in prose is a
 # version of something else more often than not: `v1.0.0` in `CONTRIBUTING.md`
@@ -71,7 +71,7 @@ module MagikScripts
       # @param version [String]
       # @return [MagikScripts::Finding]
       def self.stale(stamp, version)
-        Finding.new(code: "MAGIK_VERSION_STAMP_STALE", at: stamp.at,
+        Finding.new(code: "MAGIK_DEV_VERSION_STAMP_STALE", at: stamp.at,
                     cause: "#{stamp.at} states magik #{stamp.version} (#{stamp.context.strip.inspect}) " \
                            "and #{SOURCE} is stamped #{version}",
                     fix: "change #{stamp.version} to #{version} at #{stamp.at}")
@@ -80,7 +80,7 @@ module MagikScripts
       # @param version [String]
       # @return [MagikScripts::Finding]
       def self.unstamped(version)
-        Finding.new(code: "MAGIK_VERSION_UNSTAMPED", at: SOURCE,
+        Finding.new(code: "MAGIK_DEV_VERSION_UNSTAMPED", at: SOURCE,
                     cause: "no document in #{PAGES.join(", ")} states a magik version, so this check " \
                            "compared #{version} against nothing and would pass whatever #{SOURCE} said",
                     fix: "state the version in README.md the way the CLI prints it — `magik #{version}` " \
@@ -159,7 +159,7 @@ module MagikScripts
         spec = Gem::Specification.load(Repo.path("magik.gemspec").to_s)
         return [] if spec.nil? || spec.version.to_s == version
 
-        [Finding.new(code: "MAGIK_VERSION_GEMSPEC_MISMATCH", at: "magik.gemspec",
+        [Finding.new(code: "MAGIK_DEV_VERSION_GEMSPEC_MISMATCH", at: "magik.gemspec",
                      cause: "magik.gemspec packages #{spec.version}, and #{SOURCE} is stamped #{version}",
                      fix: "make magik.gemspec read Magik::VERSION rather than restating it")]
       end
@@ -170,7 +170,7 @@ module MagikScripts
         newest = newest_release
         return [] if newest.nil? || newest == version
 
-        [Finding.new(code: "MAGIK_VERSION_CHANGELOG_MISMATCH", at: "CHANGELOG.md",
+        [Finding.new(code: "MAGIK_DEV_VERSION_CHANGELOG_MISMATCH", at: "CHANGELOG.md",
                      cause: "the newest release in CHANGELOG.md is #{newest}, and #{SOURCE} is " \
                             "stamped #{version}",
                      fix: "add a `## [#{version}]` section to CHANGELOG.md, or correct #{SOURCE}")]

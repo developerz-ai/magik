@@ -11,7 +11,7 @@ class MagikScriptsDocCommandsTest < Minitest::Test
   def test_a_documented_script_that_does_not_exist_is_reported
     finding = only("bin/nope --fast")
 
-    assert_equal "MAGIK_DOC_COMMAND_MISSING", finding.code
+    assert_equal "MAGIK_DEV_DOC_COMMAND_MISSING", finding.code
     assert_equal "page.md:2", finding.at
     assert_includes finding.fix, "chmod +x bin/nope"
   end
@@ -19,28 +19,28 @@ class MagikScriptsDocCommandsTest < Minitest::Test
   def test_an_unknown_program_is_reported
     finding = only("yarn install")
 
-    assert_equal "MAGIK_DOC_COMMAND_UNKNOWN", finding.code
+    assert_equal "MAGIK_DEV_DOC_COMMAND_UNKNOWN", finding.code
     assert_includes finding.cause, "\"yarn\""
   end
 
   def test_a_magik_subcommand_the_cli_does_not_define_is_reported
     finding = only("magik teleport --now")
 
-    assert_equal "MAGIK_DOC_SUBCOMMAND_UNKNOWN", finding.code
+    assert_equal "MAGIK_DEV_DOC_SUBCOMMAND_UNKNOWN", finding.code
     assert_includes finding.cause, "lib/magik/cli.rb does not define it"
   end
 
   def test_a_rake_task_the_rakefile_does_not_define_is_reported
     finding = only("rake deploy")
 
-    assert_equal "MAGIK_DOC_SUBCOMMAND_UNKNOWN", finding.code
+    assert_equal "MAGIK_DEV_DOC_SUBCOMMAND_UNKNOWN", finding.code
     assert_includes finding.cause, "Rakefile does not define it"
   end
 
   def test_a_slash_command_with_no_file_behind_it_is_reported
     finding = only("/teleport")
 
-    assert_equal "MAGIK_DOC_SLASH_COMMAND_UNKNOWN", finding.code
+    assert_equal "MAGIK_DEV_DOC_SLASH_COMMAND_UNKNOWN", finding.code
     assert_includes finding.fix, ".claude/commands/teleport.md"
   end
 

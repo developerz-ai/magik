@@ -12,7 +12,7 @@ class MagikScriptsVersionConsistencyTest < Minitest::Test
   def test_a_stale_doc_stamp_is_reported
     finding = only("Install `magik 0.0.9` today.\n", "0.0.1")
 
-    assert_equal "MAGIK_VERSION_STAMP_STALE", finding.code
+    assert_equal "MAGIK_DEV_VERSION_STAMP_STALE", finding.code
     assert_equal "page.md:1", finding.at
     assert_includes finding.fix, "change 0.0.9 to 0.0.1"
   end
@@ -49,7 +49,7 @@ class MagikScriptsVersionConsistencyTest < Minitest::Test
   def test_a_corpus_with_no_stamp_at_all_is_a_failure_not_a_pass
     finding = VersionConsistency.audit([], "0.0.1").first
 
-    assert_equal "MAGIK_VERSION_UNSTAMPED", finding.code
+    assert_equal "MAGIK_DEV_VERSION_UNSTAMPED", finding.code
     assert_includes finding.cause, "would pass whatever"
   end
 

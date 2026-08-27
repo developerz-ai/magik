@@ -67,14 +67,14 @@ class MagikScriptsManifestTest < Minitest::Test
   def test_the_finding_names_the_command_that_repairs_it
     finding = MagikScripts::Checks::ManifestCheck.drift_finding(["checks differs"])
 
-    assert_equal "MAGIK_MANIFEST_DRIFT", finding.code
+    assert_equal "MAGIK_DEV_MANIFEST_DRIFT", finding.code
     assert_includes finding.fix, "ruby scripts/checks/manifest.rb --write"
   end
 
   def test_a_broken_generator_is_a_different_finding_from_a_stale_file
     finding = MagikScripts::Checks::ManifestCheck.broken_finding(RuntimeError.new("boom"))
 
-    assert_equal "MAGIK_MANIFEST_UNBUILDABLE", finding.code
-    refute_equal "MAGIK_MANIFEST_DRIFT", finding.code
+    assert_equal "MAGIK_DEV_MANIFEST_UNBUILDABLE", finding.code
+    refute_equal "MAGIK_DEV_MANIFEST_DRIFT", finding.code
   end
 end

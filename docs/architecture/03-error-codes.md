@@ -16,10 +16,20 @@ An error is the framework's only chance to be useful at the moment something is 
 MAGIK_<SUBSYSTEM>_<CONDITION>
 ```
 
+**There is one rule, and it fits on a line:**
+
+> A `MAGIK_` code is either a **framework** code, whose token comes from the closed set and which an
+> app author can hit — or a **repo-internal** code under `MAGIK_DEV_*`, emitted by this repository's
+> own scripts and checks, which ships to nobody. There is no third kind.
+
+Everything below is that sentence in detail. The rest of this page is about the first kind;
+[the `DEV` namespace](#the-dev-namespace-codes-that-never-reach-an-app) is the second, and it is not
+a footnote — it is the other half.
+
 | Rule | Detail |
 |---|---|
 | Prefix | `MAGIK_`, always. |
-| Subsystem | one token from the closed set [below](#the-allowed-subsystem-tokens). Not an open-ended list — an unlisted token is a malformed code, and the check refuses it. |
+| Subsystem | one token from the closed set [below](#the-allowed-subsystem-tokens), or `DEV` for a repo-internal code. Not an open-ended list — an unlisted token is a malformed code, and the check refuses it. |
 | Condition | what is wrong, not what to do — `UNBALANCED`, `FORBIDDEN_FIELD`, `PATH_CONFLICT`. |
 | Case | `SCREAMING_SNAKE`. |
 | One code per condition | never one code for a family. `magik errors explain` should answer the specific mistake, not a category. |
@@ -28,10 +38,13 @@ MAGIK_<SUBSYSTEM>_<CONDITION>
 
 ### The allowed `<SUBSYSTEM>` tokens
 
-**A closed set of 31, plus one carve-out.** Thirty of the tokens may be written anywhere a
-`MAGIK_*` code is written. The thirty-first, `DEV`, belongs to this repository's own developer
-scripts and may **not** appear in an app-facing catalogue — [its own section](#the-dev-namespace-codes-that-never-reach-an-app)
-says why it exists at all.
+**A closed set of 30, for framework codes.** These are the tokens a code an app author can hit may
+use, and they may be written anywhere such a code is written. `DEV` is deliberately **not** a
+thirty-first peer in this table: it is the *other half of the rule above*, naming everything this
+repository emits about itself, and it may **not** appear in an app-facing catalogue —
+[its own section](#the-dev-namespace-codes-that-never-reach-an-app) is where it lives. `MAGIK_ERROR`
+is the one carve-out, and it is [a rule with exactly one satisfying object](#magik_error-is-the-root-code-not-an-exception)
+rather than an exception.
 
 It is written down rather than described because the first version of this page described it — "the
 owning subsystem, uppercased" followed by eight examples and a dash — and `wiki/Error-Codes.md`
@@ -46,14 +59,18 @@ it against both catalogues and against `bin/` on every run.
 | The same, **singular where the construct is** | `DOMAIN` (subsystem `domains`) · `TEST` (subsystem `testing`) | the code names the declaration the author wrote, not the directory it is implemented in. Both spellings are already in the catalogue and both stay |
 | **Stages and cross-cutting concerns** owned by `core` or `check` | `BOOT` `CONFIG` `SCALE` `BOUNDARY` | each names *when* or *what kind*, not a subsystem: a boot-pipeline refusal, a configuration value, a `--scale` warning, an internal-require violation. `MAGIK_CORE_*` would hide which of the four it is |
 | **Constructs that outlive their owner's name** | `COMPONENT` `LAYOUT` `WEBHOOK` `FLOW` | each is a declaration in [`../idea/02-dsl-surface.md`](../idea/02-dsl-surface.md) whose owning subsystem's name would bury it — `MAGIK_RENDER_MISSING` says nothing, `MAGIK_LAYOUT_MISSING` says everything |
-| **This repository's own developer scripts** under `bin/` | `DEV` | `bin/` ships to nobody and can never reach an app author, so its failures are not framework failures — but they are written in the same `CODE: cause` / `fix:` shape and are searched for the same way. [Below](#the-dev-namespace-codes-that-never-reach-an-app) |
 | **The root**, exactly one code | `MAGIK_ERROR` | [below](#the-shipped-codes-and-the-format-a-decision-record) |
+
+Not in the table, because it is not one of the thirty: **`DEV`**, the token every repo-internal code
+carries. `bin/` and `scripts/` ship to nobody and can never reach an app author, so their failures
+are not framework failures — but they are written in the same `CODE: cause` / `fix:` shape and are
+searched for the same way. [Below](#the-dev-namespace-codes-that-never-reach-an-app).
 
 Two rules follow from the set being closed:
 
 | Rule | Detail |
 |---|---|
-| Adding a token is an architecture change | it needs a row above with its reason, and the same edit in `scripts/checks/error_codes.rb`. A code is not free to invent its own namespace |
+| Adding a token is an architecture change | it needs a row above with its reason, and the same edit in `scripts/checks/error_codes.rb`. A code is not free to invent its own namespace — and if the thing that raises it is a script in this repository rather than the framework, the answer is `MAGIK_DEV_*`, not a new token |
 | A subsystem may own several tokens; a token is owned by one subsystem | `core` answers to `BOOT`, `CONFIG` and `CORE`; `check` to `CHECK`, `SCALE` and `BOUNDARY`. The reverse — two subsystems sharing `CONFIG` — is the ambiguity the set exists to prevent |
 
 ## Required fields
@@ -219,17 +236,33 @@ exception list grows, and a rule with one satisfying object cannot.
 
 ## The `DEV` namespace: codes that never reach an app
 
-`bin/` is the repository's own developer scripts — `setup`, `check`, `dev`, `rake`, `release`,
-`console`. They ship to nobody: they are not in the gem, they are not generated into an app, and no
-app author can reach one. Their failures are therefore **not framework failures**, and they are not
-in [`../../wiki/Error-Codes.md`](../../wiki/Error-Codes.md), which is the app author's manual and
-would be lying if it listed them.
+**This is the other half of [the one rule](#code-format), not a footnote to it.**
+
+> A `MAGIK_` code is either a **framework** code, whose token comes from the closed set and which an
+> app author can hit — or a **repo-internal** code under `MAGIK_DEV_*`, emitted by this repository's
+> own scripts and checks, which ships to nobody. There is no third kind.
+
+Two things in this repository emit the second kind, and they have one audience between them — a
+contributor or an agent working in this checkout:
+
+| Emitter | What it is | Example |
+|---|---|---|
+| [`bin/`](../../bin) | the developer scripts — `setup`, `check`, `dev`, `rake`, `release`, `console` | `MAGIK_DEV_NO_RAKE` from [`bin/rake`](../../bin/rake) |
+| [`scripts/checks/`](../../scripts/checks) | the gate's own findings — every `Finding.new(code: ...)` this repository raises about itself | `MAGIK_DEV_MANIFEST_DRIFT` from [`scripts/checks/manifest.rb`](../../scripts/checks/manifest.rb) |
+
+Neither ships: they are not in the gem, they are not generated into an app, and no app author can
+reach one. Their failures are therefore **not framework failures**, and they are not in
+[`../../wiki/Error-Codes.md`](../../wiki/Error-Codes.md), which is the app author's manual and would
+be lying if it listed them — `MAGIK_DEV_ERROR_CODE_PUBLISHED` is the finding that says so.
 
 They still carry the `MAGIK_` prefix, and that is the point. An agent working in this repository
 reads `MAGIK_DEV_NO_RAKE` off its terminal and searches for it exactly the way it searches for
 `MAGIK_LEDGER_UNBALANCED` — so the string has to be findable, has to be unique, and must not
 collide with a name the framework will want later. `DEV` is what keeps the two apart while leaving
-one search that works for both.
+one search that works for both, and on a red gate the prefix is useful signal in its own right: it
+says *this is about the repository, not about your app*.
+
+### `bin/`: the developer scripts
 
 | Code | Raised by | Condition | `fix:` |
 |---|---|---|---|
@@ -239,17 +272,63 @@ one search that works for both.
 | `MAGIK_DEV_NO_WATCHER` | [`bin/dev`](../../bin/dev) | no file watcher on the machine, so `--watch` has nothing to watch with | install `watchexec`, `entr`, `fswatch` or `inotify-tools` |
 | `MAGIK_DEV_NO_VERSION` | [`bin/release`](../../bin/release) | `lib/magik/version.rb` defines no `Magik::VERSION` | set `VERSION` to a `MAJOR.MINOR.PATCH` string in that file |
 
-The rules the rest of this page states apply unchanged: one code per condition, a cause naming real
+### `scripts/checks/`: the gate's own findings
+
+**Do not read this list for a verdict — run `for check in scripts/checks/*.rb; do ruby "$check" --help; done`,**
+which prints each check's codes from the header that is the only copy of them. The families, and
+where each is declared:
+
+| Family | Check | About |
+|---|---|---|
+| `MAGIK_DEV_BOUNDARY_*` | [`boundaries`](../../scripts/checks/boundaries.rb) | a sideways or upward dependency inside `lib/magik/`, a require past a front door, a tier table a document no longer agrees with |
+| `MAGIK_DEV_ERROR_CODE_*` · `MAGIK_DEV_ERROR_FIX_ADVICE` | [`error-codes`](../../scripts/checks/error_codes.rb) | this page's rules, over all four corpora |
+| `MAGIK_DEV_SPEC_ONLY_*` | [`spec-only-drift`](../../scripts/checks/spec_only_drift.rb) | `Magik::SPEC_ONLY_SUBSYSTEMS` disagreeing with what the modules do |
+| `MAGIK_DEV_DOC_*` | [`doc-commands`](../../scripts/checks/doc_commands.rb) | a command in a fenced block that this repository does not provide |
+| `MAGIK_DEV_CHANGELOG_*` | [`changelog`](../../scripts/checks/changelog.rb) | `CHANGELOG.md` drifting from Keep a Changelog |
+| `MAGIK_DEV_VERSION_*` | [`version-consistency`](../../scripts/checks/version_consistency.rb) | a copy of the version disagreeing with `lib/magik/version.rb` |
+| `MAGIK_DEV_DUMMY_PARSE_ERROR` | [`dummy-parses`](../../scripts/checks/dummy_parses.rb) | a file under `dummy/` that is not valid Ruby |
+| `MAGIK_DEV_MANIFEST_*` | [`manifest`](../../scripts/checks/manifest.rb) | `magik.manifest.json` no longer describing the tree |
+| `MAGIK_DEV_CHECK_NOTHING_SCANNED` | every check, via [`Check#nothing_scanned`](../../scripts/lib/check.rb) | a corpus that matched nothing, which reads exactly like a clean tree |
+
+**These were a fourth namespace and nothing checked it.** Until 2026-08-26 they used seven tokens
+nothing had blessed — `MANIFEST`, `CHANGELOG`, `VERSION`, `SPEC`, `DUMMY`, `DOC`, `ERROR_CODE` — and
+the repository ran four `MAGIK_` namespaces under three rules. The alternative to folding them in
+was blessing those seven, which dilutes a closed set of framework tokens with repository-internal
+concerns and leaves the rule unstatable. **Decided: they all became `MAGIK_DEV_*`.** They are
+reserved names in the strict sense the [decision record](#the-shipped-codes-and-the-format-a-decision-record)
+uses — nobody outside this repository could ever have matched on one — so the rename cost a
+changelog line.
+
+Two names the rename deliberately left alone. `MAGIK_BOUNDARY_TIER` and
+`MAGIK_BOUNDARY_INTERNAL_REQUIRE` stay in the [seed catalogue](#seed-catalogue) above as **framework**
+codes: they are what `magik check` will raise inside somebody's application, and
+`scripts/checks/boundaries.rb` raising `MAGIK_DEV_BOUNDARY_TIER` about *this* tree is a different
+condition detected by a different program. One name each, and neither borrows the other's.
+
+### The rules, unchanged
+
+Everything the rest of this page states applies: one code per condition, a cause naming real
 identifiers, and a `fix:` that is a command.
 [`../../scripts/checks/error_codes.rb`](../../scripts/checks/error_codes.rb) asserts all three over
-`bin/`, and deliberately does **not** ask the wiki for a row.
+both emitters, and deliberately does **not** ask the wiki for a row — it refuses one:
+
+| Finding | Condition |
+|---|---|
+| `MAGIK_DEV_ERROR_CODE_BIN_MALFORMED` | a code `bin/` prints that is not `MAGIK_DEV_<CONDITION>` |
+| `MAGIK_DEV_ERROR_CODE_BIN_UNFIXABLE` | a code `bin/` prints with no `fix:` in the block below it |
+| `MAGIK_DEV_ERROR_CODE_FINDING_MALFORMED` | a finding code under `scripts/` that is not `MAGIK_DEV_<CONDITION>` |
+| `MAGIK_DEV_ERROR_CODE_FINDING_FRAMEWORK_TOKEN` | a finding code claiming a token from the closed set — well-formed, and wrong in the one way that reads as right |
+| `MAGIK_DEV_ERROR_CODE_FINDING_UNFIXABLE` | a `Finding.new` built with no `fix:` |
+| `MAGIK_DEV_ERROR_CODE_FINDING_UNRESOLVED` | a `code:` argument the check cannot read, so the corpus is quietly smaller than it looks |
+| `MAGIK_DEV_ERROR_CODE_PUBLISHED` | a `MAGIK_DEV_*` code written into `wiki/Error-Codes.md` or `docs/idea/03-guardrails.md` |
+| `MAGIK_DEV_ERROR_FIX_ADVICE` | a `fix:` that tells the reader to think rather than to run something — one phrase list, shared by all four corpora |
 
 **`MAGIK_` is also an environment-variable prefix.** `MAGIK_YARD_MIN_COVERAGE`
 ([`bin/check`](../../bin/check)) and `MAGIK_DOCS_ROOT` ([`09-shipped-docs.md`](09-shipped-docs.md))
 are configuration, not codes, and nothing may rename them into the format. A check that grepped for
 every `MAGIK_*` string would call both of them malformed codes — which is why the check reads the
-`Code` column of a table for the catalogues, and the `CODE: cause` rendering for `bin/`, rather
-than matching the prefix alone.
+`Code` column of a table for the catalogues, the `CODE: cause` rendering for `bin/`, and the
+`Finding.new(code:` constructor for `scripts/`, rather than matching the prefix alone.
 
 ## Option-level errors (R7)
 

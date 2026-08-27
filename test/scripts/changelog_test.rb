@@ -39,11 +39,11 @@ class MagikScriptsChangelogTest < Minitest::Test
 
   def test_a_missing_unreleased_section_is_reported
     assert_includes codes(GOOD.sub("## [Unreleased]\n\nNothing yet.\n\n", ""), "0.0.2"),
-                    "MAGIK_CHANGELOG_NO_UNRELEASED"
+                    "MAGIK_DEV_CHANGELOG_NO_UNRELEASED"
   end
 
   def test_a_version_with_no_section_is_reported
-    finding = find(GOOD, "9.9.9", "MAGIK_CHANGELOG_VERSION_MISSING")
+    finding = find(GOOD, "9.9.9", "MAGIK_DEV_CHANGELOG_VERSION_MISSING")
 
     assert_includes finding.cause, "stamped 9.9.9"
     assert_includes finding.fix, "## [9.9.9]"
@@ -51,33 +51,33 @@ class MagikScriptsChangelogTest < Minitest::Test
 
   def test_an_undated_release_heading_is_reported
     assert_includes codes(GOOD.sub("## [0.0.2] - 2026-08-27", "## [0.0.2]"), "0.0.2"),
-                    "MAGIK_CHANGELOG_HEADING"
+                    "MAGIK_DEV_CHANGELOG_HEADING"
   end
 
   def test_releases_out_of_order_are_reported
     reversed = GOOD.sub("## [0.0.2] - 2026-08-27", "## [0.0.0] - 2026-08-25")
-    finding = find(reversed, "0.0.1", "MAGIK_CHANGELOG_ORDER")
+    finding = find(reversed, "0.0.1", "MAGIK_DEV_CHANGELOG_ORDER")
 
     assert_includes finding.cause, "newest-first"
   end
 
   def test_a_heading_with_no_link_definition_is_reported
     finding = find(GOOD.sub("[0.0.1]: https://example.test/v0.0.1\n", ""), "0.0.2",
-                   "MAGIK_CHANGELOG_LINK_MISSING")
+                   "MAGIK_DEV_CHANGELOG_LINK_MISSING")
 
     assert_includes finding.cause, "[0.0.1]"
   end
 
   def test_a_subsection_that_is_not_a_change_type_is_reported
     finding = find(GOOD.sub("### Added", "### Improvements"), "0.0.2",
-                   "MAGIK_CHANGELOG_UNKNOWN_SECTION")
+                   "MAGIK_DEV_CHANGELOG_UNKNOWN_SECTION")
 
     assert_includes finding.fix, "Added, Changed"
   end
 
   def test_a_page_that_does_not_declare_its_format_is_reported
     assert_includes codes(GOOD.sub(/\[Keep a Changelog\]\([^)]*\)/, "Keep a Changelog"), "0.0.2"),
-                    "MAGIK_CHANGELOG_FORMAT_UNDECLARED"
+                    "MAGIK_DEV_CHANGELOG_FORMAT_UNDECLARED"
   end
 
   def test_notes_is_accepted_alongside_the_six_keep_a_changelog_types

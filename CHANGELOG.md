@@ -99,10 +99,11 @@ the repository being brought back into agreement with it.
 - **[`scripts/checks/error_codes.rb`](scripts/checks/error_codes.rb) now validates the reserved
   catalogue too**, not only the eight implemented classes: every code in the `Code` column of
   `wiki/Error-Codes.md` and `docs/idea/03-guardrails.md` must use a token from the closed set
-  (`MAGIK_ERROR_CODE_UNKNOWN_SUBSYSTEM`), carry a condition (`MAGIK_ERROR_CODE_MALFORMED`), not
-  restate a condition another code already names (`MAGIK_ERROR_CODE_NEAR_DUPLICATE`), not revive a
-  retired spelling (`MAGIK_ERROR_CODE_RETIRED_SPELLING`), and — for every guardrail on the spec page —
-  appear in the manual (`MAGIK_ERROR_CODE_UNCATALOGUED`). `MAGIK_ERROR_CODE_ROOT_MISCLAIMED` holds the
+  (`MAGIK_DEV_ERROR_CODE_UNKNOWN_SUBSYSTEM`), carry a condition
+  (`MAGIK_DEV_ERROR_CODE_MALFORMED`), not restate a condition another code already names
+  (`MAGIK_DEV_ERROR_CODE_NEAR_DUPLICATE`), not revive a retired spelling
+  (`MAGIK_DEV_ERROR_CODE_RETIRED_SPELLING`), and — for every guardrail on the spec page — appear in
+  the manual (`MAGIK_DEV_ERROR_CODE_UNCATALOGUED`). `MAGIK_DEV_ERROR_CODE_ROOT_MISCLAIMED` holds the
   root-code rule over `lib/`.
 - **`MAGIK_HARNESS_STALE` and `MAGIK_HARNESS_MARKERS_MISSING` are now `MAGIK_CLI_HARNESS_STALE` and
   `MAGIK_CLI_HARNESS_MARKERS_MISSING`.** `HARNESS` was never a subsystem, and both names were
@@ -116,9 +117,40 @@ the repository being brought back into agreement with it.
   are documented in
   [`docs/architecture/03-error-codes.md`](docs/architecture/03-error-codes.md#the-dev-namespace-codes-that-never-reach-an-app),
   and `scripts/checks/error_codes.rb` now scans `bin/` as a third corpus —
-  `MAGIK_ERROR_CODE_DEV_MALFORMED` for a code outside the token, `MAGIK_ERROR_CODE_DEV_UNFIXABLE`
-  for one printed with no `fix:`. It matches the `CODE: cause` rendering rather than the prefix, so
-  the `MAGIK_YARD_MIN_COVERAGE` and `MAGIK_DOCS_ROOT` environment variables stay what they are.
+  `MAGIK_DEV_ERROR_CODE_BIN_MALFORMED` for a code outside the token,
+  `MAGIK_DEV_ERROR_CODE_BIN_UNFIXABLE` for one printed with no `fix:`. It matches the `CODE: cause`
+  rendering rather than the prefix, so the `MAGIK_YARD_MIN_COVERAGE` and `MAGIK_DOCS_ROOT`
+  environment variables stay what they are.
+- **Every finding the repository's own checks emit is now `MAGIK_DEV_*` too, and one rule covers the
+  whole prefix.** The check findings were a *fourth* `MAGIK_` namespace that nothing validated,
+  spelled with seven tokens nothing had blessed — `MANIFEST`, `CHANGELOG`, `VERSION`, `SPEC`,
+  `DUMMY`, `DOC`, `ERROR_CODE`. All 40 were renamed: `MAGIK_MANIFEST_DRIFT` →
+  `MAGIK_DEV_MANIFEST_DRIFT`, `MAGIK_CHANGELOG_HEADING` → `MAGIK_DEV_CHANGELOG_HEADING`,
+  `MAGIK_BOUNDARY_TIER` → `MAGIK_DEV_BOUNDARY_TIER`, `MAGIK_ERROR_CODE_MALFORMED` →
+  `MAGIK_DEV_ERROR_CODE_MALFORMED`, and so on through
+  [`scripts/checks/`](scripts/checks) and `Check#nothing_scanned`. The alternative — blessing seven
+  more tokens — dilutes a closed set of *framework* tokens with repository-internal concerns and
+  leaves four namespaces under three rules. Folding them in leaves one, statable in a line: **a
+  `MAGIK_` code is either a framework code, whose token comes from the closed set and which an app
+  author can hit, or a repo-internal code under `MAGIK_DEV_*`, emitted by this repository's own
+  scripts and checks, which ships to nobody. There is no third kind.** Nobody outside this
+  repository could ever have matched on one, so nothing breaks; on a red gate the `DEV_` is signal,
+  because it says *this is about the repository, not about your app*.
+  `MAGIK_BOUNDARY_TIER` and `MAGIK_BOUNDARY_INTERNAL_REQUIRE` stay in the seed catalogue as the
+  **framework** codes `magik check` will raise inside an application — one name each, neither
+  borrowing the other's.
+- **[`scripts/checks/error_codes.rb`](scripts/checks/error_codes.rb) gained a fourth corpus** so the
+  new rule is enforced rather than promised: it reads every `Finding.new(code: ...)` under
+  `scripts/`, resolving a `NAME = "MAGIK_DEV_..."` constant against the file that declares it, and
+  raises `MAGIK_DEV_ERROR_CODE_FINDING_MALFORMED` for a code outside `MAGIK_DEV_<CONDITION>`,
+  `MAGIK_DEV_ERROR_CODE_FINDING_FRAMEWORK_TOKEN` for one claiming a closed-set token — the mistake
+  that reads as correct — `MAGIK_DEV_ERROR_CODE_FINDING_UNFIXABLE` for a finding built with no
+  `fix:`, `MAGIK_DEV_ERROR_CODE_FINDING_UNRESOLVED` for a `code:` argument it cannot read rather
+  than a silent skip, and `MAGIK_DEV_ERROR_FIX_ADVICE` from the one shared phrase list, so the four
+  corpora cannot disagree about what counts as advice. A fifth rule runs from the catalogue side:
+  `MAGIK_DEV_ERROR_CODE_PUBLISHED` refuses a repo-internal code written into
+  [`wiki/Error-Codes.md`](wiki/Error-Codes.md) or `docs/idea/03-guardrails.md`, which an app author
+  reads and can never reach.
 
 ### Notes
 

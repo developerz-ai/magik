@@ -29,7 +29,7 @@ for check in scripts/checks/*.rb; do ruby "$check"; done
 | Check | What it catches |
 |---|---|
 | [`boundaries`](checks/boundaries.rb) | a `require` or constant reference inside `lib/magik/` that goes sideways or up a tier, one that reaches past another subsystem's front door, and a document whose `tier N` block no longer matches [`lib/tiers.rb`](lib/tiers.rb) |
-| [`error-codes`](checks/error_codes.rb) | a `Magik::Error` subclass with a malformed code, an inherited code, a duplicate code or a `fix:` that is advice; drift in **both** directions between the shipped codes and [`../wiki/Error-Codes.md`](../wiki/Error-Codes.md)'s "Live today" table; a reserved name in either catalogue outside `MAGIK_<SUBSYSTEM>_<CONDITION>`; and a `MAGIK_DEV_*` code in `bin/` that is misspelled or printed with no `fix:` |
+| [`error-codes`](checks/error_codes.rb) | a `Magik::Error` subclass with a malformed code, an inherited code, a duplicate code or a `fix:` that is advice; drift in **both** directions between the shipped codes and [`../wiki/Error-Codes.md`](../wiki/Error-Codes.md)'s "Live today" table; a reserved name in either catalogue outside `MAGIK_<SUBSYSTEM>_<CONDITION>`, or a repo-internal `MAGIK_DEV_*` code written into one; a `MAGIK_DEV_*` code in `bin/` that is misspelled or printed with no `fix:`; and a finding **this directory** emits that claims a framework token instead of `MAGIK_DEV_*` |
 | [`spec-only-drift`](checks/spec_only_drift.rb) | a subsystem in `Magik::SPEC_ONLY_SUBSYSTEMS` whose `.define` no longer raises `NotImplementedError`, one outside the list that still does, and a `STATUS` constant that disagrees with either |
 | [`doc-commands`](checks/doc_commands.rb) | a shell command in a fenced block in `README.md`, `CLAUDE.md`, `CONTRIBUTING.md` or `wiki/` that this repo does not provide — a missing `bin/` script, an undefined rake task, a `magik` subcommand absent from `Magik::CLI::COMMANDS`, or a `/slash-command` with no file behind it |
 | [`changelog`](checks/changelog.rb) | `CHANGELOG.md` losing its `[Unreleased]` section, never gaining one for `Magik::VERSION`, an undated or unlinked release heading, releases out of order, or a `###` that is not a Keep a Changelog change type |
@@ -113,16 +113,32 @@ A finding is the shape [`../docs/architecture/03-error-codes.md`](../docs/archit
 prescribes — `code`, `cause`, `fix`, `at`:
 
 ```text
-  MAGIK_BOUNDARY_TIER (lib/magik/model.rb:4)
+  MAGIK_DEV_BOUNDARY_TIER (lib/magik/model.rb:4)
     cause: model (tier 2) requires action (tier 3); dependencies go down a tier only
     fix:   delete the dependency at lib/magik/model.rb:4 — model may use: core, i18n, router, schema
 ```
 
-`code` is a `MAGIK_*` name in the format the framework uses. These are **check-stage** codes: they
-are not `Magik::Error` subclasses and they are not in `wiki/Error-Codes.md`'s live table, because
-nothing in `lib/` raises them. They belong to the `check` subsystem, which is spec only. They use
-the framework's format so that when `lib/magik/check/errors.rb` is written, the catalogue entries
-already exist under the names people have been reading.
+`code` is always `MAGIK_DEV_*`, and that is the whole rule:
+
+> A `MAGIK_` code is either a **framework** code, whose token comes from the closed set and which an
+> app author can hit — or a **repo-internal** code under `MAGIK_DEV_*`, emitted by this repository's
+> own scripts and checks, which ships to nobody. There is no third kind.
+
+A finding is the second kind. It is not a `Magik::Error` subclass, it is not in
+`wiki/Error-Codes.md` — nobody outside this checkout can run a check — and it shares the token with
+the `MAGIK_DEV_*` refusals `bin/setup` and `bin/rake` print, because it has exactly their audience:
+a contributor or an agent working in this repository. The `DEV_` you read off a red gate is signal.
+It says *this is about the repository, not about your app*.
+
+`scripts/checks/error_codes.rb` enforces that over this directory the same way it enforces the
+closed token set over `wiki/Error-Codes.md`: it reads every `Finding.new(code: ...)` under
+`scripts/`, resolving a `NAME = "MAGIK_DEV_..."` constant against the file that declares it, and
+refuses a code outside `MAGIK_DEV_<CONDITION>` — hardest of all one that claims a **framework**
+token, because that is the mistake that reads as correct
+([`../docs/architecture/03-error-codes.md`](../docs/architecture/03-error-codes.md#the-dev-namespace-codes-that-never-reach-an-app)).
+The reserved framework names stay reserved: `MAGIK_BOUNDARY_TIER` is what `magik check` will raise
+in somebody's application, and `MAGIK_DEV_BOUNDARY_TIER` is what this repository raises about
+itself.
 
 `cause` names real identifiers and says what the consequence is. `fix` is a command to run or an
 edit naming a file — never advice, and never with an angle-bracket placeholder in it, because a fix

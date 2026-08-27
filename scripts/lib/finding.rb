@@ -5,12 +5,17 @@ module MagikScripts
   # a stable code, a cause naming real identifiers, a runnable fix, and the
   # place to go and edit.
   #
-  # These are **check-stage** codes. They are not `Magik::Error` subclasses and
-  # they are not in `wiki/Error-Codes.md`'s live table, because nothing in
-  # `lib/` raises them — they belong to the `check` subsystem, which is spec
-  # only (`docs/architecture/01-module-map.md`). They use the framework's code
-  # format on purpose, so that when `lib/magik/check/errors.rb` is written the
-  # catalogue entries already exist and keep their names.
+  # These are **repo-internal** codes, and every one of them is `MAGIK_DEV_*`.
+  # A `MAGIK_` code is either a framework code, whose token comes from the
+  # closed set and which an app author can hit — or a repo-internal one, which
+  # this repository's own scripts and checks emit and which ships to nobody.
+  # There is no third kind (`docs/architecture/03-error-codes.md`).
+  #
+  # So a finding is deliberately **not** in `wiki/Error-Codes.md`: that page is
+  # the app author's manual, and nobody outside this checkout can run a check.
+  # The `DEV_` in front of a code on a gate's output is signal — it says *this
+  # is about the repository, not about your app*.
+  # {MagikScripts::Checks::FindingCodes} holds every code below to that rule.
   #
   # @see MagikScripts::Result
   Finding = Struct.new(:code, :cause, :fix, :at, keyword_init: true) do
