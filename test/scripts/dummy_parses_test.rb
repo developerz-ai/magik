@@ -7,14 +7,14 @@ class MagikScriptsDummyParsesTest < Minitest::Test
   DummyParses = MagikScripts::Checks::DummyParses
 
   def test_broken_ruby_is_reported_with_the_parser_s_own_message
-    message = DummyParses.parse_error("def broken(\n", "dummy/app/models/x.rb")
+    message = DummyParses.parse_error("def broken(\n", "dummy/app/models/magik_example.rb")
 
     refute_nil message
-    finding = DummyParses.finding("dummy/app/models/x.rb", message)
+    finding = DummyParses.finding("dummy/app/models/magik_example.rb", message)
 
     assert_equal "MAGIK_DUMMY_PARSE_ERROR", finding.code
-    assert_equal "dummy/app/models/x.rb", finding.at
-    assert_includes finding.fix, "ruby -c dummy/app/models/x.rb"
+    assert_equal "dummy/app/models/magik_example.rb", finding.at
+    assert_includes finding.fix, "ruby -c dummy/app/models/magik_example.rb"
   end
 
   def test_valid_ruby_is_silent
@@ -22,7 +22,56 @@ class MagikScriptsDummyParsesTest < Minitest::Test
   end
 
   def test_an_undefined_dsl_method_is_not_a_parse_error
-    assert_nil DummyParses.parse_error("screen :Dashboard do\n  live :orders\nend\n", "dummy/x.rb")
+    assert_nil DummyParses.parse_error("screen :Dashboard do\n  live :orders\nend\n",
+                                       "dummy/app/models/magik_example.rb")
+  end
+
+  # The three tests above run whichever branch of `parse_error` this engine has.
+  # These run the OTHER one on purpose.
+  #
+  # `parse_error` compiles in-process on CRuby and shells out everywhere else,
+  # and TruffleRuby -- the production runtime -- is everywhere else. That branch
+  # therefore never executes on a contributor's laptop, and it shipped with a
+  # real bug: it ignored the `source` it was handed and re-read `path` from
+  # disk, so a caller passing a string with a label that is on nobody's disk got
+  # `No such file or directory` reported as a syntax error. Only
+  # `truffleruby-head` in CI was red, and only for one of the three.
+  #
+  # A branch that only one engine runs needs a test that every engine runs.
+  def test_the_shell_branch_parses_the_source_it_is_given_not_the_path
+    # A path that is deliberately on nobody's disk. The source is valid, so the
+    # answer is nil -- reading the path would raise LoadError instead.
+    assert_nil DummyParses.shell_parse_error("screen :Dashboard do\n  live :orders\nend\n",
+                                             "dummy/app/models/magik_example.rb")
+  end
+
+  def test_the_shell_branch_reports_the_real_path_not_the_temporary_one
+    message = DummyParses.shell_parse_error("def broken(\n", "dummy/app/models/magik_example.rb")
+
+    refute_nil message
+    assert_includes message, "dummy/app/models/magik_example.rb"
+    refute_includes message, "magik-parse"
+  end
+
+  # Both branches answer the same question about the same bytes. This is the
+  # property that made the bug invisible: they only agree when the caller's
+  # `source` happens to be what is at `path`, which is true in production use
+  # and false in every unit test.
+  def test_both_branches_agree_on_valid_and_on_broken_source
+    valid  = "model :Invoice do\nend\n"
+    broken = "def broken(\n"
+
+    assert_nil DummyParses.parse_error(valid, "dummy/app/models/invoice.rb")
+    assert_nil DummyParses.shell_parse_error(valid, "dummy/app/models/invoice.rb")
+
+    refute_nil DummyParses.parse_error(broken, "dummy/app/models/magik_example.rb")
+    refute_nil DummyParses.shell_parse_error(broken, "dummy/app/models/magik_example.rb")
+
+    # Not merely "both report something" -- the SAME something. A reader should
+    # not be able to tell which engine produced a finding, and a `fix:` line is
+    # only stable if the message above it is.
+    assert_equal DummyParses.parse_error(broken, "dummy/app/models/magik_example.rb"),
+                 DummyParses.shell_parse_error(broken, "dummy/app/models/magik_example.rb")
   end
 
   def test_the_check_walks_dummy_which_every_other_check_skips

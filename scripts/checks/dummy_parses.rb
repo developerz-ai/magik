@@ -27,6 +27,7 @@
 
 require "English"
 require "stringio"
+require "tempfile"
 
 require_relative "../lib/scripts"
 
@@ -49,7 +50,7 @@ module MagikScripts
       # @param path [String] its root-relative path, for the message
       # @return [String, nil] the parse error, or nil when it compiles
       def self.parse_error(source, path)
-        return shell_parse_error(path) unless defined?(RubyVM::InstructionSequence)
+        return shell_parse_error(source, path) unless defined?(RubyVM::InstructionSequence)
 
         quietly { RubyVM::InstructionSequence.compile(source, path) }
         nil
@@ -57,11 +58,44 @@ module MagikScripts
         e.message.to_s.lines.first.to_s.strip
       end
 
-      # @param path [String] a root-relative path
-      # @return [String, nil]
-      def self.shell_parse_error(path)
-        out = IO.popen(["ruby", "-c", Repo.path(path).to_s], err: %i[child out], &:read)
-        $CHILD_STATUS&.success? ? nil : out.to_s.lines.first.to_s.strip
+      # Parse `source` by shelling out, for engines with no
+      # `RubyVM::InstructionSequence` — which is every engine that matters here,
+      # because TruffleRuby is the production runtime and does not have it.
+      #
+      # THE SOURCE IS WRITTEN TO A TEMPORARY FILE rather than `ruby -c` being
+      # pointed at `path`, and that is the whole point of this method. `path` is
+      # a LABEL for the message, not necessarily a file: a caller may hand this
+      # a string that is on nobody's disk. Reading the path instead would make
+      # the two engines answer different questions about different bytes, and
+      # would report `No such file or directory` as though it were a syntax
+      # error. CI caught exactly that on `truffleruby-head` and nowhere else,
+      # which is the argument for the engine being in the matrix at all.
+      #
+      # @param source [String] the file's contents — this is what gets parsed
+      # @param path [String] its root-relative path, used only in the message
+      # @return [String, nil] the parse error, or nil when it compiles
+      # @example
+      #   MagikScripts::Checks::DummyParses.shell_parse_error("def broken(\n", "dummy/app/models/magik_example.rb")
+      #   # => "dummy/app/models/magik_example.rb:1: syntax error, unexpected end-of-input, expecting ')'"
+      def self.shell_parse_error(source, path)
+        Tempfile.create(["magik-parse", ".rb"]) do |file|
+          file.write(source)
+          file.close
+
+          out = IO.popen(["ruby", "-c", file.path], err: %i[child out], &:read)
+          return nil if $CHILD_STATUS&.success?
+
+          # The parser names the temporary file; the reader needs the real path.
+          # `gsub`, not `sub`: ruby -c prints the name twice -- `<file>: <file>:
+          # <line>: message` -- and replacing only the first leaves a /tmp path
+          # in a message whose whole job is to tell someone which file to open.
+          # Then collapse the doubled prefix, so this branch and the in-process
+          # one report the same shape and a diff of their output is empty.
+          out.to_s.lines.first.to_s.strip
+             .gsub(file.path, path)
+             .sub(/\A#{Regexp.escape(path)}:\s+(?=#{Regexp.escape(path)}:)/, "")
+             .sub(/\s+\(SyntaxError\)\z/, "")
+        end
       end
 
       # Run a block with warnings silenced. Compiling emits `warning: assigned
