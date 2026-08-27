@@ -40,6 +40,7 @@ module Magik
     render: :Render,
     action: :Action,
     router: :Router,
+    policy: :Policy,
     realtime: :Realtime,
     jobs: :Jobs,
     ledger: :Ledger,

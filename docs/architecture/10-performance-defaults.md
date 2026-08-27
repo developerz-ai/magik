@@ -26,7 +26,9 @@ The complete classification is the [summary table](#the-classification-in-one-ta
 
 ## The stack these defaults are specific to
 
-**TruffleRuby · Falcon · Sequel · Postgres · htmx.** Half the published Ruby performance advice is about a different stack, and applying it here would be worse than applying nothing.
+**TruffleRuby · Puma · Sequel · Postgres · htmx.** Half the published Ruby performance advice is about a different stack, and applying it here would be worse than applying nothing.
+
+This page said *Falcon* until 2026-08-26, when the runtime was actually measured: TruffleRuby implements no fiber scheduler, `async` raises on its first block, and Falcon cannot boot there. The server is Puma, threads are the concurrency primitive, and they run genuinely in parallel because TruffleRuby has no GVL — [`12-runtime-verification.md`](12-runtime-verification.md).
 
 ### What does not apply here
 
@@ -38,9 +40,9 @@ CRuby-specific techniques, named so nobody wastes an afternoon:
 | **jemalloc, `MALLOC_ARENA_MAX`** | glibc-malloc tuning aimed at CRuby's heap behaviour. TruffleRuby Native uses Native Image's garbage collector, and TruffleRuby on the JVM uses the JVM heap; neither routes Ruby object allocation through libc malloc. *No upstream TruffleRuby sentence says this — it is an inference from how the runtime is built, not a quote* |
 | **`RUBY_GC_*` environment variables** | CRuby's GC tuning surface. TruffleRuby's memory guidance is `--jvm` vs native and the JVM/Native Image heap settings ([deploying.md](https://github.com/oracle/truffleruby/blob/master/doc/user/deploying.md)) |
 | **Bootsnap** | caches CRuby bytecode via `RubyVM::InstructionSequence`, which is CRuby-specific |
-| **GVL-shaped thread-pool arithmetic** | TruffleRuby's README states it "does not have a global interpreter lock and runs both Ruby code and thread-safe native extensions in parallel" ([README](https://github.com/oracle/truffleruby/blob/master/README.md)). The reasoning that produces "5 threads per Puma worker" does not transfer |
+| **GVL-shaped thread-pool arithmetic** | TruffleRuby's README states it "does not have a global interpreter lock and runs both Ruby code and thread-safe native extensions in parallel" ([README](https://github.com/oracle/truffleruby/blob/master/README.md)). The reasoning that produces "5 threads per Puma worker" — thread count as a hedge against a lock — does not transfer. Magik does run Puma; it does not inherit Puma's GVL-shaped arithmetic ([§2.1](#21-connection-pooling-under-a-thread-pool--baked-in)) |
 
-`As of 2026-08-26`. TruffleRuby-specific behaviour is verified in CI, never on a laptop — the local development machine runs CRuby ([`../idea/01-thesis.md`](../idea/01-thesis.md)).
+`As of 2026-08-26`. TruffleRuby-specific behaviour is verified by [`scripts/probes/runtime.rb`](../../scripts/probes/runtime.rb) and in CI, never asserted from a laptop's CRuby ([`12-runtime-verification.md`](12-runtime-verification.md)).
 
 ---
 
@@ -108,11 +110,11 @@ end
 
 Almost all real SaaS slowness is here. The sections below are ordered by how often they are the answer.
 
-### 2.1 Connection pooling under a fiber server — baked in
+### 2.1 Connection pooling under a thread pool — baked in
 
-Falcon's arithmetic is not Puma's arithmetic, and getting this wrong is a correctness bug rather than a slow page.
+**Corrected 2026-08-26.** This section previously did fiber-per-request arithmetic and made `Sequel.extension :fiber_concurrency` a baked-in correctness requirement. Both rested on Falcon, and Falcon cannot boot on TruffleRuby — no fiber scheduler, `async` raises immediately ([`12-runtime-verification.md`](12-runtime-verification.md)). The server is Puma, the concurrency primitive is a thread, and the arithmetic below is the thread arithmetic. It was flagged on this page as its own largest open question; the measurement is in, and most of it is now settled.
 
-**The mechanism.** Sequel's connection pool keys checked-out connections on `Sequel.current`, whose definition in `lib/sequel/core.rb` is:
+**The mechanism, unchanged.** Sequel's connection pool keys checked-out connections on `Sequel.current`, whose definition in `lib/sequel/core.rb` is:
 
 ```ruby
 # The current concurrency primitive, Thread.current by default.
@@ -123,42 +125,51 @@ end
 
 and whose pool comments describe `@allocated` as "a hash with thread/fiber keys and connection values for currently allocated connections" ([threaded.rb](https://github.com/jeremyevans/sequel/blob/master/lib/sequel/connection_pool/threaded.rb)). `hold` short-circuits on `owned_connection(Sequel.current)` — re-entrant checkout is keyed on the concurrency primitive.
 
-Falcon runs **one fiber per request**: it self-describes as "a multi-process, multi-fiber rack-compatible HTTP server" where "each request is executed within a lightweight fiber and can block on up-stream requests without stalling the entire server process" ([Falcon README](https://github.com/socketry/falcon)). Many fibers share one thread.
+Puma runs **one thread per in-flight request**, from a bounded pool. One request, one thread, one `Thread.current` — so Sequel's **default** keying is already the correct keying, and the pool hands each concurrent request its own connection.
 
-Put those together with the default `Sequel.current`: fiber A checks out connection C, yields on I/O, and fiber B on the same thread asks for a connection — and `owned_connection(Thread.current)` hands it C. Two requests, one connection, interleaved. *(The step-by-step failure is read off Sequel's source rather than quoted from an upstream issue; the conclusion that it must be fixed is not in doubt.)*
+**What changed, concretely:**
 
-**The fix is one line, and Magik applies it before `Sequel.connect`:**
-
-```ruby
-Sequel.extension :fiber_concurrency
-```
-
-Sequel documents it as changing "the default concurrency primitive in Sequel to be `Fiber.current` instead of `Thread.current` … (thread-safe concurrency by default, fiber-safe concurrency with this extension)" ([fiber_concurrency.rb](https://github.com/jeremyevans/sequel/blob/master/lib/sequel/extensions/fiber_concurrency.rb); added in Sequel 5.32.0, [CHANGELOG](https://github.com/jeremyevans/sequel/blob/master/CHANGELOG)).
-
-**Not switchable.** There is no legitimate reason to want thread-keyed checkout under a fiber-per-request server.
-
-**The arithmetic changes with it.**
-
-| | Threads-per-request (Puma) | Fibers-per-request (Falcon) |
+| | Before (Falcon assumed) | Now (measured) |
 |---|---|---|
-| Concurrency ceiling | threads × processes — a number you chose | unbounded fibers. Falcon's documented backpressure lever is the file-descriptor limit, not a fiber cap ([performance tuning](https://socketry.github.io/falcon/guides/performance-tuning/index.html)) |
-| Pool size rule | `pool = threads`. It *derives* from the server | `pool` derives from nothing. **It is the concurrency limit you are choosing for database work**, and there is no other one |
-| Overload looks like | requests queue on the thread pool | requests queue on the connection pool, then raise `Sequel::PoolTimeout` after `:pool_timeout` (Sequel default 5s) |
-| Connections the DB sees | threads × processes × hosts | `max_connections` × processes × hosts |
+| Requests run on | fibers, many per thread | threads, one per request |
+| `Sequel.current` must be | `Fiber.current`, via `Sequel.extension :fiber_concurrency` | **`Thread.current` — the default. No extension.** |
+| Failure mode if wrong | two requests sharing one connection, interleaved, silently corrupt | not reachable: the default keying matches the runtime |
 
-Sequel's defaults are `:max_connections` 4 and `:pool_timeout` 5 seconds ([opening databases](https://sequel.jeremyevans.net/rdoc/files/doc/opening_databases_rdoc.html)); on Ruby ≥ 3.2 the default pool class is `:timed_queue`. Falcon's `serve` command defaults to the `:forked` container with `--count` equal to `Etc.nprocessors` ([serve.rb](https://github.com/socketry/falcon/blob/main/lib/falcon/command/serve.rb)) — so the process multiplier is the machine's core count unless someone sets it, which on a shared host is usually wrong (Falcon's own deployment guide flags this and reads `WEB_CONCURRENCY` instead).
+**`Sequel.extension :fiber_concurrency` is no longer loaded, and loading it would be a bug.** Keying checkout on `Fiber.current` under a thread-per-request server is not merely unnecessary — on TruffleRuby a fiber is an OS thread, so it buys nothing, and it breaks the re-entrant-checkout short-circuit for any code that legitimately uses a fiber inside a request. The boot check that this section used to demand — "verify `Sequel.current` resolves to a Fiber" — inverts: **`magik doctor` should assert `Sequel.current` is a `Thread`** and fail loudly if some gem has loaded the extension underneath the app.
+
+**The arithmetic, under threads.**
+
+| | Threads-per-request (Puma — Magik's model) | Fibers-per-request (Falcon — not available here) |
+|---|---|---|
+| Concurrency ceiling | `max_threads` × processes — a number you chose, and Puma enforces it | unbounded fibers, bounded by file descriptors |
+| Pool size rule | **`pool = max_threads`.** It *derives* from the server, and any other value is a mistake in one direction or the other | `pool` derives from nothing; it *is* the concurrency limit |
+| Pool smaller than threads | threads queue on the connection pool and then raise `Sequel::PoolTimeout` after `:pool_timeout` (Sequel default 5s). Looks like slowness, reports as an error | — |
+| Pool larger than threads | connections the app can never use, charged against the server's `max_connections` | — |
+| Overload looks like | requests queue on Puma's `backlog`, latency rises before anything errors | requests queue on the connection pool |
+| Connections the DB sees | `max_threads` × processes × hosts | `max_connections` × processes × hosts |
+
+Sequel's defaults are `:max_connections` 4 and `:pool_timeout` 5 seconds ([opening databases](https://sequel.jeremyevans.net/rdoc/files/doc/opening_databases_rdoc.html)); on Ruby ≥ 3.2 the default pool class is `:timed_queue`.
+
+**The process multiplier is where TruffleRuby differs from every Puma deployment guide you will read.** Puma's clustered mode forks workers, and **`fork` is not available on TruffleRuby** — `Process.respond_to?(:fork)` is `false`, measured on both builds tested ([`12-runtime-verification.md`](12-runtime-verification.md)). So:
+
+| | |
+|---|---|
+| Puma mode | **single mode.** One process, one thread pool. `workers N` is not available on the production runtime |
+| How you get more processes | run more containers. That is the ops story already ([`../ops/README.md`](../ops/README.md)): stateless app servers behind a load balancer |
+| Why this is tolerable rather than a wound | the reason clustered mode exists is the GVL — one process cannot use more than one core. TruffleRuby has no GVL, and threads there were measured at 2.4–3.5× on 4 threads. One process *can* use the cores |
+| What is still unmeasured | whether one Puma process on TruffleRuby holds enough concurrent connections to make that true in production. Named as owed work in [`12-runtime-verification.md`](12-runtime-verification.md) |
 
 **Magik's default: the pool is a declared ceiling, and the total is checked, not assumed.**
 
 ```ruby
 App.define :Shop do
   database url: ENV.fetch("DATABASE_URL"),
-           pool: 8,                     # in-flight queries per process
-           pool_timeout: 5              # seconds a fiber waits for a connection
+           pool: 8,                     # in-flight queries per process; = Puma max_threads
+           pool_timeout: 5              # seconds a request thread waits for a connection
 end
 ```
 
-`magik doctor` reads `max_connections` and `superuser_reserved_connections` from the server and reports the arithmetic:
+`magik doctor` reads `max_connections` and `superuser_reserved_connections` from the server and reports the arithmetic — and, under threads, that `pool` and Puma's `max_threads` agree:
 
 ```
 pool 8 × web 4 + pool 4 × workers 2 + 4 realtime LISTEN = 44 of 100 max_connections
@@ -369,7 +380,7 @@ The third one is the interesting one, because it is the only one of the four in 
 
 ### 5.1 Compression — default on, switchable
 
-**Falcon does not compress responses.** Its Rack adapter has no `content-encoding` handling and the docs never mention compression; the compression primitive exists in the stack (`Protocol::HTTP::Body::Deflate`, with `GZIP` and `DEFLATE` encodings) but is used mainly on the *client* side of `async-http`. So compression is `Rack::Deflater` in Magik's middleware stack, on by default for text responses.
+**Puma does not compress responses.** It is an HTTP server, not a middleware stack, and compression is not among its responsibilities. So compression is `Rack::Deflater` in Magik's middleware stack, on by default for text responses — which is where it would have had to live under any server. *(This paragraph previously argued the same conclusion from Falcon's Rack adapter; the server changed, the conclusion did not.)*
 
 `Rack::Deflater`'s own documented option matters here: `:sync` "determines if the stream is going to be flushed after every chunk. Flushing after every chunk reduces latency for time-sensitive streaming applications, but hurts compression and throughput. Defaults to `true`" ([deflater.rb](https://github.com/rack/rack/blob/main/lib/rack/deflater.rb)). Magik sets `sync: false` for ordinary buffered responses and leaves it `true` for streamed ones, because the default is tuned for streaming and most responses are not streams.
 
@@ -427,9 +438,11 @@ MDN's own realism is worth carrying: "the cache removes old entries when new ent
 
 ### 5.6 Connections
 
-Falcon "supports HTTP/1 and HTTP/2 natively" ([README](https://github.com/socketry/falcon)) and its default `serve` bind is `https://localhost:9292`, so HTTP/2 is negotiated over TLS via ALPN by default. Cleartext h2c works by connection-preface detection, but there is no `Upgrade: h2c` negotiation — which matters when a load balancer speaks HTTP/1.1 to the app, and Falcon's deployment guide's own advice there is to pin `protocol: Async::HTTP::Protocol::HTTP11`. HTTP/1.1 keep-alive is the default in `async-http`; each held-open connection costs a fiber and a file descriptor, which is why Falcon's documented tuning lever is `ulimit -n`.
+**Puma speaks HTTP/1.1 only.** There is no HTTP/2 and no HTTP/3 from the app process, so h2 and h3 — if wanted — terminate at the load balancer or reverse proxy in front of it, which is the topology [`../ops/README.md`](../ops/README.md) already describes. This is a real loss against Falcon, which does speak HTTP/2 natively, and it is a cost the runtime measurement imposed rather than one anybody chose.
 
-**Falcon has no built-in static-file handler and its docs offer no static-asset guidance.** Magik serves assets from the app process in development and expects a CDN or a reverse proxy in production. *That is Magik's stance, not an upstream Falcon recommendation.*
+HTTP/1.1 keep-alive is the operative concern instead: **a held-open connection under Puma occupies a pool thread while it is being served, and a file descriptor for as long as it is held.** Under Falcon it would have cost a fiber. That difference is the whole of the open realtime question in [`12-runtime-verification.md`](12-runtime-verification.md), and until it is measured this page states no connection ceiling. The tuning levers are Puma's `max_threads` and `ulimit -n`, and neither has a recommended value here because none has been derived from a measurement.
+
+**Static assets are served from the app process in development and expected to come from a CDN or a reverse proxy in production.** Puma can serve files, but a Ruby thread copying bytes is a thread not serving a request. *That is Magik's stance, not an upstream recommendation.*
 
 ---
 
@@ -667,7 +680,8 @@ Everything else on this page has a command rather than a number:
 | Did that index get used? | `magik explain query <Scope>` |
 | Where did this request go? | the request trace, `--json` |
 | Is anything unscoped, unbounded, or unindexed? | `magik check --scale --json` |
-| Does Falcon actually run concurrently on TruffleRuby? | **unresolved** — see below |
+| Do threads actually run in parallel on TruffleRuby? | `ruby scripts/probes/runtime.rb` on each engine — **answered 2026-08-26**, [`12-runtime-verification.md`](12-runtime-verification.md) |
+| How many idle realtime connections does one Puma process hold there? | **unresolved** — the measurement is specified in [`12-runtime-verification.md`](12-runtime-verification.md) and has not been run |
 
 ---
 
@@ -722,7 +736,7 @@ Every default on this page, sorted by the rule in [The rule that sorts this page
 | # | Default | Reversal test it fails |
 |---|---|---|
 | 1 | One serialization front door; the codec mode is pinned; no `mimic_JSON` | a codec named at every call site cannot be swapped later; `:object` mode is not interchange JSON |
-| 2 | `Sequel.extension :fiber_concurrency` before connect | thread-keyed checkout under a fiber server is a correctness bug, not a slower option |
+| 2 | `pool` equals Puma's `max_threads`, and `Sequel.current` stays `Thread.current` | one request, one thread, one connection. A pool that disagrees with the thread count is wrong in one direction or the other (§2.1) |
 | 3 | Bound parameters everywhere (`pg_auto_parameterize`) | literalised SQL is an injection surface and defeats plan reuse. No legitimate slow version |
 | 4 | All four Postgres timeouts have a non-zero value | `0` means an unbounded query can hold a connection until someone notices |
 | 5 | Column projection from the declaration | `SELECT *` is what an agent writes if the framework makes it easiest |
@@ -780,7 +794,7 @@ The bar, so it stays a design document rather than a tips list:
 
 | Test | Question |
 |---|---|
-| Specific to this stack | is it true on TruffleRuby + Falcon + Sequel + Postgres, or is it CRuby folklore? Say which |
+| Specific to this stack | is it true on TruffleRuby + Puma + Sequel + Postgres, or is it CRuby folklore? Say which |
 | Sorted by reversal | is it baked in, switchable, or opt-in — and does the answer survive the test in [the rule](#the-rule-that-sorts-this-page)? |
 | Honest about cost | what does it make worse? A default with no stated cost has not been thought through |
 | Measurable | what command re-derives it? A default nobody can verify is a preference |

@@ -4,7 +4,9 @@ Every construct in the Magik grammar, in its intended Ruby shape, grouped by the
 
 **Status:** spec only — every construct on this page is `planned`. No DSL method exists in `lib/`; the code blocks are design targets an implementer works from, not transcripts. Reviewed 2026-08-26.
 
-A final section, [Proposed — not in the build spec](#proposed--not-in-the-build-spec), drafts constructs the coverage audit ([`10-saas-coverage.md`](10-saas-coverage.md)) argues are missing. Those are `proposed`, not `planned`: they are design arguments awaiting a decision, and nothing above that divider depends on them.
+A final section, [Proposed — not in the build spec](#proposed--not-in-the-build-spec), drafts constructs the coverage audit ([`10-saas-coverage.md`](10-saas-coverage.md)) argues are missing. Those were `proposed`, not `planned`: design arguments awaiting a decision. **See the dated note at that divider — several of them were accepted into the spec on 2026-08-26.**
+
+**Spellings, `As of 2026-08-26`.** [`00-build-spec.md`](00-build-spec.md) settled four spelling inconsistencies (D1 durations, D2 preconditions, D3 field subsets, D4 uniqueness) and corrected two spellings that did not parse. This page uses the settled spellings throughout; where one supersedes an earlier one the line carries an inline `D<n>` marker. The reasoning is in that file's *DSL spelling decisions* section, not repeated here.
 
 ## The grammar
 
@@ -164,7 +166,7 @@ end
 | `magik new <app>` | scaffolds an app around a working `App.define` | planned |
 | `magik generate model\|screen\|action\|migration <Name>` | emits a declaration plus its failing test | planned |
 | `magik console` | boots the app, guardrails included, into IRB | planned |
-| `magik server` | boots and binds Falcon | planned |
+| `magik server` | boots and binds Puma ([`00-build-spec.md`](00-build-spec.md) A18 — Falcon cannot boot on TruffleRuby) | planned |
 | `magik check` | runs the guardrails with no server ([`03-guardrails.md`](03-guardrails.md)) | planned |
 
 ---
@@ -285,8 +287,8 @@ end
 ```ruby
 job :SettleBatch do
   retries times: 5, backoff: :exponential
-  schedule cron: "0 3 * * *"        # or: schedule every: "10m"
-  unique_by :tenant_id
+  schedule cron: "0 3 * * *"        # or: schedule every: "10m" — a :duration (D1)
+  idempotent_by :tenant_id          # D4: one spelling for "a repeat with this key does nothing new"
 
   perform do |args|
     Order.where(tenant_id: args[:tenant_id], status: :captured).each do |order|
@@ -315,14 +317,16 @@ ledger :Payments do
   account :refunds,    type: :contra_revenue
 
   entry :capture do |order:, amount:|
-    guard  { amount.positive? }
-    guard  { order.status == :placed }
+    guard "the amount must be positive"          do amount.positive?          end
+    guard "only a placed order may be captured"  do order.status == :placed   end
     debit  :cash,    amount
     credit :revenue, amount
   end
 
   entry :refund do |order:, amount:|
-    guard  { amount <= Payments.captured_for(order) }
+    guard "a refund cannot exceed what was captured" do
+      amount <= Payments.captured_for(order)
+    end
     debit  :refunds, amount
     credit :cash,    amount
   end
@@ -333,7 +337,7 @@ end
 |---|---|
 | Balance | every `entry`'s debits must equal its credits, proven by static analysis of the block at boot. Failing that, the app does not start. |
 | Append-only | posted entries are never updated or deleted. A correction is a reversing entry. |
-| `guard` | a precondition evaluated before any line is posted; a false guard raises and posts nothing. |
+| `guard` | a precondition evaluated before any line is posted; a false guard raises and posts nothing. It carries its own message, so the failure names the cause rather than a line number ([`00-build-spec.md`](00-build-spec.md) D2). |
 | Amounts | `:money` values only. There is no code path that accepts a float. |
 
 ### `audited` / `immutable_after` / `idempotent_by`
@@ -360,7 +364,8 @@ flow :Onboarding do
     on_submit { |params, ctx| ctx.merge(profile: params) }
   end
 
-  step :kyc, if: ->(ctx) { ctx[:country] == "US" } do
+  step :kyc do
+    skip_when { |ctx| ctx[:country] != "US" }        # D2: `skip_when` skips; `guard` refuses
     screen :OnboardingKyc
     on_submit { |params, ctx| Kyc.submit(params) and ctx }
   end
@@ -381,14 +386,22 @@ api :V1 do
   rate_limit by: :plan
 
   resource :orders, model: :Order do
-    index  filter: %i[status placed_at], sort: %i[placed_at total], per_page: 50
+    fields     :reference, :status, :total, :placed_at   # what the response carries
+    filterable :status, :placed_at
+    sortable   :placed_at, :total
+    searchable :reference
+    writable   :reference, :total, :status               # what create/update accept
+
+    index per_page: 50
     show
-    create only: %i[reference total]
-    update only: %i[status]
+    create
+    update
     destroy
   end
 end
 ```
+
+`fields`, `filterable`, `sortable`, `searchable` and `writable` are **the same five words on `admin_panel`, `data_table` and `screen`** — one vocabulary for "which fields participate", decided in [`00-build-spec.md`](00-build-spec.md) as spelling decision D3. `per_page:` stays an option because it is a scalar setting, not a field subset.
 
 Pagination, filtering and sorting are generated from the declaration. Serialization follows the model's field types — `:money` renders as minor units plus a currency, never a float.
 
@@ -434,7 +447,7 @@ Rodauth-backed. Generates the account model, migrations, screens and actions for
 
 ```ruby
 billing provider: :stripe do
-  plan :starter, price: money(2900, :usd), interval: :month, trial_days: 14
+  plan :starter, price: money(2900, :usd), interval: :month, trial: "14d"   # D1: a :duration
   plan :growth,  price: money(9900, :usd), interval: :month
   plan :usage,   metered: :api_calls, unit_price: money(2, :usd)
 
@@ -446,14 +459,18 @@ end
 ### `admin_panel`
 
 ```ruby
-admin_panel :Order do
-  list_display :reference, :status, :total, :placed_at
-  filterable   :status
-  searchable   :reference
-  read_only    :total
-  actions      :refund_order
+admin_panel :Order, policy: %i[Order administer] do
+  fields     :reference, :status, :total, :placed_at
+  filterable :status
+  searchable :reference
+  writable   :reference, :status, :placed_at     # D3: a whitelist, replacing `read_only`
+  actions    :refund_order
 end
 ```
+
+The vocabulary is `api`'s, because an `admin_panel` is a projection of the same model
+([`00-build-spec.md`](00-build-spec.md) D3). `policy:` is required — an admin panel is by
+construction the surface with the broadest data access in the application (A5, A13).
 
 ---
 
@@ -562,7 +579,7 @@ Mechanics and enforcement: [`../architecture/02-boundaries.md`](../architecture/
 
 Everything above this line is derived from [`00-build-spec.md`](00-build-spec.md). Everything below it is **not**: these are constructs the coverage audit in [`10-saas-coverage.md`](10-saas-coverage.md) argues the grammar is missing, drafted here so the shape can be reviewed as code rather than as prose.
 
-**Status:** `proposed`. Not in the spec, not agreed, not implemented. A construct here is a design argument awaiting the owner's decision, and it is not part of the surface an app author may rely on. Reviewed 2026-08-26.
+**Status, superseded 2026-08-26.** The paragraph above and the table below were written while these were open proposals. `As of 2026-08-26` the owner amended [`00-build-spec.md`](00-build-spec.md) and **accepted `policy` (phase 2), `layout` (phase 2), `attachment` (a new phase 4b), the expanded `admin_panel` (phase 7), the full `data_table` and `chart` specifications (phase 2) and the email-production extensions (phase 8)** — see amendments A5, A6, A9 and A10 in that file's changelog. They are therefore `planned`, not `proposed`, and the divider above no longer separates spec from non-spec. Everything here is still **unimplemented**, and this page has not yet been restructured to move them above the line — that reorganisation is tracked, not done. Reviewed 2026-08-26.
 
 | Construct | Would be phase | Kind | One line | Status |
 |---|---|---|---|---|
@@ -709,11 +726,11 @@ data_table :invoices, of: :Invoice do
   column t("invoices.total"),    :total, align: :end
   column t("invoices.status"),   :status, as: :badge
 
-  paginate  by: :cursor, per_page: 50           # cursor, not offset — see below
-  sortable  :placed_at, :total                  # the allowed set; anything else is a 400
+  paginate   by: :cursor, per_page: 50          # cursor, not offset — see below
+  sortable   :placed_at, :total                 # the allowed set; anything else is a 400
   searchable :number, :customer_name
-  filter    :status,     :select, values: %i[draft issued paid void]
-  filter    :placed_at,  :date_range
+  filterable :status,    :select, values: %i[draft issued paid void]
+  filterable :placed_at, :date_range
 
   row_action t("invoices.issue"), action: :issue_invoice, when: ->(i) { i.draft? }
   bulk_action t("invoices.void"), action: :void_invoice, confirm: true
@@ -760,11 +777,10 @@ Files on a model. Blocking for ecommerce and marketplaces, and absent from the g
 ```ruby
 model :Product do
   attachment :hero, :image,
-    max_size:      "10MB",
-    content_types: %w[image/jpeg image/png image/webp],   # sniffed, never trusted
-    visibility:    :public,
-    direct:        true                                   # presigned, straight to storage
-  do
+             max_size:      "10MB",
+             visibility:    :public,                      # signed URLs not required
+             direct:        true,                         # presigned, straight to storage
+             content_types: %w[image/jpeg image/png image/webp] do   # sniffed, never trusted
     derivative :thumb,  resize: [200, 200]
     derivative :card,   resize: [640, 480], format: :webp
     responsive :hero,   widths: [640, 1280, 2048]         # emits srcset
@@ -849,10 +865,10 @@ Benchmarked against [Avo](https://avohq.io) in [`10-saas-coverage.md`](10-saas-c
 ```ruby
 admin_panel :Invoice, policy: %i[Invoice administer] do
   list do
-    display :number, :customer, :total, :status, :due_on
-    filter  :status,  :select, values: %i[draft issued paid void]
-    filter  :due_on,  :date_range
-    search  :number, "customer.name"
+    fields     :number, :customer, :total, :status, :due_on
+    filterable :status, :select, values: %i[draft issued paid void]
+    filterable :due_on, :date_range
+    searchable :number, "customer.name"
     saved_view :overdue, label: "Overdue", scope: :overdue
     bulk_action :void, action: :void_invoice, args: { reason: :string }, confirm: true
     exportable :csv
@@ -872,9 +888,9 @@ admin_panel :Invoice, policy: %i[Invoice administer] do
   end
 
   form do
-    field :customer_id, :due_on
-    field :status, only: %i[edit]
-    read_only :total, :issued_at
+    writable :customer_id, :due_on
+    writable :status, in: %i[edit]        # per-view visibility
+    fields   :total, :issued_at           # shown, never written
   end
 end
 ```
@@ -882,7 +898,7 @@ end
 ```ruby
 App.define :Ledgerline do
   admin do
-    search        :Invoice, :Customer, :Account       # global, across resources
+    searchable    :Invoice, :Customer, :Account       # global, across resources
     impersonation policy: %i[Account impersonate], banner: true, audited: true
     dashboard do
       metric :mrr, from: :monthly_recurring_revenue

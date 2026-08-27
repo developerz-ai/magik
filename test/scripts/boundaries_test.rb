@@ -14,7 +14,7 @@ class MagikScriptsBoundariesTest < Minitest::Test
     assert_equal "MAGIK_BOUNDARY_TIER", finding.code
     assert_equal "lib/magik/model.rb:1", finding.at
     assert_includes finding.cause, "model (tier 2) requires action (tier 3)"
-    assert_includes finding.fix, "may use: core, i18n, router, schema"
+    assert_includes finding.fix, "may use: core, i18n, policy, router, schema"
   end
 
   def test_a_sideways_require_within_one_tier_is_refused

@@ -17,7 +17,7 @@ module MagikScripts
     # @return [Hash{String => Integer}]
     TABLE = {
       "core" => 0,
-      "schema" => 1, "router" => 1, "i18n" => 1,
+      "schema" => 1, "router" => 1, "i18n" => 1, "policy" => 1,
       "model" => 2, "render" => 2, "realtime" => 2, "jobs" => 2,
       "action" => 3, "ledger" => 3, "api" => 3, "auth" => 3, "notify" => 3, "pwa" => 3,
       "billing" => 4, "admin" => 4, "domains" => 4,

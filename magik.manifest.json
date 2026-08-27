@@ -1,6 +1,6 @@
 {
   "schema": 1,
-  "build_id": "77e39f7d51cc7c94287cb8a9fde6c76ce09123e7de61a87678dbe514e6ed7b83",
+  "build_id": "aa2334924551f82ad470403761daa51287386083e0418c07c983074c14877911",
   "generator": "scripts/checks/manifest.rb",
   "gem": {
     "name": "magik",
@@ -15,7 +15,8 @@
     "1": [
       "schema",
       "router",
-      "i18n"
+      "i18n",
+      "policy"
     ],
     "2": [
       "model",
@@ -172,6 +173,15 @@
       "file": "lib/magik/notify.rb"
     },
     {
+      "name": "policy",
+      "constant": "Magik::Policy",
+      "tier": 1,
+      "phase": "Phase 2 — Rendering & Actions",
+      "status": "Not implemented — spec only",
+      "spec_only": true,
+      "file": "lib/magik/policy.rb"
+    },
+    {
       "name": "pwa",
       "constant": "Magik::PWA",
       "tier": 3,
@@ -231,7 +241,7 @@
       "code": "MAGIK_COMMAND_NOT_IMPLEMENTED",
       "class": "Magik::CommandNotImplementedError",
       "fix": "run `magik help` for the commands that work today; track the rest in docs/idea/00-build-spec.md",
-      "at": "lib/magik.rb:233"
+      "at": "lib/magik.rb:234"
     },
     {
       "code": "MAGIK_DOCS_AMBIGUOUS_PAGE",
@@ -261,19 +271,19 @@
       "code": "MAGIK_ERROR",
       "class": "Magik::Error",
       "fix": "read the raised cause above, then see docs/idea/00-build-spec.md",
-      "at": "lib/magik.rb:110"
+      "at": "lib/magik.rb:111"
     },
     {
       "code": "MAGIK_INVALID_OPTION",
       "class": "Magik::InvalidOptionError",
       "fix": "run `magik help` to list the supported options",
-      "at": "lib/magik.rb:250"
+      "at": "lib/magik.rb:251"
     },
     {
       "code": "MAGIK_UNKNOWN_COMMAND",
       "class": "Magik::UnknownCommandError",
       "fix": "run `magik help` to list every command",
-      "at": "lib/magik.rb:242"
+      "at": "lib/magik.rb:243"
     }
   ],
   "checks": [

@@ -18,8 +18,8 @@ class MagikTest < Minitest::Test
   def test_subsystems_map_is_frozen_and_covers_the_spec
     assert_predicate Magik::SUBSYSTEMS, :frozen?
     expected = %i[
-      core cli model schema render action router realtime jobs ledger
-      api auth billing admin i18n pwa notify testing domains check
+      core cli model schema render action router policy realtime jobs
+      ledger api auth billing admin i18n pwa notify testing domains check
     ]
 
     assert_equal expected.sort, Magik::SUBSYSTEMS.keys.sort

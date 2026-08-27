@@ -58,7 +58,7 @@ class MagikScriptsLibTest < Minitest::Test
     assert_raises(NotImplementedError) { MagikScripts::Check.new.run }
   end
 
-  def test_the_tier_table_covers_exactly_the_twenty_subsystems
+  def test_the_tier_table_covers_exactly_the_twenty_one_subsystems
     assert_equal MagikScripts::Library.subsystems.keys.map(&:to_s).sort, Tiers::TABLE.keys.sort
   end
 
