@@ -26,7 +26,7 @@ magik docs search factory
 `magik docs` works today; almost nothing else does. **Do not web-search the DSL** — it is slow, and
 it returns whatever is on `main` rather than what this app's gem does.
 
-**Magik is spec only** — `magik test` exits `1` with `MAGIK_COMMAND_NOT_IMPLEMENTED`. You can write
+**Magik is spec only** — `magik test` exits `1` with `MAGIK_CLI_COMMAND_NOT_IMPLEMENTED`. You can write
 tests; you cannot run them. **Never report a pass count.** Say what each test would assert and that
 it has not been executed.
 

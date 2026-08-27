@@ -128,8 +128,8 @@ Reading it the other way is the same rule run backwards: **a file's path tells y
 before you open it.** `app/actions/void_invoice.rb` declares `action :void_invoice` and nothing else.
 
 **One declaration per file.** A file under `app/actions/` that declares two actions, or an action and
-a model, is a convention violation the checker is meant to catch (`MAGIK_FILE_MULTIPLE_DECLARATIONS`,
-`MAGIK_DECLARATION_MISPLACED` — see [Error codes](Error-Codes.md)).
+a model, is a convention violation the checker is meant to catch (`MAGIK_CHECK_FILE_MULTIPLE_DECLARATIONS`,
+`MAGIK_CHECK_DECLARATION_MISPLACED` — see [Error codes](Error-Codes.md)).
 
 ### What each directory is for, and what it must not hold
 
@@ -160,10 +160,10 @@ coincidence — it is the mechanism.
 
 | Rule | Enforced by | Fails with |
 |---|---|---|
-| A screen never queries the database directly | screens can only read declared `state`; a `Sequel` dataset built inside a `body` block is refused | `MAGIK_SCREEN_DIRECT_QUERY` |
-| An action is the only thing that mutates | writes outside an `action` body are refused at boot | `MAGIK_MUTATION_OUTSIDE_ACTION` |
-| A job is the only thing that runs async | spawning a fiber or thread outside a `job` is refused | `MAGIK_ASYNC_OUTSIDE_JOB` |
-| A ledger is the only thing that moves money | a `:money` field written outside a ledger entry is refused | `MAGIK_MONEY_OUTSIDE_LEDGER` |
+| A screen never queries the database directly | screens can only read declared `state`; a `Sequel` dataset built inside a `body` block is refused | `MAGIK_RENDER_SCREEN_DIRECT_QUERY` |
+| An action is the only thing that mutates | writes outside an `action` body are refused at boot | `MAGIK_ACTION_MUTATION_OUTSIDE` |
+| A job is the only thing that runs async | spawning a fiber or thread outside a `job` is refused | `MAGIK_JOBS_ASYNC_OUTSIDE` |
+| A ledger is the only thing that moves money | a `:money` field written outside a ledger entry is refused | `MAGIK_LEDGER_MONEY_OUTSIDE` |
 | A policy is the only thing that authorizes | every surface reaching a model names a verb; there is no per-surface check to write, and no surface may skip the declaration | `MAGIK_POLICY_UNDECLARED` |
 
 These are **boot-time guardrails**, not lint warnings. The whole point is that the layout and the
@@ -192,7 +192,7 @@ edit this file".
 
 The rule in one line: **generated files that are committed are never hand-edited, and hand-written
 files are never overwritten by a generator.** A generator that would clobber a hand-written file is
-meant to refuse with `MAGIK_GENERATE_WOULD_OVERWRITE` and name the file.
+meant to refuse with `MAGIK_CLI_WOULD_OVERWRITE` and name the file.
 
 ## How the tree scales
 
@@ -293,7 +293,7 @@ Then boot. **Every boundary you did not know you had crossed becomes a boot fail
 both domains and the exact constant:
 
 ```text
-MAGIK_DOMAIN_BOUNDARY_VIOLATION: :Reporting reads :Billing::Invoice directly
+MAGIK_DOMAIN_BOUNDARY: :Reporting reads :Billing::Invoice directly
   fix: add `exposes :Invoice` to domains/billing/domain.rb, or subscribe to :invoice_paid
 ```
 

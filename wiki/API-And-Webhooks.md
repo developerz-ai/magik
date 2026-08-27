@@ -76,7 +76,7 @@ end
 
 Rate limits are declared **by plan**, so the limit follows the subscription rather than being
 hard-coded per route. A request over the limit gets a `429` with a `Retry-After`, and the code
-`MAGIK_RATE_LIMITED`.
+`MAGIK_API_RATE_LIMITED`.
 
 ## Incoming webhooks
 
@@ -126,10 +126,10 @@ Deliveries go through the job queue, are retried with backoff, and are inspectab
 | A resource names a policy verb | `MAGIK_POLICY_UNDECLARED` | boot |
 | An incoming webhook declares signature verification | `MAGIK_WEBHOOK_UNVERIFIED` | boot |
 | An API resource's mutations delegate to actions | `MAGIK_API_INLINE_MUTATION` | boot |
-| A filter names a declared column | `MAGIK_FILTER_UNDECLARED` | request |
-| An index has a page ceiling | `MAGIK_PAGINATION_UNBOUNDED` | boot |
-| Serialized fields are declared explicitly | `MAGIK_SERIALIZER_UNDECLARED` | boot |
-| Everything stays tenant-scoped | `MAGIK_TENANT_SCOPE_MISSING` | `magik check --scale` |
+| A filter names a declared column | `MAGIK_API_FILTER_UNDECLARED` | request |
+| An index has a page ceiling | `MAGIK_API_PAGINATION_UNBOUNDED` | boot |
+| Serialized fields are declared explicitly | `MAGIK_API_SERIALIZER_UNDECLARED` | boot |
+| Everything stays tenant-scoped | `MAGIK_SCALE_UNSCOPED_QUERY` | `magik check --scale` |
 
 ## Swap points
 

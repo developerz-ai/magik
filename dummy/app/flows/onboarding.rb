@@ -17,7 +17,12 @@
 # what lets a user finish on their phone what they started on a laptop (spec
 # decision 9).
 
-flow :Onboarding do
+# `policy: :public` because onboarding is reachable before an account exists.
+# A flow names its OWN verb and inherits nothing from the actions its steps post
+# to: inheritance would make this line a function of code in five other files.
+# Each step's action still evaluates its own verb, so the flow gates entry and
+# the action gates the write.
+flow :Onboarding, policy: :public do
   # Where a half-finished flow is stored. There is no in-process wizard state:
   # stateless app servers are a boot-enforced guardrail, not a style preference.
   progress_in :Account, field: :onboarding_step

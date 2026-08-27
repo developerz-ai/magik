@@ -75,7 +75,7 @@ That sameness is what makes moving from a flat app to a domained one `git mv` pl
 Reach across a boundary and the app does not boot:
 
 ```text
-MAGIK_DOMAIN_BOUNDARY_VIOLATION: :Reporting reads :Billing::Invoice directly
+MAGIK_DOMAIN_BOUNDARY: :Reporting reads :Billing::Invoice directly
   cause: domains/reporting/app/screens/revenue.rb:14 references Billing::Invoice, which :Billing does not expose
   fix:   add `exposes :Invoice` to domains/billing/domain.rb,
          or subscribe to :invoice_paid and keep your own projection
@@ -83,11 +83,11 @@ MAGIK_DOMAIN_BOUNDARY_VIOLATION: :Reporting reads :Billing::Invoice directly
 
 | Violation | Code |
 |---|---|
-| Direct model access across a boundary | `MAGIK_DOMAIN_BOUNDARY_VIOLATION` |
+| Direct model access across a boundary | `MAGIK_DOMAIN_BOUNDARY` |
 | A `depends_on` cycle | `MAGIK_DOMAIN_CYCLE` |
 | Depending on a domain that does not exist | `MAGIK_DOMAIN_UNKNOWN` |
-| Subscribing to an event nobody publishes | `MAGIK_EVENT_UNPUBLISHED` |
-| A file in `domains/x/` declaring something in another domain's namespace | `MAGIK_DECLARATION_MISPLACED` |
+| Subscribing to an event nobody publishes | `MAGIK_DOMAIN_UNKNOWN_EVENT` |
+| A file in `domains/x/` declaring something in another domain's namespace | `MAGIK_CHECK_DECLARATION_MISPLACED` |
 
 Boot time, every time. A boundary you can cross by accident is documentation, not a boundary.
 
@@ -143,11 +143,11 @@ machine is a boundary that erodes.
 
 | Guardrail | Fails with | When |
 |---|---|---|
-| No direct cross-domain model access | `MAGIK_DOMAIN_BOUNDARY_VIOLATION` | boot |
+| No direct cross-domain model access | `MAGIK_DOMAIN_BOUNDARY` | boot |
 | The dependency graph is acyclic | `MAGIK_DOMAIN_CYCLE` | boot |
-| Every subscribed event is published by someone | `MAGIK_EVENT_UNPUBLISHED` | boot |
-| A declaration sits in the domain that owns it | `MAGIK_DECLARATION_MISPLACED` | boot |
-| Tenant scoping crosses no domain boundary either | `MAGIK_TENANT_SCOPE_MISSING` | `magik check --scale` |
+| Every subscribed event is published by someone | `MAGIK_DOMAIN_UNKNOWN_EVENT` | boot |
+| A declaration sits in the domain that owns it | `MAGIK_CHECK_DECLARATION_MISPLACED` | boot |
+| Tenant scoping crosses no domain boundary either | `MAGIK_SCALE_UNSCOPED_QUERY` | `magik check --scale` |
 
 ## What domains are not
 

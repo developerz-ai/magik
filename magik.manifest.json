@@ -1,6 +1,6 @@
 {
   "schema": 1,
-  "build_id": "56e410bd05643277ae6e140042616b90deaad73cbb9647c37821dccfbf845113",
+  "build_id": "c7faee84f53c1d827f740d4527aa61da10c810324d84f905d1c6ac3d6d0174bb",
   "generator": "scripts/checks/manifest.rb",
   "gem": {
     "name": "magik",
@@ -238,10 +238,22 @@
   ],
   "error_codes": [
     {
-      "code": "MAGIK_COMMAND_NOT_IMPLEMENTED",
+      "code": "MAGIK_CLI_COMMAND_NOT_IMPLEMENTED",
       "class": "Magik::CommandNotImplementedError",
       "fix": "run `magik help` for the commands that work today; track the rest in docs/idea/00-build-spec.md",
-      "at": "lib/magik.rb:234"
+      "at": "lib/magik.rb:235"
+    },
+    {
+      "code": "MAGIK_CLI_INVALID_OPTION",
+      "class": "Magik::InvalidOptionError",
+      "fix": "run `magik help` to list the supported options",
+      "at": "lib/magik.rb:252"
+    },
+    {
+      "code": "MAGIK_CLI_UNKNOWN_COMMAND",
+      "class": "Magik::UnknownCommandError",
+      "fix": "run `magik help` to list every command",
+      "at": "lib/magik.rb:244"
     },
     {
       "code": "MAGIK_DOCS_AMBIGUOUS_PAGE",
@@ -271,19 +283,7 @@
       "code": "MAGIK_ERROR",
       "class": "Magik::Error",
       "fix": "read the raised cause above, then see docs/idea/00-build-spec.md",
-      "at": "lib/magik.rb:111"
-    },
-    {
-      "code": "MAGIK_INVALID_OPTION",
-      "class": "Magik::InvalidOptionError",
-      "fix": "run `magik help` to list the supported options",
-      "at": "lib/magik.rb:251"
-    },
-    {
-      "code": "MAGIK_UNKNOWN_COMMAND",
-      "class": "Magik::UnknownCommandError",
-      "fix": "run `magik help` to list every command",
-      "at": "lib/magik.rb:243"
+      "at": "lib/magik.rb:112"
     }
   ],
   "checks": [
@@ -295,7 +295,7 @@
     },
     {
       "name": "error-codes",
-      "summary": "Every shipped MAGIK_* code is well-formed, unique, fixable, and documented.",
+      "summary": "Every MAGIK_* code, shipped or reserved, is well-formed, unique, fixable, and documented.",
       "order": 20,
       "path": "scripts/checks/error_codes.rb"
     },

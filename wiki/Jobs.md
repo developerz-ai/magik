@@ -72,7 +72,7 @@ instead. Silence is `MAGIK_POLICY_UNDECLARED`, at boot.
 
 `zone:` is required on a `cron:` schedule. A cron expression with no zone is a job that runs at a
 different wall-clock time twice a year and nobody notices until it matters
-(`MAGIK_SCHEDULE_ZONE_MISSING`).
+(`MAGIK_JOBS_SCHEDULE_NO_ZONE`).
 
 ## Running workers
 
@@ -124,11 +124,11 @@ answer:
 
 | Guardrail | Fails with | When |
 |---|---|---|
-| Async work happens in a job | `MAGIK_ASYNC_OUTSIDE_JOB` | boot |
+| Async work happens in a job | `MAGIK_JOBS_ASYNC_OUTSIDE` | boot |
 | A job names a policy verb, or `policy: :system` | `MAGIK_POLICY_UNDECLARED` | boot |
-| A `cron:` schedule names a timezone | `MAGIK_SCHEDULE_ZONE_MISSING` | boot |
-| A job's arguments are serialisable | `MAGIK_JOB_ARGS_UNSERIALISABLE` | enqueue |
-| A job that moves money runs through an idempotent action | `MAGIK_IDEMPOTENCY_REQUIRED` | boot |
+| A `cron:` schedule names a timezone | `MAGIK_JOBS_SCHEDULE_NO_ZONE` | boot |
+| A job's arguments are serialisable | `MAGIK_JOBS_ARGS_UNSERIALISABLE` | enqueue |
+| A job that moves money runs through an idempotent action | `MAGIK_ACTION_IDEMPOTENCY_REQUIRED` | boot |
 
 ## Next
 

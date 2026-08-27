@@ -79,6 +79,29 @@ The repo is structured so that a machine-readable map plus the spec is enough to
 | `.claude/agents/*`, `.claude/commands/*` | the loop, pre-packaged as agent definitions and slash commands |
 | `wiki/` | the reference manual for app authors |
 
+### 7. The agent decides, not only types
+
+The six points above are about an agent *writing* Magik. This one is about an agent *deciding* it,
+and it is the version this project actually runs on: design questions that arrive mid-task are
+answered and recorded rather than queued for a human to arbitrate.
+
+It is the same argument this page already makes about boilerplate, applied one level up. A framework
+generates hundreds of decisions and most have one defensible answer reachable from the constraints
+already written down; routing each through a person converts them into a bottleneck for work they
+would rubber-stamp. **Direction is the scarce input. Adjudication is not.**
+
+The claim is narrow, and every clause is load-bearing: *on a decision space that is already framed,
+with a gate that runs in a minute and nothing shipped to break, an agent deciding and recording beats
+a person adjudicating a queue.* Remove the frame and it is invention; remove the gate and it is
+guesswork; remove "nothing shipped" and it is someone else's outage. That is why the model is stated
+with its boundary rather than as a principle — what stays with the owner, what a decision owes, and
+the log of decisions taken this way are in [`13-decisions.md`](13-decisions.md).
+
+Note that this does not contradict [the honest limits below](#honest-limits-of-the-claim), and must
+not be read as trust in the agent's judgement: **the entire guardrail design assumes the agent errs**
+([`03-guardrails.md`](03-guardrails.md)). What makes delegation work is not that the decisions are
+right, it is that a wrong one is cheap to find and cheap to reverse.
+
 ## Two audiences
 
 Both are agents. They need different things from this repo, and conflating them is how a doc ends up useful to neither.

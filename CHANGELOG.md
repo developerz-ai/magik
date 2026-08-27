@@ -76,14 +76,61 @@ the repository being brought back into agreement with it.
   `docs/idea/10`–`12` and `docs/architecture/09`–`12` were missing from both, and `llms.txt` still
   described the spec as "kept verbatim", listed two working CLI commands where three run, and named
   twenty subsystems where twenty-one are registered.
+- **The `MAGIK_*` catalogue is one catalogue again, and the format is a closed set.**
+  [`wiki/Error-Codes.md`](wiki/Error-Codes.md) had drifted to 82 codes in a looser
+  `MAGIK_<CONDITION>` shape, sixteen of them a second name for a guardrail
+  [`docs/idea/03-guardrails.md`](docs/idea/03-guardrails.md) had already named — `MAGIK_STATEFUL_ACTION`
+  beside `MAGIK_ACTION_STATEFUL`, `MAGIK_ROUTE_COLLISION` beside `MAGIK_ROUTER_PATH_CONFLICT`,
+  `MAGIK_OFFLINE_UNSUPPORTED` beside `MAGIK_PWA_OFFLINE_UNSUPPORTED`. The spec page won every
+  disagreement; the sixteen collapsed onto its spelling and the rest were renamed into
+  `MAGIK_<SUBSYSTEM>_<CONDITION>`. `MAGIK_WEBHOOK_UNVERIFIED` (no `verify_signature` declared, boot)
+  and `MAGIK_WEBHOOK_SIGNATURE_INVALID` (the signature did not match, runtime) are two conditions and
+  both stay.
+- **Breaking, error surface: three shipped CLI codes were renamed** — `MAGIK_UNKNOWN_COMMAND` →
+  `MAGIK_CLI_UNKNOWN_COMMAND`, `MAGIK_COMMAND_NOT_IMPLEMENTED` → `MAGIK_CLI_COMMAND_NOT_IMPLEMENTED`,
+  `MAGIK_INVALID_OPTION` → `MAGIK_CLI_INVALID_OPTION`. The stability rule protects consumers, and
+  `0.0.1` is a name reservation with none; the window to fix a convention is before there is anyone to
+  break. The four `MAGIK_DOCS_*` codes already fit and are unchanged, and `MAGIK_ERROR` is kept as the
+  root code by a rule rather than an exception — the reasoning is in
+  [`docs/architecture/03-error-codes.md`](docs/architecture/03-error-codes.md#the-shipped-codes-and-the-format-a-decision-record).
+- **The allowed `<SUBSYSTEM>` tokens are written down** — a closed set of 30 in
+  [`docs/architecture/03-error-codes.md`](docs/architecture/03-error-codes.md#the-allowed-subsystem-tokens),
+  replacing an open-ended example list that ended in a dash, which is what let the catalogue drift.
+- **[`scripts/checks/error_codes.rb`](scripts/checks/error_codes.rb) now validates the reserved
+  catalogue too**, not only the eight implemented classes: every code in the `Code` column of
+  `wiki/Error-Codes.md` and `docs/idea/03-guardrails.md` must use a token from the closed set
+  (`MAGIK_ERROR_CODE_UNKNOWN_SUBSYSTEM`), carry a condition (`MAGIK_ERROR_CODE_MALFORMED`), not
+  restate a condition another code already names (`MAGIK_ERROR_CODE_NEAR_DUPLICATE`), not revive a
+  retired spelling (`MAGIK_ERROR_CODE_RETIRED_SPELLING`), and — for every guardrail on the spec page —
+  appear in the manual (`MAGIK_ERROR_CODE_UNCATALOGUED`). `MAGIK_ERROR_CODE_ROOT_MISCLAIMED` holds the
+  root-code rule over `lib/`.
+- **`MAGIK_HARNESS_STALE` and `MAGIK_HARNESS_MARKERS_MISSING` are now `MAGIK_CLI_HARNESS_STALE` and
+  `MAGIK_CLI_HARNESS_MARKERS_MISSING`.** `HARNESS` was never a subsystem, and both names were
+  reserved rather than shipped, so they moved into `MAGIK_<SUBSYSTEM>_<CONDITION>` rather than
+  carving an exception into it — the same reasoning as the three CLI renames above, applied one step
+  earlier. The old spellings are in `RETIRED` and cannot come back.
+- **The five `MAGIK_*` codes the developer scripts in `bin/` print now carry a `DEV` token** —
+  `MAGIK_DEV_NO_RUBY`, `MAGIK_DEV_RUBY_TOO_OLD`, `MAGIK_DEV_NO_RAKE`, `MAGIK_DEV_NO_WATCHER`,
+  `MAGIK_DEV_NO_VERSION`. They were a fourth namespace using the project's prefix under no rule and
+  no check. `bin/` ships to nobody, so they are deliberately absent from `wiki/Error-Codes.md`; they
+  are documented in
+  [`docs/architecture/03-error-codes.md`](docs/architecture/03-error-codes.md#the-dev-namespace-codes-that-never-reach-an-app),
+  and `scripts/checks/error_codes.rb` now scans `bin/` as a third corpus —
+  `MAGIK_ERROR_CODE_DEV_MALFORMED` for a code outside the token, `MAGIK_ERROR_CODE_DEV_UNFIXABLE`
+  for one printed with no `fix:`. It matches the `CODE: cause` rendering rather than the prefix, so
+  the `MAGIK_YARD_MIN_COVERAGE` and `MAGIK_DOCS_ROOT` environment variables stay what they are.
 
 ### Notes
 
 - **Nothing in this release is a measurement of Magik.** The only numbers anywhere in the repository
   are engine measurements from `scripts/probes/`, and they belong to Ruby, not to this framework.
-- **No `MAGIK_*` code named in the spec is implemented.** The codes that a running command can raise
-  are the CLI's own; `grep -rhoE '"MAGIK_[A-Z0-9_]+"' lib/ | sort -u` is the only list that is real
-  today, and everything in the guardrail catalogue is seeded and raised by nothing.
+- **No `MAGIK_*` code named in the spec is implemented.** Eight codes can be raised by a running
+  command — three `MAGIK_CLI_*`, four `MAGIK_DOCS_*` and the root `MAGIK_ERROR` — and everything in
+  the guardrail catalogue is seeded and raised by nothing. Re-derive the real list with
+  `jq -r '.error_codes[].code' magik.manifest.json`, or the count with
+  `ruby scripts/checks/error_codes.rb`. **Do not** grep `lib/` for the pattern: it returns eleven,
+  because it also matches the `MAGIK_DOCS_ROOT` environment variable and two code names that appear
+  only inside YARD examples. That over-count is the reason the manifest exists.
 
 ## [0.0.1] - 2026-08-26
 

@@ -129,7 +129,7 @@ def magik_step(subcommand, expected)
   return pass("clean", command.join(" ")) if code.zero?
   return missing(got: "`magik #{subcommand}` is planned and not implemented in this magik version",
                  fix: "magik help   # every command, marked ready or planned",
-                 command: command.join(" ")) if output.include?("MAGIK_COMMAND_NOT_IMPLEMENTED")
+                 command: command.join(" ")) if output.include?("MAGIK_CLI_COMMAND_NOT_IMPLEMENTED")
 
   failed(got: excerpt(output), expected: expected, command: command.join(" "),
          fix: "#{command.join(" ")} --json   # findings as data")

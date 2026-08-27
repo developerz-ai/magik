@@ -131,6 +131,33 @@ path is a bug.
 The boot-time guardrails in the spec's "Guardrails to Enforce at Boot" section **are the product**.
 When implementing a subsystem, the guardrail ships in the same change as the feature — not after.
 
+## Who decides
+
+**This is an AI-first project in the strong sense: the agent decides, not only types.** A design
+question that arrives mid-task — which construct absorbs a missing capability, what a code is called,
+which of two spellings survives — is **answered and recorded**, not queued for a human. Direction is
+the owner's input; judgement inside that direction is yours.
+
+That is safe here for three reasons, and only while all three hold: **the spec frames the decision**
+(every change traces to a section of it), **the gate catches a wrong one** (`bin/check`, seven steps,
+four engines in CI), and **nothing is shipped**, so almost everything is reversible for free now and
+permanent later. Deciding late is the expensive option.
+
+**Reserved to the owner, always** — decisions whose cost an edit cannot undo:
+
+- publishing a gem, cutting a tag, or anything else outward-facing and immutable
+- spending money, or committing in the owner's name
+- changing what the product is *for* — the mission, the permanent limits, the audiences
+- anything the spec does not frame, where deciding would be invention rather than derivation
+- destructive operations on anything not reconstructible from this repository
+
+*If being wrong costs an edit, decide it. If being wrong costs a release, bring it back.*
+
+Every non-obvious decision owes four things: what was decided, what the alternative was, why — in
+terms of a constraint that already existed rather than taste — and **what would reopen it**. Record
+it in [`docs/idea/13-decisions.md`](docs/idea/13-decisions.md), which is also the log of the
+decisions already taken this way.
+
 ## House rules
 
 | Rule | Detail |
@@ -274,6 +301,7 @@ llms.txt              the machine-readable repo map
 |---|---|
 | what Magik is, authoritatively | [`docs/idea/00-build-spec.md`](docs/idea/00-build-spec.md) |
 | why AI-first shapes the design | [`docs/idea/07-ai-first.md`](docs/idea/07-ai-first.md) |
+| who decides what, and the log of decisions taken | [`docs/idea/13-decisions.md`](docs/idea/13-decisions.md) |
 | the DSL surface, phase by phase | [`docs/idea/02-dsl-surface.md`](docs/idea/02-dsl-surface.md) |
 | the boot-time guardrails | [`docs/idea/03-guardrails.md`](docs/idea/03-guardrails.md) |
 | the swap points, and what proving one means | [`docs/idea/04-swap-points.md`](docs/idea/04-swap-points.md) |

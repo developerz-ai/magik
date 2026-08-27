@@ -27,6 +27,7 @@ Three doc trees: why the framework is shaped this way, how the repo that will bu
 | [`idea/10-saas-coverage.md`](idea/10-saas-coverage.md) | you want the adversarial count of the grammar against what a SaaS actually needs, and the command that re-counts it |
 | [`idea/11-dsl-as-tool-surface.md`](idea/11-dsl-as-tool-surface.md) | you are adding DSL and need the rules it is designed against — including why `magik describe` exists and why `magik mcp` is deferred |
 | [`idea/12-the-range.md`](idea/12-the-range.md) | you want the two axes one framework has to span, from a weekend idea to a large product |
+| [`idea/13-decisions.md`](idea/13-decisions.md) | you want to know who decides what in an AI-first project, what stays with the owner, and the log of decisions already taken |
 
 ## `architecture/` — the repo
 

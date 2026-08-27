@@ -19,12 +19,42 @@ MAGIK_<SUBSYSTEM>_<CONDITION>
 | Rule | Detail |
 |---|---|
 | Prefix | `MAGIK_`, always. |
-| Subsystem | the owning subsystem from [`01-module-map.md`](01-module-map.md), uppercased — `LEDGER`, `MODEL`, `RENDER`, `POLICY`, `DOMAIN`, `BOOT`, `CONFIG`, `SCALE`. |
+| Subsystem | one token from the closed set [below](#the-allowed-subsystem-tokens). Not an open-ended list — an unlisted token is a malformed code, and the check refuses it. |
 | Condition | what is wrong, not what to do — `UNBALANCED`, `FORBIDDEN_FIELD`, `PATH_CONFLICT`. |
 | Case | `SCREAMING_SNAKE`. |
 | One code per condition | never one code for a family. `magik errors explain` should answer the specific mistake, not a category. |
-| Stability | a shipped code is stable forever. Rewording the message is fine; renaming the code is a breaking change. |
+| Stability | a shipped code is stable forever. Rewording the message is fine; renaming the code is a breaking change — and the one time that promise was weighed against this format, the reasoning is recorded [below](#the-shipped-codes-and-the-format-a-decision-record). |
 | Registration | `lib/magik/<subsystem>/errors.rb`, one catalogue entry per code. A raise with an unregistered code fails the catalogue test. |
+
+### The allowed `<SUBSYSTEM>` tokens
+
+**A closed set of 31, plus one carve-out.** Thirty of the tokens may be written anywhere a
+`MAGIK_*` code is written. The thirty-first, `DEV`, belongs to this repository's own developer
+scripts and may **not** appear in an app-facing catalogue — [its own section](#the-dev-namespace-codes-that-never-reach-an-app)
+says why it exists at all.
+
+It is written down rather than described because the first version of this page described it — "the
+owning subsystem, uppercased" followed by eight examples and a dash — and `wiki/Error-Codes.md`
+drifted to 82 codes in a looser `MAGIK_<CONDITION>` shape underneath it, sixteen of them a second
+name for a guardrail the spec had already named. An open-ended example list is not a rule. This is
+the rule, and [`../../scripts/checks/error_codes.rb`](../../scripts/checks/error_codes.rb) enforces
+it against both catalogues and against `bin/` on every run.
+
+| Group | Tokens | Why these |
+|---|---|---|
+| **The owning module** under `lib/magik/`, uppercased | `ACTION` `ADMIN` `API` `AUTH` `BILLING` `CHECK` `CLI` `CORE` `DOCS` `I18N` `JOBS` `LEDGER` `MODEL` `NOTIFY` `POLICY` `PWA` `REALTIME` `RENDER` `ROUTER` `SCHEMA` | the twenty-one subsystems of [`01-module-map.md`](01-module-map.md), plus `docs` — a module that ships and backs a `ready` command, so it owns its own failures |
+| The same, **singular where the construct is** | `DOMAIN` (subsystem `domains`) · `TEST` (subsystem `testing`) | the code names the declaration the author wrote, not the directory it is implemented in. Both spellings are already in the catalogue and both stay |
+| **Stages and cross-cutting concerns** owned by `core` or `check` | `BOOT` `CONFIG` `SCALE` `BOUNDARY` | each names *when* or *what kind*, not a subsystem: a boot-pipeline refusal, a configuration value, a `--scale` warning, an internal-require violation. `MAGIK_CORE_*` would hide which of the four it is |
+| **Constructs that outlive their owner's name** | `COMPONENT` `LAYOUT` `WEBHOOK` `FLOW` | each is a declaration in [`../idea/02-dsl-surface.md`](../idea/02-dsl-surface.md) whose owning subsystem's name would bury it — `MAGIK_RENDER_MISSING` says nothing, `MAGIK_LAYOUT_MISSING` says everything |
+| **This repository's own developer scripts** under `bin/` | `DEV` | `bin/` ships to nobody and can never reach an app author, so its failures are not framework failures — but they are written in the same `CODE: cause` / `fix:` shape and are searched for the same way. [Below](#the-dev-namespace-codes-that-never-reach-an-app) |
+| **The root**, exactly one code | `MAGIK_ERROR` | [below](#the-shipped-codes-and-the-format-a-decision-record) |
+
+Two rules follow from the set being closed:
+
+| Rule | Detail |
+|---|---|
+| Adding a token is an architecture change | it needs a row above with its reason, and the same edit in `scripts/checks/error_codes.rb`. A code is not free to invent its own namespace |
+| A subsystem may own several tokens; a token is owned by one subsystem | `core` answers to `BOOT`, `CONFIG` and `CORE`; `check` to `CHECK`, `SCALE` and `BOUNDARY`. The reverse — two subsystems sharing `CONFIG` — is the ambiguity the set exists to prevent |
 
 ## Required fields
 
@@ -145,12 +175,81 @@ Every code implied by [`../idea/03-guardrails.md`](../idea/03-guardrails.md) and
 | `MAGIK_SCALE_UNSCOPED_QUERY` | check | check | warning | a query site with no `tenant_id` in `WHERE` |
 | `MAGIK_BOUNDARY_TIER` | check | check | error | a sideways or upward require inside `lib/magik/` ([`02-boundaries.md`](02-boundaries.md)) |
 | `MAGIK_BOUNDARY_INTERNAL_REQUIRE` | check | check | error | requiring past another subsystem's front door |
-| `MAGIK_HARNESS_STALE` | cli | check | warning | a generated app's framework block was written by an older magik than the one installed — `fix: magik generate agents --update` |
-| `MAGIK_HARNESS_MARKERS_MISSING` | cli | check | error | the `magik:framework-block` markers a regeneration needs were removed by hand, so an update refuses rather than guessing where the boundary was |
+| `MAGIK_CLI_HARNESS_STALE` | cli | check | warning | a generated app's framework block was written by an older magik than the one installed — `fix: magik generate agents --update` |
+| `MAGIK_CLI_HARNESS_MARKERS_MISSING` | cli | check | error | the `magik:framework-block` markers a regeneration needs were removed by hand, so an update refuses rather than guessing where the boundary was |
 
 **One code, every surface.** `MAGIK_POLICY_UNDECLARED` is the load-bearing row, and it is deliberately owned by `policy` rather than by each surface that can trip it. There is no admin-specific "unprotected panel" code, no channel-specific one and no job-specific one: an `admin_panel` with no `policy:` fails the boot under the same code as a `screen` with no `policy:`, because it is the same mistake. A per-surface family would be exactly the "one code for a category" the format rules above refuse, in reverse — and the point of the guardrail is that authorization is non-optional the way `tenant_id` is, not that the admin panel is a special case.
 
-The last two rows are **reserved and proposed, not implemented** — they are named by [`../idea/09-app-scaffold.md`](../idea/09-app-scaffold.md) so the names cannot be taken twice. Neither the `magik check` that would report a stale harness nor the `magik generate agents --update` that would fix one exists. Both also sit outside the `MAGIK_<SUBSYSTEM>_<CONDITION>` shape above — `HARNESS` is not a subsystem — which is a thing to settle before either is registered.
+The last two rows are **reserved and proposed, not implemented** — they are named by [`../idea/09-app-scaffold.md`](../idea/09-app-scaffold.md) so the names cannot be taken twice. Neither the `magik check` that would report a stale harness nor the `magik generate agents --update` that would fix one exists.
+
+Both were first written as `MAGIK_HARNESS_STALE` and `MAGIK_HARNESS_MARKERS_MISSING`, which sat outside the `MAGIK_<SUBSYSTEM>_<CONDITION>` shape above, because `HARNESS` is not a subsystem. **Decided 2026-08-26: they conform.** The subsystem column already said `cli`, the thing that repairs both is a CLI command, and the harness is not a subsystem of its own — so the names became `MAGIK_CLI_HARNESS_STALE` and `MAGIK_CLI_HARNESS_MARKERS_MISSING`, and `HARNESS` was never added to the token set. The same reasoning as [the decision record below](#the-shipped-codes-and-the-format-a-decision-record), applied one step earlier: a reserved name is free to move, a registered one is not. Both old spellings are in `RETIRED` in [`../../scripts/checks/error_codes.rb`](../../scripts/checks/error_codes.rb), so neither can come back.
+
+## The shipped codes and the format: a decision record
+
+`0.0.1` ships eight codes, and three of them did not fit `MAGIK_<SUBSYSTEM>_<CONDITION>`. Because
+the stability rule above says a shipped code is stable forever, the question was whether the format
+gets a permanent exception or the codes get renamed. **Decided 2026-08-26: renamed.**
+
+| Code | Verdict | Reason |
+|---|---|---|
+| `MAGIK_UNKNOWN_COMMAND` → `MAGIK_CLI_UNKNOWN_COMMAND` | renamed | raised by `Magik::CLI`; `CLI` is its owning module |
+| `MAGIK_COMMAND_NOT_IMPLEMENTED` → `MAGIK_CLI_COMMAND_NOT_IMPLEMENTED` | renamed | as above |
+| `MAGIK_INVALID_OPTION` → `MAGIK_CLI_INVALID_OPTION` | renamed | as above |
+| the four `MAGIK_DOCS_*` | **kept** | `lib/magik/docs.rb` is a real module behind a `ready` command. `DOCS` is the owning module, so these already fit — and `MAGIK_CLI_DOCS_PAGE_NOT_FOUND` would name the caller rather than the owner |
+| `MAGIK_ERROR` | **kept, as a rule** | see below |
+
+**The principle.** A stability promise protects consumers — their `rescue` clauses, their log
+matchers, their `fix:` scripts. `0.0.1` is a RubyGems name reservation with no implementation
+([`CHANGELOG.md`](../../CHANGELOG.md)), so there is no consumer to protect and nothing the rename
+can break. Renaming now costs one changelog line. Renaming after adoption is a breaking change
+forever, and *not* renaming carves a permanent exception into the one convention the whole catalogue
+rests on. **The window to fix a convention is before there is anyone to break.**
+
+### `MAGIK_ERROR` is the root code, not an exception
+
+`Magik::Error` is the base class. It names no subsystem and no condition **because it has neither**:
+it is what a one-off raise carries when no more specific class exists, and a reader who sees it
+should read "unclassified", not "core failed". `MAGIK_CORE_ERROR` would assert a subsystem that did
+not raise it.
+
+So the rule, which the check encodes rather than allowlisting: **exactly one code may be
+`MAGIK_ERROR`, and it must belong to `Magik::Error` itself.** A second class claiming it, or
+`Magik::Error` claiming anything else, is a finding. That is narrower than an exception list — an
+exception list grows, and a rule with one satisfying object cannot.
+
+## The `DEV` namespace: codes that never reach an app
+
+`bin/` is the repository's own developer scripts — `setup`, `check`, `dev`, `rake`, `release`,
+`console`. They ship to nobody: they are not in the gem, they are not generated into an app, and no
+app author can reach one. Their failures are therefore **not framework failures**, and they are not
+in [`../../wiki/Error-Codes.md`](../../wiki/Error-Codes.md), which is the app author's manual and
+would be lying if it listed them.
+
+They still carry the `MAGIK_` prefix, and that is the point. An agent working in this repository
+reads `MAGIK_DEV_NO_RAKE` off its terminal and searches for it exactly the way it searches for
+`MAGIK_LEDGER_UNBALANCED` — so the string has to be findable, has to be unique, and must not
+collide with a name the framework will want later. `DEV` is what keeps the two apart while leaving
+one search that works for both.
+
+| Code | Raised by | Condition | `fix:` |
+|---|---|---|---|
+| `MAGIK_DEV_NO_RUBY` | [`bin/setup`](../../bin/setup) | no `ruby` on `PATH` | install Ruby ≥ 3.2, then re-run `bin/setup` |
+| `MAGIK_DEV_RUBY_TOO_OLD` | [`bin/setup`](../../bin/setup) | Ruby below the gemspec's `required_ruby_version` | install the version named in `.ruby-version`, then re-run `bin/setup` |
+| `MAGIK_DEV_NO_RAKE` | [`bin/rake`](../../bin/rake) | `rake` is not installed | `gem install rake` |
+| `MAGIK_DEV_NO_WATCHER` | [`bin/dev`](../../bin/dev) | no file watcher on the machine, so `--watch` has nothing to watch with | install `watchexec`, `entr`, `fswatch` or `inotify-tools` |
+| `MAGIK_DEV_NO_VERSION` | [`bin/release`](../../bin/release) | `lib/magik/version.rb` defines no `Magik::VERSION` | set `VERSION` to a `MAJOR.MINOR.PATCH` string in that file |
+
+The rules the rest of this page states apply unchanged: one code per condition, a cause naming real
+identifiers, and a `fix:` that is a command.
+[`../../scripts/checks/error_codes.rb`](../../scripts/checks/error_codes.rb) asserts all three over
+`bin/`, and deliberately does **not** ask the wiki for a row.
+
+**`MAGIK_` is also an environment-variable prefix.** `MAGIK_YARD_MIN_COVERAGE`
+([`bin/check`](../../bin/check)) and `MAGIK_DOCS_ROOT` ([`09-shipped-docs.md`](09-shipped-docs.md))
+are configuration, not codes, and nothing may rename them into the format. A check that grepped for
+every `MAGIK_*` string would call both of them malformed codes — which is why the check reads the
+`Code` column of a table for the catalogues, and the `CODE: cause` rendering for `bin/`, rather
+than matching the prefix alone.
 
 ## Option-level errors (R7)
 

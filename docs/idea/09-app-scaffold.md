@@ -243,13 +243,14 @@ runnable `fix:` — so the user learns about it from the gate they already run o
 from a changelog they did not read:
 
 ```text
-MAGIK_HARNESS_STALE: CLAUDE.md's framework block was written by magik 0.0.1; this app runs 0.4.0
+MAGIK_CLI_HARNESS_STALE: CLAUDE.md's framework block was written by magik 0.0.1; this app runs 0.4.0
   cause: the layout rules and error codes in that block predate 3 minor releases
   fix:   magik generate agents --update
 ```
 
-`MAGIK_HARNESS_STALE` and `MAGIK_HARNESS_MARKERS_MISSING` are **reserved names, proposed here and
-not yet in the catalogue** ([`../architecture/03-error-codes.md`](../architecture/03-error-codes.md)).
+`MAGIK_CLI_HARNESS_STALE` and `MAGIK_CLI_HARNESS_MARKERS_MISSING` are **reserved names, proposed
+here and not yet in the catalogue**
+([`../architecture/03-error-codes.md`](../architecture/03-error-codes.md)).
 The command is `magik generate agents --update`, an addition to the `generate` kinds in
 [`../../wiki/CLI-Reference.md`](../../wiki/CLI-Reference.md); if Phase 1 grows a broader
 `magik upgrade`, it delegates to the same code path rather than becoming a second one.
@@ -381,7 +382,7 @@ person finds it by pasting.
 | the tooling half runs on a fresh app | `cd lib/magik/cli/templates/app && ./bin/check --list` | **real** — the test suite runs `bin/check` over the seeded checks and requires it green |
 | `magik new` writes them into a directory | `magik help` | **not implemented** |
 | `magik generate agents --update` refreshes a framework block | — | **not implemented**, and no marker-merge code exists |
-| `magik check` reports a stale harness | — | **not implemented**. `MAGIK_HARNESS_STALE` is a reserved name |
+| `magik check` reports a stale harness | — | **not implemented**. `MAGIK_CLI_HARNESS_STALE` is a reserved name |
 | a generated app boots | — | **impossible today.** There is no `App.define` |
 | the harness helps an agent build faster | — | **unmeasured.** No app has been built with Magik by anyone |
 

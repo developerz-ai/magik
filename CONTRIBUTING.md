@@ -38,6 +38,16 @@ installed on a contributor's machine; anything TruffleRuby-specific is verified 
 | `bin/dev` | the CLI against [`dummy/`](dummy/) |
 | `ruby -Ilib exe/magik version --json` | the CLI, from source |
 
+**`bin/` is not the gem.** Nothing in it ships, and no app author can reach one of these scripts —
+`exe/magik` is the binary. When one of them refuses, it prints a `MAGIK_DEV_*` code with a cause and
+a runnable `fix:`, in the same shape a framework error uses, so that it is searchable the same way:
+`MAGIK_DEV_NO_RUBY`, `MAGIK_DEV_RUBY_TOO_OLD`, `MAGIK_DEV_NO_RAKE`, `MAGIK_DEV_NO_WATCHER`,
+`MAGIK_DEV_NO_VERSION`. `DEV` is the one subsystem token reserved for them, they are deliberately
+absent from [`wiki/Error-Codes.md`](wiki/Error-Codes.md) — which is the app author's manual —
+and `ruby scripts/checks/error_codes.rb` holds them to the format. A new refusal in `bin/` takes a
+`MAGIK_DEV_*` code and a row in
+[`docs/architecture/03-error-codes.md`](docs/architecture/03-error-codes.md#the-dev-namespace-codes-that-never-reach-an-app).
+
 ## The gate
 
 **`bin/check` — green means shippable.** `--only <step>` runs one step, `--json` gives the summary

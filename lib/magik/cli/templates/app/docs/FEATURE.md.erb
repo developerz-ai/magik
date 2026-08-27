@@ -98,11 +98,11 @@ about. `scripts/README.md` has the shape — a check is a short file.
 
 | Symptom | Cause | Fix |
 |---|---|---|
-| A screen builds its own query | the scope you needed does not exist, so the screen improvised | add the scope to the model. `MAGIK_SCREEN_DIRECT_QUERY` |
+| A screen builds its own query | the scope you needed does not exist, so the screen improvised | add the scope to the model. `MAGIK_RENDER_SCREEN_DIRECT_QUERY` |
 | A `balance` column that an action increments | double-entry felt like overkill for one number | it is not. `app/ledgers/`, and the number is derived |
 | A second copy of a mutation in `app/api/` | the API resource reimplemented instead of calling the action | call the action. Two copies drift, and the API's copy drifts silently |
 | A test that passes against a declaration that does nothing | the framework is unimplemented and the assertion was too loose | assert something only the real behaviour satisfies |
-| A file in a path no generator would produce | someone placed it by hand | `magik generate`. `MAGIK_DECLARATION_MISPLACED` |
+| A file in a path no generator would produce | someone placed it by hand | `magik generate`. `MAGIK_CHECK_DECLARATION_MISPLACED` |
 | DSL that reads like Rails | written from memory instead of from `magik docs` | step 0 |
 
 <!-- magik:framework-block END -->

@@ -150,20 +150,49 @@ tenant they are helping. Every surface **names a verb** instead of writing a che
 `channel`, `job`, `api resource`, `admin_panel`. Opting out is a declaration too: `policy: :public`,
 `policy: :system`. Drafted Ruby: [`02-dsl-surface.md`](02-dsl-surface.md#policy).
 
-**Three questions `policy` has not answered, found by writing the reference app rather than by
-reading the design.** Each is a surface that reaches a model but has no actor or no model to name,
-so each is a place `MAGIK_POLICY_UNDECLARED` is currently unsatisfiable — the same shape of defect
-that `MAGIK_ADMIN_UNPROTECTED` was, and it is recorded here rather than discovered again later.
+**Three questions `policy` did not answer, found by writing the reference app rather than by reading
+the design — and now decided.** Each was a surface that reaches a model but had no actor or no model
+to name, so each was a place `MAGIK_POLICY_UNDECLARED` was unsatisfiable: the same shape of defect
+`MAGIK_ADMIN_UNPROTECTED` was, and the reason that code no longer exists.
 
-| Open question | Why the obvious answer is wrong | Evidence |
-|---|---|---|
-| **What actor does a verified incoming webhook present?** `webhook :incoming` is now in the surface list above, because Stripe's handler calls `perform_action :record_payment` and that action names a verb. But **a verified signature is not an actor** — it authenticates an origin, not a person, and `policy: :system` grants every verb in the app to anything that can reach the endpoint | a per-endpoint service actor, declared on the webhook and carrying only the verbs that endpoint needs, is the likely shape. It is not yet designed | `dummy/app/webhooks/stripe_incoming.rb` |
-| **What does a surface over a non-model subject name?** `policy :Model` presumes a model. `ledger :Receivables` is not one, and `api resource :ledger_entries` therefore has no legal verb to name. The reference app borrows `%i[Invoice read]` with a comment, which is a workaround, not a design | either `policy` accepts a non-model subject, or every generated surface must project onto a model. The first widens the construct; the second is a constraint that has to be stated and enforced | `dummy/app/api/v1.rb` |
-| **Does a `flow` name a verb, or inherit from the actions its steps post to?** A flow renders forms that post to actions, and onboarding is reachable before setup completes. Inheriting is attractive and probably wrong: it makes a flow's authorization a function of every action it touches, which is exactly the "second door" the construct exists to close | undecided | `dummy/app/flows/onboarding.rb` |
+**1. A verified incoming webhook presents a declared service actor, never `:system`.** A signature
+authenticates an *origin*, not a person, and `policy: :system` would hand every verb in the
+application to anything that can reach the endpoint — which is the broadest possible grant given to
+the one surface an attacker can call directly. So an incoming webhook declares the verbs it may
+exercise, and only those:
 
-None blocks phase 2 — screens and actions, the two surfaces phase 2 delivers, are fully specified.
-All three block the phase that ships the surface in question, and each is cheaper to settle now than
-after that surface exists.
+```ruby
+webhook :incoming, :stripe do
+  verify_signature secret: secret(:stripe_webhook), scheme: :stripe
+  acts_as :service, can: %i[Invoice.record_payment]     # least privilege, and it is a declaration
+  on "payment_intent.succeeded" do |event| … end
+end
+```
+
+`can:` is a verb list, not a role: there is no actor to carry a role. Every verb still resolves
+through the same `policy`, so this widens nothing — it narrows. An incoming webhook with no
+`acts_as`, or one naming `policy: :system`, does not boot (`MAGIK_WEBHOOK_UNSCOPED_ACTOR`). *Rejected:
+letting a webhook inherit `:system` like a job. A job is triggered by the application on its own
+schedule; a webhook is triggered by a stranger.*
+
+**2. A `policy` subject is any declared construct that owns data, not only a `model`.**
+`ledger :Receivables` is not a model, so `api resource :ledger_entries` had no legal verb to name.
+`policy :Receivables` is now legal, and the subject must be a name the registry knows —
+`MAGIK_POLICY_UNKNOWN_SUBJECT` otherwise. *Rejected: requiring every surface to project onto a model.
+That would have forced a fake `LedgerEntry` model into existence purely to satisfy authorization,
+which is inventing a data model to satisfy a guard — backwards, and exactly the pressure to write
+fake framework code this repository is organised against.*
+
+**3. A `flow` names its own verb and inherits nothing.** `flow` joins the surface list above.
+Inheriting the union of every verb its steps post to would make a flow's authorization a function of
+code elsewhere, unpredictable at the declaration site and impossible to read off the page — which is
+the second door `policy` exists to close. A step's `action` still evaluates its own verb, so a flow
+gates *entry* and each action gates its *write*. Two gates, one evaluator, and neither is implicit.
+
+None of the three blocked phase 2 — screens and actions, the two surfaces phase 2 delivers, were
+fully specified without them. Each blocked the phase that ships the surface in question, and each was
+cheaper to settle here than after that surface existed. The reasoning is logged in
+[`13-decisions.md`](13-decisions.md).
 
 
 **`layout` is the application shell**, and a screen names one
@@ -409,11 +438,13 @@ full catalogue with its `fix:` lines is [`03-guardrails.md`](03-guardrails.md).
 
 | Guardrail | What fails | Code |
 |---|---|---|
-| **Every surface reaching a model names a policy verb** | a `screen`, `action`, `api resource`, `channel`, `job`, `webhook :incoming` or `admin_panel` with no `policy:` and no explicit `policy: :public` / `policy: :system` | `MAGIK_POLICY_UNDECLARED` |
+| **Every surface reaching a model names a policy verb** | a `screen`, `action`, `api resource`, `channel`, `job`, `flow`, `webhook :incoming` or `admin_panel` with no `policy:` and no explicit `policy: :public` / `policy: :system` | `MAGIK_POLICY_UNDECLARED` |
 | A policy predicate performs no I/O | a `can` block issuing a query — `live` re-evaluates one per subscriber per change, so a query here is one round trip per row per open socket | `MAGIK_POLICY_IO` |
 | A named verb exists | `policy: %i[Invoice publish]` where `policy :Invoice` declares no `:publish` | `MAGIK_POLICY_UNKNOWN_VERB` |
 | Denial is the default | a `policy` block with no `default :deny` | `MAGIK_POLICY_NO_DEFAULT` |
 | A rule receiving a `nil` record denies | a row-level rule that would pass on an absent record | `MAGIK_POLICY_NULL_PASSES` |
+| An incoming webhook names the verbs it may exercise | a `webhook :incoming` with no `acts_as :service, can: [...]`, or one naming `policy: :system` | `MAGIK_WEBHOOK_UNSCOPED_ACTOR` |
+| A policy subject is a declared construct | `policy :Receivables` where nothing declares `Receivables` | `MAGIK_POLICY_UNKNOWN_SUBJECT` |
 | Every screen has a layout | a `screen` with no layout and no `layout: :None`; a `nav_item` naming a screen that does not exist; and a layout declaration naming an `action` that does not exist — `search action: :global_search` carries exactly the rot `nav_item` is guarded against | `MAGIK_LAYOUT_MISSING` · `MAGIK_LAYOUT_UNKNOWN_SCREEN` · `MAGIK_LAYOUT_UNKNOWN_ACTION` |
 | Uploads are bounded | a `:file` field or `attachment` with no `max_size` and no `content_types` — an unbounded upload field is an unbounded storage bill and a trivial DoS | `MAGIK_MODEL_UNCONSTRAINED_UPLOAD` |
 

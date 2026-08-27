@@ -504,6 +504,7 @@ One hop per question.
 |---|---|
 | **what Magik is, authoritatively** | [docs/idea/00-build-spec.md](docs/idea/00-build-spec.md) — the source of truth; nothing contradicts it |
 | why "AI-first" is a design constraint | [docs/idea/07-ai-first.md](docs/idea/07-ai-first.md) |
+| who decides what, and the log of decisions taken | [docs/idea/13-decisions.md](docs/idea/13-decisions.md) |
 | the agents and slash commands for working here | [.claude/README.md](.claude/README.md) |
 | the TypeScript sibling of this framework | [developerz-ai/ultimate](https://github.com/developerz-ai/ultimate) |
 | the thesis, in full | [docs/idea/01-thesis.md](docs/idea/01-thesis.md) |

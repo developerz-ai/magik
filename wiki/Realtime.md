@@ -72,7 +72,7 @@ tracks nothing.
 
 A channel name is scoped to the current tenant automatically. `"invoices:tenant"` in one tenant never
 reaches another. A channel name that would cross tenants is refused at boot
-(`MAGIK_CHANNEL_CROSSES_TENANT`) — multi-tenancy that leaks over the realtime layer is the failure
+(`MAGIK_REALTIME_CHANNEL_CROSSES_TENANT`) — multi-tenancy that leaks over the realtime layer is the failure
 mode nobody tests for.
 
 ## Backends
@@ -104,11 +104,11 @@ passing test on both sides before it is claimed anywhere — see
 
 | Guardrail | Fails with | When |
 |---|---|---|
-| A `live` declaration names a channel that exists | `MAGIK_CHANNEL_UNDECLARED` | boot |
+| A `live` declaration names a channel that exists | `MAGIK_REALTIME_CHANNEL_UNDECLARED` | boot |
 | A channel names a policy verb | `MAGIK_POLICY_UNDECLARED` | boot |
 | A policy predicate performs no I/O | `MAGIK_POLICY_IO` | boot |
-| A channel name cannot cross tenants | `MAGIK_CHANNEL_CROSSES_TENANT` | boot |
-| A screen with `live` still holds no cross-request state | `MAGIK_STATEFUL_SCREEN` | boot |
+| A channel name cannot cross tenants | `MAGIK_REALTIME_CHANNEL_CROSSES_TENANT` | boot |
+| A screen with `live` still holds no cross-request state | `MAGIK_RENDER_SCREEN_STATEFUL` | boot |
 
 ## Next
 

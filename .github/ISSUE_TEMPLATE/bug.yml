@@ -45,7 +45,7 @@ body:
       description: >-
         The `MAGIK_*` code from the failure, if one was raised. `none` if nothing was raised or the
         failure carried no code (a missing code is itself worth reporting — say so).
-      placeholder: MAGIK_UNKNOWN_COMMAND
+      placeholder: MAGIK_CLI_UNKNOWN_COMMAND
     validations:
       required: true
 

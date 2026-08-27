@@ -181,10 +181,10 @@ end
 
 | Guardrail | Fails with | When |
 |---|---|---|
-| A tenant strategy is declared | `MAGIK_TENANT_STRATEGY_MISSING` | boot |
+| A tenant strategy is declared | `MAGIK_AUTH_NO_TENANT_STRATEGY` | boot |
 | An admin panel names a policy verb | `MAGIK_POLICY_UNDECLARED` | boot |
 | The verb it names is declared | `MAGIK_POLICY_UNKNOWN_VERB` | boot |
-| No PAN-shaped fields | `MAGIK_PAN_FIELD_FORBIDDEN` | boot |
+| No PAN-shaped fields | `MAGIK_MODEL_FORBIDDEN_FIELD` | boot |
 | Billing webhooks are signature-verified | `MAGIK_WEBHOOK_UNVERIFIED` | boot |
 | An admin action delegates to a real action | `MAGIK_ADMIN_INLINE_MUTATION` | boot |
 

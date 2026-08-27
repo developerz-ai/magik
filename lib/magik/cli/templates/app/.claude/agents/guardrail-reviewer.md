@@ -25,7 +25,7 @@ magik docs search guardrail
 `magik docs` works today; almost nothing else does. **Do not web-search the DSL** — it is slow, and
 it returns whatever is on `main` rather than what this app's gem does.
 
-**Magik is spec only.** `magik check` exits `1` with `MAGIK_COMMAND_NOT_IMPLEMENTED`, so the machine
+**Magik is spec only.** `magik check` exits `1` with `MAGIK_CLI_COMMAND_NOT_IMPLEMENTED`, so the machine
 half of this review does not run yet and **you must say so in every report.** Until it does, you are
 the guardrails, executed by reading. When it does, your first move becomes `magik check --json` and
 most of this file becomes a fallback.

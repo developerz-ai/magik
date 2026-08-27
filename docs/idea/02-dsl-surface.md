@@ -302,12 +302,15 @@ channel     :invoices,      policy: %i[Invoice read]
 admin_panel :Invoice,       policy: %i[Invoice administer]
 job         :DunningSweep,  policy: :system          # explicit, never implicit
 screen      :Pricing,       policy: :public          # opting out is a declaration too
+flow        :Onboarding,    policy: :public          # a flow names its own verb, never its steps'
+webhook     :incoming,      acts_as: :service        # no actor to carry a role -- see `webhook`
 ```
 
 | Rule | Detail |
 |---|---|
 | Predicates are pure | no queries, no I/O. A `live` screen re-evaluates one per subscriber per change, so a query here is one round trip per row per open socket |
 | A `nil` record denies | "no record loaded" and "record not found" are the same `nil`, and absent evidence is a denial |
+| The subject is any declared construct | `policy :Model` is the common case, not the only one. A `ledger` and a `flow` own data and are not models, so `policy :Receivables` is legal — the subject must simply be a name the registry knows (`MAGIK_POLICY_UNKNOWN_SUBJECT`). Requiring every surface to project onto a model would force a fake model into existence purely to satisfy a guard |
 | One evaluator, every surface | the same block answers the HTTP request, the htmx post, the API call, the channel subscription and the admin render |
 | Tier | the evaluator sits at **tier 1** — below `render` and `realtime`, which must call it. It takes the actor as an opaque value; `auth` at tier 3 supplies it ([`../architecture/01-module-map.md`](../architecture/01-module-map.md)) |
 
@@ -602,7 +605,7 @@ end
 Multi-step wizards — onboarding, KYC, checkout. Step state lives server-side, keyed by a resumable token, because app servers are stateless.
 
 ```ruby
-flow :Onboarding do
+flow :Onboarding, policy: :public do        # a flow is a surface: it names a verb, or opts out
   step :profile do
     screen :OnboardingProfile
     on_submit { |params, ctx| ctx.merge(profile: params) }
@@ -617,6 +620,14 @@ flow :Onboarding do
   complete { |ctx| Account.activate!(ctx) }
 end
 ```
+
+**A flow names its own verb and inherits nothing.** Onboarding is reachable before an account exists,
+so it declares `policy: :public`; a checkout flow would name a real verb. Inheriting the union of
+every verb its steps post to was rejected: it makes a flow's authorization a function of code
+elsewhere, unreadable at the declaration site and unpredictable as steps change — which is the second
+door [`policy`](#policy) exists to close. The `action` behind a step still evaluates its own verb, so
+a flow gates **entry** and each action gates its **write**. Two gates, one evaluator, neither
+implicit.
 
 ---
 
@@ -654,6 +665,7 @@ Pagination, filtering and sorting are generated from the declaration. Serializat
 ```ruby
 webhook :incoming, :stripe do
   verify_signature secret: ENV.fetch("STRIPE_WEBHOOK_SECRET"), scheme: :stripe
+  acts_as :service, can: %i[Order.capture]     # the verbs this endpoint may reach, and no others
   on "payment_intent.succeeded" do |event|
     Payments.capture(order: Order.find_by_intent!(event[:id]), amount: money(event[:amount], :usd))
   end
@@ -667,7 +679,12 @@ webhook :outgoing, :order_placed do
 end
 ```
 
-An inbound webhook with no `verify_signature` fails at boot. Delivery of an outbound webhook runs through the job queue, so it inherits retries and transactional enqueue.
+An inbound webhook with no `verify_signature` fails at boot, and so does one with no `acts_as`
+(`MAGIK_WEBHOOK_UNSCOPED_ACTOR`). **A verified signature is not an actor** — it authenticates an
+origin, not a person — so an incoming webhook names the verbs it may exercise rather than borrowing
+`policy: :system`, which would grant every verb in the application to the one surface a stranger can
+call directly. `can:` is a verb list rather than a role, because there is no actor to carry one; each
+verb still resolves through the same [`policy`](#policy). Delivery of an outbound webhook runs through the job queue, so it inherits retries and transactional enqueue.
 
 ---
 

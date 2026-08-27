@@ -21,8 +21,8 @@ magik help                                             # every command that runs
 | Gap | Symptom | Work around it by |
 |---|---|---|
 | **The entire framework is unimplemented** | `docs/idea/00-build-spec.md` describes ten phases — 1, 2, 3, 4, 4b, 5, 6, 7, 8, 9 — over thirteen build steps. Zero are built. There is no `App.define`, no `model`, no `screen`, no `action`, no router, no renderer, no job queue, no ledger, no `magik new`. Every DSL block on this wiki is a design artefact that has never been parsed | there is no workaround. Use Rails, or use [Ultimate](https://github.com/developerz-ai/ultimate), and watch [`ROADMAP.md`](../ROADMAP.md) |
-| `magik new` does not exist | the command is registered and exits `1` with `MAGIK_COMMAND_NOT_IMPLEMENTED` | none. It is build step 1 |
-| Twelve of the fifteen CLI commands are `MAGIK_COMMAND_NOT_IMPLEMENTED` | only `version`, `help` and `docs` run | `magik help --json` is the authoritative list, and it marks every command `ready` or `planned`. Re-derive it rather than trusting this row |
+| `magik new` does not exist | the command is registered and exits `1` with `MAGIK_CLI_COMMAND_NOT_IMPLEMENTED` | none. It is build step 1 |
+| Twelve of the fifteen CLI commands are `MAGIK_CLI_COMMAND_NOT_IMPLEMENTED` | only `version`, `help` and `docs` run | `magik help --json` is the authoritative list, and it marks every command `ready` or `planned`. Re-derive it rather than trusting this row |
 | The error catalogue is eight codes, not the ~80 on [Error codes](Error-Codes.md) | four CLI codes and four `MAGIK_DOCS_*` codes. Everything else is written down and raised by nothing | treat that page's [Live today](Error-Codes.md#live-today) table as the real one |
 | The error catalogue is hand-written, not generated | it will be generated from the subsystem declarations once `magik check` exists, with drift failing the gate. Until then a code can be on the page and nowhere in the code, and nothing catches it | check `lib/magik/` before depending on a code |
 | Every subsystem module is a documented stub | referencing one loads a module that raises `NotImplementedError` naming the spec section it will implement | `ruby -Ilib -e 'require "magik"; puts Magik::SUBSYSTEMS.keys.inspect'` lists all twenty-one |
@@ -116,8 +116,8 @@ are **not** on the roadmap, at any version.
 
 | Limit | Why it stays |
 |---|---|
-| **No offline support** | the server is the single source of truth. Offline means a local write log, conflict resolution, and a second definition of "what is true" — which is most of the complexity in the frameworks that tried. A PWA ships; an offline cache does not. `MAGIK_OFFLINE_UNSUPPORTED` refuses loudly rather than half-working |
-| **No heavy client-side compute** | canvas editors, games, in-browser media editing, spreadsheet engines. Server-rendered HTML plus htmx is the wrong architecture for these and saying so is more useful than a degraded version. `MAGIK_CLIENT_COMPUTE_UNSUPPORTED` |
+| **No offline support** | the server is the single source of truth. Offline means a local write log, conflict resolution, and a second definition of "what is true" — which is most of the complexity in the frameworks that tried. A PWA ships; an offline cache does not. `MAGIK_PWA_OFFLINE_UNSUPPORTED` refuses loudly rather than half-working |
+| **No heavy client-side compute** | canvas editors, games, in-browser media editing, spreadsheet engines. Server-rendered HTML plus htmx is the wrong architecture for these and saying so is more useful than a degraded version. `MAGIK_RENDER_CLIENT_COMPUTE_UNSUPPORTED` |
 | **No SPA framework, ever** | React, Vue, Svelte owning rendering — architecture decision 4, and the one that gets challenged most. You *may* attach your own JavaScript behaviour to server-rendered markup; you may not hand rendering to a client framework. See [Screens and components](Screens-And-Components.md#what-no-spa-framework-does-and-does-not-forbid) |
 | **No GraphQL** | the API surface is REST, generated from `resource` declarations. A second query language is a second authorization surface |
 | **CRuby is not the target** | it is supported for tooling. Where CRuby and TruffleRuby diverge, TruffleRuby is the documented behaviour |

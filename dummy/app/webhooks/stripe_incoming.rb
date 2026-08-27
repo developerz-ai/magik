@@ -16,20 +16,26 @@
 # the rules is how a Stripe payment and a hand-entered payment end up validated
 # differently.
 #
-# AN OPEN QUESTION, recorded here rather than answered. `action :record_payment`
-# names `policy: %i[Invoice record_payment]`, and a policy predicate takes an
-# ACTOR. Stripe is not one. `webhook :incoming` is not among the surfaces
-# MAGIK_POLICY_UNDECLARED lists, so nothing here fails to boot — but "the
-# signature verified" and "the actor may do this" are different claims, and the
-# spec does not yet say which actor a verified webhook presents. See
-# dummy/README.md, "What writing this taught us".
+# THE ACTOR QUESTION, asked by this file and since answered by the spec.
+# `action :record_payment` names `policy: %i[Invoice record_payment]`, and a
+# policy predicate takes an ACTOR. Stripe is not one: "the signature verified"
+# and "the actor may do this" are different claims. The answer is `acts_as`
+# below — a verified webhook presents a SERVICE actor carrying an explicit verb
+# list, and `policy: :system` is illegal here, because :system would grant every
+# verb in the app to the one surface a stranger can call directly. Least
+# privilege, declared, and checked at boot (MAGIK_WEBHOOK_UNSCOPED_ACTOR).
 #
-# Demonstrates: webhook :incoming, verify_signature, on :event (Phase 6).
+# Demonstrates: webhook :incoming, verify_signature, acts_as, on :event (Phase 6).
 
 webhook :incoming, :stripe do
   # Verified before the body is parsed, let alone trusted. An unsigned webhook
   # endpoint is an unauthenticated mutation endpoint with better branding.
   verify_signature header: "Stripe-Signature", secret: credential(:stripe_webhook_secret)
+
+  # The whole of what this endpoint may do. Not a role -- there is no actor to
+  # carry one -- but a verb list, resolved through the same policy every other
+  # surface uses. Stripe can record a payment. It cannot void an invoice.
+  acts_as :service, can: %i[Invoice.record_payment]
 
   on "payment_intent.succeeded" do |event|
     # The same action the UI modal posts to — one set of invariants, two callers.

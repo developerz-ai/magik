@@ -68,9 +68,9 @@ class MagikErrorTest < Minitest::Test
   end
 
   def test_shipped_error_classes_declare_stable_codes
-    assert_equal "MAGIK_COMMAND_NOT_IMPLEMENTED", Magik::CommandNotImplementedError.code
-    assert_equal "MAGIK_UNKNOWN_COMMAND", Magik::UnknownCommandError.code
-    assert_equal "MAGIK_INVALID_OPTION", Magik::InvalidOptionError.code
+    assert_equal "MAGIK_CLI_COMMAND_NOT_IMPLEMENTED", Magik::CommandNotImplementedError.code
+    assert_equal "MAGIK_CLI_UNKNOWN_COMMAND", Magik::UnknownCommandError.code
+    assert_equal "MAGIK_CLI_INVALID_OPTION", Magik::InvalidOptionError.code
     [Magik::CommandNotImplementedError, Magik::UnknownCommandError, Magik::InvalidOptionError].each do |klass|
       assert_match Magik::Error::CODE_FORMAT, klass.code
       assert_match(/\S/, klass.fix)
@@ -82,7 +82,7 @@ class MagikErrorTest < Minitest::Test
       raise Magik::UnknownCommandError, "`nope` is not a magik command"
     end
 
-    assert_equal "MAGIK_UNKNOWN_COMMAND", error.code
+    assert_equal "MAGIK_CLI_UNKNOWN_COMMAND", error.code
     assert_includes error.message, "fix:"
   end
 end

@@ -68,9 +68,12 @@ api :V1 do
   # payments, and an actor who may read the invoice may read the postings that
   # explain it. It is also the one place in this app where naming a verb was
   # awkward: `ledger :Receivables` is not a model, so there is no
-  # `policy :LedgerEntry` to point at without inventing a model to hang it on.
-  # See dummy/README.md, "What writing this taught us".
-  resource :ledger_entries, policy: %i[Invoice read] do
+  # This borrowed `%i[Invoice read]` when a policy subject had to be a model.
+  # It no longer does: a subject is any declared construct that owns data, so
+  # `ledger :Receivables` can carry its own policy and this resource names it.
+  # Inventing a LedgerEntry model to hang a guard on would have been a data
+  # model written to satisfy authorization, which is backwards.
+  resource :ledger_entries, policy: %i[Receivables read] do
     index filterable: %i[account entry_type posted_on], sortable: %i[posted_on]
     show
   end

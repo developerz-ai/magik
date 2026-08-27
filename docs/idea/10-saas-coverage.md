@@ -47,7 +47,7 @@ Being adversarial about a spec means saying where the adversarial reading fails.
 
 | Area | Why it holds |
 |---|---|
-| **N+1 and debugging** | this is the best-designed part of the spec and the owner's instinct to check it was already answered. Prevention over detection: there is no lazy loading at all, so `MAGIK_LAZY_ASSOCIATION` raises where other frameworks issue a silent query ([`../../wiki/Models.md`](../../wiki/Models.md)). On top of that, [`../architecture/06-observability.md`](../architecture/06-observability.md) specifies same-shape-N-times detection in the dev trace, `magik check --scale` in CI, `magik explain query` showing the injected tenant predicate, and a per-request trace tree that most frameworks structurally cannot assemble. **No gap is manufactured here** |
+| **N+1 and debugging** | this is the best-designed part of the spec and the owner's instinct to check it was already answered. Prevention over detection: there is no lazy loading at all, so `MAGIK_MODEL_LAZY_ASSOCIATION` raises where other frameworks issue a silent query ([`../../wiki/Models.md`](../../wiki/Models.md)). On top of that, [`../architecture/06-observability.md`](../architecture/06-observability.md) specifies same-shape-N-times detection in the dev trace, `magik check --scale` in CI, `magik explain query` showing the injected tenant predicate, and a per-request trace tree that most frameworks structurally cannot assemble. **No gap is manufactured here** |
 | **Money and compliance** | `:money` as integer minor units refused at the type system, boot-time ledger balance analysis, `audited`, `immutable_after:`, `idempotent_by:`. The fintech claim in the mission sentence is the one the spec earns most convincingly |
 | **Tenancy** | injected rather than remembered, plus `--scale` warnings for query sites that escape it. Retrofitted tenancy is the migration nobody survives, and the spec does not defer it |
 
@@ -248,7 +248,7 @@ What it needs, and — this is the part worth stating — **every item has an ht
 | Capability | The htmx-shaped answer | Note |
 |---|---|---|
 | **Server-side pagination** | a partial swap: the pager is `hx-get` at the table's target, and the page token is in the URL | **cursor-based, and UUIDv7 makes it free.** Sortable primary keys mean a cursor is `(sort_key, id)` with no offset scan, so page 900 costs what page 1 costs. This is a real design advantage falling out of decision 8 and the spec should claim it |
-| **Sorting** | column headers are `hx-get` links carrying the sort key; the server re-renders the rows | `sortable :placed_at, :total` declares the allowed set; an undeclared sort is a 400, matching `MAGIK_FILTER_UNDECLARED` on the API |
+| **Sorting** | column headers are `hx-get` links carrying the sort key; the server re-renders the rows | `sortable :placed_at, :total` declares the allowed set; an undeclared sort is a 400, matching `MAGIK_API_FILTER_UNDECLARED` on the API |
 | **Per-column and global search** | a debounced `hx-get` from one input into the rows target | the same `searchable` declaration the API and admin use — one spelling, three surfaces |
 | **Filters with URL-encoded state** | filters write to the query string; the swap re-reads it | **so a filtered view is shareable and bookmarkable**, which is the property people actually want and the one client-side state destroys. This is the strongest single argument for server-rendered tables |
 | **Row actions** | already specified — `row_action` compiles to `hx-post` at the action | keep |
@@ -700,9 +700,9 @@ Stated plainly because the audit was asked to check it and the answer is favoura
 
 | Design choice | Why it is stronger than detection |
 |---|---|
-| **No lazy loading at all** | `invoice.customer` on a record loaded without `.eager(:customer)` raises `MAGIK_LAZY_ASSOCIATION`. There is no code path that silently issues the query, so there is no N+1 to detect — the class of bug is prevented rather than reported. This is the single best decision in the data layer, and it is downstream of choosing Sequel over ActiveRecord |
+| **No lazy loading at all** | `invoice.customer` on a record loaded without `.eager(:customer)` raises `MAGIK_MODEL_LAZY_ASSOCIATION`. There is no code path that silently issues the query, so there is no N+1 to detect — the class of bug is prevented rather than reported. This is the single best decision in the data layer, and it is downstream of choosing Sequel over ActiveRecord |
 | Components cannot query | `MAGIK_COMPONENT_DIRECT_QUERY` at boot. The classic N+1 — a query inside a row template — is not expressible |
-| Screens cannot query | `MAGIK_SCREEN_DIRECT_QUERY`; a screen names a `state`, and a state is a model scope. The query is where it can be read and eager-loaded |
+| Screens cannot query | `MAGIK_RENDER_SCREEN_DIRECT_QUERY`; a screen names a `state`, and a state is a model scope. The query is where it can be read and eager-loaded |
 | Detection anyway, in layers | dev trace warns on same-shape-N-times with **both sites**; `magik check --scale` reports it in CI; slow queries log with SQL, plan and the issuing declaration; missing indexes are reported with a suggested migration |
 | A request trace most frameworks cannot build | screen → state → query → render → job → broadcast with per-node timings and the dominant node marked, because everything descends from one declaration. `--json` on all of it |
 | `magik explain query` | shows the SQL including the framework-injected tenant predicate — the framework writes part of the query, so it is obliged to show it |

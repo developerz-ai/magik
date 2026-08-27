@@ -88,8 +88,8 @@ than what your gem does.
 
 **`As of <%= generated_on %>` this app cannot run.** Magik `<%= magik_version %>` is a
 name-reservation release: `App.define`, `model`, `screen`, `action`, the router and the server are
-**specified and not implemented**. `magik server`, `magik test` and `magik check` exit `1` with
-`MAGIK_COMMAND_NOT_IMPLEMENTED`.
+**specified and not implemented**. `magik server`, `magik test` and `magik check` exit `1`
+with `MAGIK_CLI_COMMAND_NOT_IMPLEMENTED`.
 
 Check rather than trust this paragraph:
 
@@ -121,8 +121,8 @@ One declaration per file, and the path says what the file declares before you op
 | any test | `test/<kind>/<name>_test.rb`, mirroring `app/` exactly |
 
 Constants are `snake_case`d for the filename; an `action` name is already a symbol and the filename
-is that symbol. A file declaring two things, or the wrong kind for its directory, is refused —
-`MAGIK_FILE_MULTIPLE_DECLARATIONS`, `MAGIK_DECLARATION_MISPLACED`.
+is that symbol. A file declaring two things, or the wrong kind for its directory, is refused:
+`MAGIK_CHECK_FILE_MULTIPLE_DECLARATIONS`, `MAGIK_CHECK_DECLARATION_MISPLACED`.
 
 `config/app.rb` is the composition root: `App.define :<%= app_class %>`. It holds what is true of the
 whole app — tenancy, swap points, auth, billing, theme, locales, admin. Anything true of *one* model,
@@ -148,13 +148,13 @@ Enforced at boot, not by review. Breaking one is a `MAGIK_*` failure with a runn
 | **A ledger is the only thing that moves money** | a `balance` column an action increments is the bug double-entry exists to prevent. Debits must equal credits or boot fails |
 | **Multi-tenant by default** | every model auto-scoped by `tenant_id`. A query with no `tenant_id` predicate is a `magik check --scale` finding |
 | **UUIDv7 primary keys** | from the first migration. Sortable, shard-safe, no sequence to reconcile after a split |
-| **An action is the only thing that mutates** | `ls app/actions/` is meant to be the complete list of writes in the product |
+| **An action is the only thing that mutates** | `ls app/actions/` should be the complete list of writes in the product |
 | **Every surface names a `policy` verb** | a screen, action, API resource, channel, job or admin panel with no `policy:` and no explicit `policy: :public` / `:system` does not boot |
-| **A screen never queries the database** | it names a `state`; the state calls a scope the model owns. A `Sequel` dataset built inside a `body` block is refused |
+| **A screen never queries the database** | it names a `state`; the state calls a scope the model owns. A `Sequel` dataset inside a `body` block is refused |
 | **A job is the only thing that runs async** | a fiber or thread spawned outside a `job` is untracked and unretryable |
 | **Stateless app servers** | no in-process session or UI state across requests. An `@ivar` on a screen that survives a request is refused |
 | **No SPA framework** | server-rendered HTML plus htmx, compiled from the DSL. Never add React, Vue, a bundler or a client build step |
-| **No offline, no heavy client compute** | the server is the single source of truth. A canvas editor or a game loop is out of scope — refuse rather than half-build it |
+| **No offline, no heavy client compute** | the server is the single source of truth. A canvas editor or a game loop is out of scope; refuse rather than half-build it |
 | **SOLID, SRP hardest** | one class, one reason to change. New behaviour is a new declaration in its own file, never another branch in a growing `case` |
 | **Minitest, never RSpec** | tests live in `test/` as `*_test.rb`. There is no `spec/` |
 | **No secrets in the tree** | `.env` and `config/master.key` are gitignored and stay that way; `.env.example` holds names and blanks |
@@ -182,8 +182,8 @@ Every command takes `--json`. Exit codes are contract: `0` success · `1` your a
 ## The loop
 
 1. **Name the screen or action the change is for.** A change with no user-visible reason has no test.
-2. **`magik generate` rather than hand-placing a file.** The generator knows the layout; a path you
-   invented is a `MAGIK_DECLARATION_MISPLACED` waiting to happen.
+2. **`magik generate` rather than hand-placing a file.** The generator knows the layout; an invented
+   path is a `MAGIK_CHECK_DECLARATION_MISPLACED` waiting to happen.
 3. **Make the generated test fail before you make it pass.**
 4. **`magik check`, then `magik test`** — in that order. A guardrail failure explains a test failure,
    never the reverse.

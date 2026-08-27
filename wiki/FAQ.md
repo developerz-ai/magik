@@ -27,7 +27,7 @@ Read [Known gaps](Known-Gaps.md) before you spend an afternoon on this.
 ### What can I actually run today?
 
 `magik version` and `magik help`, both with `--json`. That is the whole list. Everything else exits
-`1` with `MAGIK_COMMAND_NOT_IMPLEMENTED`.
+`1` with `MAGIK_CLI_COMMAND_NOT_IMPLEMENTED`.
 
 ### Then why does the documentation exist?
 
@@ -66,7 +66,7 @@ No benchmark comparing them appears anywhere in these docs, because none has bee
 
 | | ActiveRecord | Sequel, as Magik uses it |
 |---|---|---|
-| Lazy loading | an unloaded association issues a query silently — the N+1 nobody sees until production | accessing an unloaded association raises `MAGIK_LAZY_ASSOCIATION`. Load it or say so |
+| Lazy loading | an unloaded association issues a query silently — the N+1 nobody sees until production | accessing an unloaded association raises `MAGIK_MODEL_LAZY_ASSOCIATION`. Load it or say so |
 | Query building | a large, implicit surface | a dataset you can read and reason about |
 | Coupling | Rails-shaped | a library, wrappable without adopting a framework |
 
@@ -137,7 +137,7 @@ true" — which is where most of the complexity lives in every framework that tr
 of them died.
 
 The server is the single source of truth. A PWA ships (installable, `pwa do … end`); an offline cache
-does not. Asking for one gets `MAGIK_OFFLINE_UNSUPPORTED`, which refuses loudly rather than
+does not. Asking for one gets `MAGIK_PWA_OFFLINE_UNSUPPORTED`, which refuses loudly rather than
 half-working.
 
 **This is permanent.** It is not on the roadmap at any version.

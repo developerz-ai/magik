@@ -54,7 +54,7 @@ A screen names a `state` and the state is a **model scope**. A `Sequel` dataset 
 block is refused at boot:
 
 ```text
-MAGIK_SCREEN_DIRECT_QUERY: :Invoices builds a query inside its body block
+MAGIK_RENDER_SCREEN_DIRECT_QUERY: :Invoices builds a query inside its body block
   fix: move it to a `scope` on the model and declare it as `state`
 ```
 
@@ -67,7 +67,7 @@ App servers are stateless — architecture decision 9, and the thing that makes 
 work. A screen or component that stashes an instance variable between requests fails at boot:
 
 ```text
-MAGIK_STATEFUL_SCREEN: :Invoices assigns @cursor outside a render pass
+MAGIK_RENDER_SCREEN_STATEFUL: :Invoices assigns @cursor outside a render pass
   fix: put it in the URL, or in a `state` declaration that recomputes per request
 ```
 
@@ -458,7 +458,7 @@ field :sent_at, format: :datetime, zone: :tenant     # or an explicit IANA zone
 ```
 
 ```text
-MAGIK_TIMEZONE_UNSPECIFIED: :Invoices renders :sent_at with no zone
+MAGIK_RENDER_TIMESTAMP_NO_ZONE: :Invoices renders :sent_at with no zone
   fix: add `zone: :tenant` — or an IANA name — to the field
 ```
 
@@ -466,11 +466,11 @@ MAGIK_TIMEZONE_UNSPECIFIED: :Invoices renders :sent_at with no zone
 
 | Guardrail | Fails with | When |
 |---|---|---|
-| A screen may not query directly | `MAGIK_SCREEN_DIRECT_QUERY` | boot |
-| A screen or component may not hold cross-request state | `MAGIK_STATEFUL_SCREEN` | boot |
-| A timestamp may not render without a zone | `MAGIK_TIMEZONE_UNSPECIFIED` | boot |
+| A screen may not query directly | `MAGIK_RENDER_SCREEN_DIRECT_QUERY` | boot |
+| A screen or component may not hold cross-request state | `MAGIK_RENDER_SCREEN_STATEFUL` | boot |
+| A timestamp may not render without a zone | `MAGIK_RENDER_TIMESTAMP_NO_ZONE` | boot |
 | A component may not read the database | `MAGIK_COMPONENT_DIRECT_QUERY` | boot |
-| An undeclared prop is refused | `MAGIK_PROP_UNDECLARED` | boot |
+| An undeclared prop is refused | `MAGIK_COMPONENT_PROP_UNDECLARED` | boot |
 | A component shadowing a kit name satisfies its contract | `MAGIK_COMPONENT_CONTRACT_VIOLATION` | boot |
 | Every surface reaching a model names a policy verb | `MAGIK_POLICY_UNDECLARED` | boot |
 | The verb it names is declared | `MAGIK_POLICY_UNKNOWN_VERB` | boot |

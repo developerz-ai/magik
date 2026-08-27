@@ -96,7 +96,7 @@ Run `guardrail-reviewer` on the diff as well when the slice touched money, auth,
 boundary.
 
 **`As of` magik `0.0.1`, `magik check` and `magik test` are `planned` and exit `1` with
-`MAGIK_COMMAND_NOT_IMPLEMENTED`** — `magik version --json` says which world you are in. While that
+`MAGIK_CLI_COMMAND_NOT_IMPLEMENTED`** — `magik version --json` says which world you are in. While that
 is true, `guardrail-reviewer` reading the diff is the entire gate, and a report that does not say so
 has overstated itself.
 

@@ -35,7 +35,7 @@ test :Invoice do
   it "refuses to change its total once issued" do
     invoice = create(:invoice, status: :issued)
 
-    expect { invoice.update!(currency: "USD") }.to_raise(code: "MAGIK_IMMUTABLE_AFTER")
+    expect { invoice.update!(currency: "USD") }.to_raise(code: "MAGIK_MODEL_IMMUTABLE_VIOLATION")
   end
 
   it "records who changed what, and when" do

@@ -70,7 +70,7 @@ PAN-shaped pattern. The framework does not let you build the storage that a PCI 
 Tokenize with the billing provider instead; see [Auth, billing, admin](Auth-Billing-Admin.md).
 
 ```text
-MAGIK_PAN_FIELD_FORBIDDEN: :Invoice declares field :card_number
+MAGIK_MODEL_FORBIDDEN_FIELD: :Invoice declares field :card_number
   fix: store a provider token instead — `field :payment_method_token, :string`
 ```
 
@@ -116,7 +116,7 @@ Sequel datasets, tenant-scoped, explicit.
 Invoice.outstanding.order(:due_on).limit(50)
 Invoice.overdue.eager(:customer)                # explicit preload — there is no lazy fallback
 Invoice.where(customer_id: id).sum(:amount)
-Invoice.find!(id)                               # raises MAGIK_RECORD_NOT_FOUND, never returns nil
+Invoice.find!(id)                               # raises MAGIK_MODEL_RECORD_NOT_FOUND, never returns nil
 ```
 
 **There is no lazy loading.** `invoice.customer` on a record loaded without `eager(:customer)` is
@@ -124,7 +124,7 @@ intended to raise rather than silently issue a query, because a silent query in 
 nobody sees until production.
 
 ```text
-MAGIK_LAZY_ASSOCIATION: :Invoice#customer was not eagerly loaded
+MAGIK_MODEL_LAZY_ASSOCIATION: :Invoice#customer was not eagerly loaded
   fix: add `.eager(:customer)` to the query that loaded this record
 ```
 
@@ -132,12 +132,12 @@ MAGIK_LAZY_ASSOCIATION: :Invoice#customer was not eagerly loaded
 
 | Guardrail | Fails with | When |
 |---|---|---|
-| PAN-shaped field names are forbidden | `MAGIK_PAN_FIELD_FORBIDDEN` | boot |
-| Every query carries `tenant_id` | `MAGIK_TENANT_SCOPE_MISSING` | `magik check --scale` |
-| A `:money` field cannot take a `Float` | `MAGIK_MONEY_FLOAT` | assignment |
-| A `:timestamp` cannot render without a zone | `MAGIK_TIMEZONE_UNSPECIFIED` | boot |
-| A record past `immutable_after:` cannot be updated | `MAGIK_IMMUTABLE_RECORD` | write |
-| Associations are not lazily loaded | `MAGIK_LAZY_ASSOCIATION` | access |
+| PAN-shaped field names are forbidden | `MAGIK_MODEL_FORBIDDEN_FIELD` | boot |
+| Every query carries `tenant_id` | `MAGIK_SCALE_UNSCOPED_QUERY` | `magik check --scale` |
+| A `:money` field cannot take a `Float` | `MAGIK_MODEL_FLOAT_MONEY` | assignment |
+| A `:timestamp` cannot render without a zone | `MAGIK_RENDER_TIMESTAMP_NO_ZONE` | boot |
+| A record past `immutable_after:` cannot be updated | `MAGIK_MODEL_IMMUTABLE_VIOLATION` | write |
+| Associations are not lazily loaded | `MAGIK_MODEL_LAZY_ASSOCIATION` | access |
 | A `:file` field declares `max_size:` and `content_types:` | `MAGIK_MODEL_UNCONSTRAINED_UPLOAD` | boot |
 
 Full catalogue: [Error codes](Error-Codes.md). Why each exists:

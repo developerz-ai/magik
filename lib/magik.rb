@@ -80,8 +80,9 @@ module Magik
   # Magik errors are not free-form strings. Each one carries three things, and
   # all three are required:
   #
-  # 1. a **stable code** matching {CODE_FORMAT} (`MAGIK_SOMETHING`) that is
-  #    safe to grep for, link to, and match on in tests and CI;
+  # 1. a **stable code** matching {CODE_FORMAT}, shaped
+  #    `MAGIK_<SUBSYSTEM>_<CONDITION>`, that is safe to grep for, link to, and
+  #    match on in tests and CI;
   # 2. a **cause** — one sentence saying what actually went wrong;
   # 3. a **fix** — a runnable command or a concrete edit, never "check your
   #    configuration".
@@ -99,15 +100,15 @@ module Magik
   # @example Raise a one-off error
   #   raise Magik::Error.new(
   #     "the app has no `App.define` block",
-  #     code: "MAGIK_NO_APP",
+  #     code: "MAGIK_BOOT_NO_APP",
   #     fix: "run `magik new myapp` to generate one"
   #   )
   # @example Declare a reusable error class
-  #   class MissingTenant < Magik::Error
-  #     code "MAGIK_MISSING_TENANT"
-  #     fix  "add `tenant_by :subdomain` to your App.define block"
+  #   class NoTenant < Magik::Error
+  #     code "MAGIK_MODEL_NO_TENANT"
+  #     fix  "magik generate model Invoice --tenant"
   #   end
-  #   raise MissingTenant, "query on :Invoice has no tenant_id in WHERE"
+  #   raise NoTenant, "model :Invoice declares no tenant_id and no `global!` reason"
   class Error < StandardError
     # The shape every Magik error code must take: `MAGIK_` followed by
     # underscore-separated uppercase words.
@@ -182,7 +183,7 @@ module Magik
     end
 
     # The stable, greppable error code.
-    # @return [String] e.g. `"MAGIK_UNKNOWN_COMMAND"`
+    # @return [String] e.g. `"MAGIK_CLI_UNKNOWN_COMMAND"`
     attr_reader :code
 
     # What went wrong, in one sentence.
@@ -232,7 +233,7 @@ module Magik
   #
   # @see Magik::CLI
   class CommandNotImplementedError < Error
-    code "MAGIK_COMMAND_NOT_IMPLEMENTED"
+    code "MAGIK_CLI_COMMAND_NOT_IMPLEMENTED"
     fix "run `magik help` for the commands that work today; " \
         "track the rest in docs/idea/00-build-spec.md"
   end
@@ -241,7 +242,7 @@ module Magik
   #
   # @see Magik::CLI
   class UnknownCommandError < Error
-    code "MAGIK_UNKNOWN_COMMAND"
+    code "MAGIK_CLI_UNKNOWN_COMMAND"
     fix "run `magik help` to list every command"
   end
 
@@ -249,7 +250,7 @@ module Magik
   #
   # @see Magik::CLI
   class InvalidOptionError < Error
-    code "MAGIK_INVALID_OPTION"
+    code "MAGIK_CLI_INVALID_OPTION"
     fix "run `magik help` to list the supported options"
   end
 

@@ -36,7 +36,7 @@ end
 begin
   load Gem.bin_path("rake", "rake")
 rescue Gem::Exception
-  warn "MAGIK_NO_RAKE: rake is not installed."
+  warn "MAGIK_DEV_NO_RAKE: rake is not installed."
   warn "  fix: gem install rake   # or run bin/setup"
   exit 69
 end

@@ -25,7 +25,7 @@ magik docs search uuid           # find the page before guessing a type name
 it returns whatever is on `main` rather than what this app's gem does.
 
 **Magik is spec only.** `model` and `migrate` are not methods that exist yet — `magik db migrate`
-exits `1` with `MAGIK_COMMAND_NOT_IMPLEMENTED`. You can write declarations; you cannot run them.
+exits `1` with `MAGIK_CLI_COMMAND_NOT_IMPLEMENTED`. You can write declarations; you cannot run them.
 Never report a migration as applied. Confirm with `magik version --json` before you claim anything.
 
 ## The four rules that are not negotiable here
@@ -65,7 +65,7 @@ data exists is not a two-line change.
 
 `model :LineItem` lives in `app/models/line_item.rb` and that file declares nothing else. Use
 `magik generate model <Name>` rather than placing the file yourself — it writes the test too, and a
-path you invented is a `MAGIK_DECLARATION_MISPLACED` waiting to happen.
+path you invented is a `MAGIK_CHECK_DECLARATION_MISPLACED` waiting to happen.
 
 `db/schema.rb` is **generated and never hand-edited** (`magik db schema` regenerates it). It is
 denied to you in `.claude/settings.json`; that is not a mistake.

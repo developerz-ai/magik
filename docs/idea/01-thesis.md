@@ -63,7 +63,7 @@ Every decision the framework makes for its user is one that is cheap on day one 
 | **`tenant_id` on every model** | retrofitting tenancy means auditing every query ever written. `magik check --scale` exists because this one is unforgiving |
 | **Integer cents, floats refused at the type level** | a float that reached the database is already wrong. No later fix recovers the lost precision |
 | **Stateless app servers** | this is what makes "add another server" a config change instead of a rewrite — and it is what LiveView's stateful socket costs, as noted below |
-| **No lazy loading** | an N+1 that ships is a cliff found in production. `MAGIK_LAZY_ASSOCIATION` makes it an error at the access site instead |
+| **No lazy loading** | an N+1 that ships is a cliff found in production. `MAGIK_MODEL_LAZY_ASSOCIATION` makes it an error at the access site instead |
 | **Append-only ledgers, `audited`, `immutable_after:`** | history you did not record cannot be reconstructed. In a fintech context that is a compliance failure, not an inconvenience |
 
 The symmetry is the other half of the rule: **where reversal is cheap, Magik does not decide for you.** Cache backend, job backend, realtime backend, search, mail transport — all switchable by one config line, because switching them later costs a config line rather than a schema migration ([`04-swap-points.md`](04-swap-points.md)).

@@ -43,7 +43,7 @@ body:
         A file path with a line number if you have one, a docs URL, or the `MAGIK_*` code whose
         text is wrong. `https://developerz-ai.github.io/magik/api/` is the generated YARD reference
         — a problem there is a problem in the comment in `lib/`, so name that file if you can.
-      placeholder: docs/idea/00-build-spec.md:41, README.md "Status", or MAGIK_UNKNOWN_COMMAND
+      placeholder: docs/idea/00-build-spec.md:41, README.md "Status", or MAGIK_CLI_UNKNOWN_COMMAND
     validations:
       required: true
 

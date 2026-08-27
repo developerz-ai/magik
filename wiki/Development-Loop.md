@@ -53,7 +53,7 @@ holds.
 The server tells you when it hits one rather than silently doing nothing:
 
 ```text
-MAGIK_RESTART_REQUIRED: config/app.rb changed and cannot be hot-reloaded
+MAGIK_CLI_RESTART_REQUIRED: config/app.rb changed and cannot be hot-reloaded
   fix: restart `magik server`
 ```
 
@@ -68,7 +68,7 @@ You get an error page carrying **the same code, cause and `fix:` line** the CLI 
 raw backtrace with the useful part on line 40.
 
 ```text
-MAGIK_SCREEN_DIRECT_QUERY: :Invoices builds a query inside its body block
+MAGIK_RENDER_SCREEN_DIRECT_QUERY: :Invoices builds a query inside its body block
 
   cause: app/screens/invoices.rb:11 calls Invoice.where(...) inside `body`
   fix:   move it to a `scope` on the model and declare it as `state`
@@ -108,7 +108,7 @@ alongside them. There is no registration step and nothing to add to a manifest.
 | Rule | Detail |
 |---|---|
 | Every generator writes a test too | never a `# TODO: write a test` stub |
-| A generator never overwrites hand-written code | `MAGIK_GENERATE_WOULD_OVERWRITE`, naming the file |
+| A generator never overwrites hand-written code | `MAGIK_CLI_WOULD_OVERWRITE`, naming the file |
 | `--dry-run` prints what it would write | and `--dry-run --json` gives you the list as data |
 
 ---

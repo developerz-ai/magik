@@ -95,7 +95,7 @@ fi
 
 cat >&2 <<'TXT'
 
-MAGIK_NO_WATCHER: no file watcher is installed, so there is nothing to watch with.
+MAGIK_DEV_NO_WATCHER: no file watcher is installed, so there is nothing to watch with.
 
   Magik does not ship a watcher or depend on a gem for one — a watcher is a
   machine-local tool, not a project dependency. Install any one of these:
@@ -105,7 +105,7 @@ MAGIK_NO_WATCHER: no file watcher is installed, so there is nothing to watch wit
     fswatch     apt install fswatch           |  brew install fswatch
     inotifywait apt install inotify-tools     (Linux only)
 
-  Then re-run bin/dev.
+  fix: apt install entr   # or any of the four above; then re-run bin/dev
 
   In the meantime, `bin/dev --once` runs the step a single time, and
   `bin/check` runs the whole gate.

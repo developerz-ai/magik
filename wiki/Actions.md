@@ -28,7 +28,7 @@ end
 | Piece | Does |
 |---|---|
 | `params` | the posted parameters, coerced against the form's declared field types |
-| `guard` | a precondition. Failing one is a `MAGIK_GUARD_FAILED` with your message, rendered to the user — not a 500 |
+| `guard` | a precondition. Failing one is a `MAGIK_ACTION_GUARD_FAILED` with your message, rendered to the user — not a 500 |
 | `toast` | transient feedback, swapped into the page by htmx |
 | `refresh :Screen` | re-renders the named screen fragment. This is how the page updates without a reload |
 | `policy:` | the verb the framework evaluates **before** the block runs. Required, like everywhere else — see [`policy`](Screens-And-Components.md#policy). Opting out is `policy: :public` or `policy: :system`, written down |
@@ -64,8 +64,8 @@ action :create_invoice do
 end
 ```
 
-A missing `required:` param is `MAGIK_PARAM_MISSING`; a `Float` posted into a `:money` param is
-`MAGIK_MONEY_FLOAT`, refused at the boundary rather than rounded silently.
+A missing `required:` param is `MAGIK_ACTION_PARAM_MISSING`; a `Float` posted into a `:money` param is
+`MAGIK_MODEL_FLOAT_MONEY`, refused at the boundary rather than rounded silently.
 
 ## Idempotency
 
@@ -88,14 +88,14 @@ An action that moves money and has no `idempotent_by` is intended to be a boot f
 you can double-submit is not a bug you get to find in production:
 
 ```text
-MAGIK_IDEMPOTENCY_REQUIRED: :charge_invoice writes to a ledger with no idempotent_by
+MAGIK_ACTION_IDEMPOTENCY_REQUIRED: :charge_invoice writes to a ledger with no idempotent_by
   fix: add `idempotent_by :invoice_id` to app/actions/charge_invoice.rb
 ```
 
 ## Actions hold no state
 
 Stateless app servers — architecture decision 9. An action that keeps an instance variable across
-requests fails at boot with `MAGIK_STATEFUL_ACTION`. Everything an action needs comes from `params`,
+requests fails at boot with `MAGIK_ACTION_STATEFUL`. Everything an action needs comes from `params`,
 the current tenant, and the database.
 
 ## Async work belongs to jobs
@@ -106,20 +106,20 @@ An action returns to a rendered page. Work that outlives the request is a `job`:
 SendReceiptEmail.enqueue(invoice_id: invoice.id)
 ```
 
-Spawning a fiber or thread inside an action is refused (`MAGIK_ASYNC_OUTSIDE_JOB`). The enqueue and
+Spawning a fiber or thread inside an action is refused (`MAGIK_JOBS_ASYNC_OUTSIDE`). The enqueue and
 the row that caused it commit together — see [Jobs](Jobs.md).
 
 ## Guardrails
 
 | Guardrail | Fails with | When |
 |---|---|---|
-| An action is the only thing that mutates | `MAGIK_MUTATION_OUTSIDE_ACTION` | boot |
+| An action is the only thing that mutates | `MAGIK_ACTION_MUTATION_OUTSIDE` | boot |
 | An action names a policy verb | `MAGIK_POLICY_UNDECLARED` | boot |
-| An action holds no cross-request state | `MAGIK_STATEFUL_ACTION` | boot |
-| Async work happens in a job | `MAGIK_ASYNC_OUTSIDE_JOB` | boot |
-| A money-moving action declares idempotency | `MAGIK_IDEMPOTENCY_REQUIRED` | boot |
-| Params match their declared types | `MAGIK_PARAM_MISSING`, `MAGIK_PARAM_TYPE` | request |
-| A guard failure is user-facing, never a 500 | `MAGIK_GUARD_FAILED` | request |
+| An action holds no cross-request state | `MAGIK_ACTION_STATEFUL` | boot |
+| Async work happens in a job | `MAGIK_JOBS_ASYNC_OUTSIDE` | boot |
+| A money-moving action declares idempotency | `MAGIK_ACTION_IDEMPOTENCY_REQUIRED` | boot |
+| Params match their declared types | `MAGIK_ACTION_PARAM_MISSING`, `MAGIK_ACTION_PARAM_TYPE` | request |
+| A guard failure is user-facing, never a 500 | `MAGIK_ACTION_GUARD_FAILED` | request |
 
 ## Swap points
 

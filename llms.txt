@@ -4,7 +4,7 @@
 
 This file is a link map, not a status page. **It states no version, count or verdict without the command that resolves it** — a number written here goes stale on the next commit and the command does not. `As of 2026-08-26`.
 
-**The one fact you must not get wrong:** `magik 0.0.1` is a **name reservation on RubyGems**. No framework code exists. Every DSL block in `wiki/` and `docs/` is a design artefact that has never been parsed. Three CLI commands run — `version`, `help` and `docs` — and everything else exits `1` with `MAGIK_COMMAND_NOT_IMPLEMENTED`. Resolve it with `magik help --json` before you quote anything else on this page.
+**The one fact you must not get wrong:** `magik 0.0.1` is a **name reservation on RubyGems**. No framework code exists. Every DSL block in `wiki/` and `docs/` is a design artefact that has never been parsed. Three CLI commands run — `version`, `help` and `docs` — and everything else exits `1` with `MAGIK_CLI_COMMAND_NOT_IMPLEMENTED`. Resolve it with `magik help --json` before you quote anything else on this page.
 
 ## Which reader are you
 
@@ -52,7 +52,7 @@ Both readers: [wiki/Error-Codes.md](https://raw.githubusercontent.com/developerz
 - **Can I replace a default**: [docs/idea/04-swap-points.md](https://raw.githubusercontent.com/developerz-ai/magik/main/docs/idea/04-swap-points.md) — DB, cache, jobs, search, realtime. Every swap needs a passing test on both sides before it is claimed. None exists yet.
 - **Can I use my own components**: [docs/idea/08-component-overrides.md](https://raw.githubusercontent.com/developerz-ai/magik/main/docs/idea/08-component-overrides.md) for the reasoning; [wiki/Screens-And-Components.md](https://raw.githubusercontent.com/developerz-ai/magik/main/wiki/Screens-And-Components.md) for the four-rung ladder, the kit contract and the resolution order.
 - **What will it refuse to do**: [docs/idea/05-limits.md](https://raw.githubusercontent.com/developerz-ai/magik/main/docs/idea/05-limits.md). No offline, no heavy client-side compute, no SPA framework. Permanent, not a gap.
-- **I hit a `MAGIK_*` code**: [wiki/Error-Codes.md](https://raw.githubusercontent.com/developerz-ai/magik/main/wiki/Error-Codes.md). Run the `fix:` line verbatim — it is a command or an edit naming a file. Only the CLI's own codes are raised by anything today; the rest are seeded from the guardrails and raised by nothing.
+- **I hit a `MAGIK_*` code**: [wiki/Error-Codes.md](https://raw.githubusercontent.com/developerz-ai/magik/main/wiki/Error-Codes.md). Run the `fix:` line verbatim — it is a command or an edit naming a file. Eight codes are raised by anything today — three `MAGIK_CLI_*`, four `MAGIK_DOCS_*`, and the root `MAGIK_ERROR` — and `ruby scripts/checks/error_codes.rb` re-derives that count rather than restating it. The rest are seeded from the guardrails and raised by nothing.
 - **A CLI flag, a `--json` shape, an exit code**: [wiki/CLI-Reference.md](https://raw.githubusercontent.com/developerz-ai/magik/main/wiki/CLI-Reference.md).
 - **Which module owns this**: [docs/architecture/01-module-map.md](https://raw.githubusercontent.com/developerz-ai/magik/main/docs/architecture/01-module-map.md). **What may depend on what**: [docs/architecture/02-boundaries.md](https://raw.githubusercontent.com/developerz-ai/magik/main/docs/architecture/02-boundaries.md).
 - **How the tests are meant to run**: [docs/architecture/04-testing-strategy.md](https://raw.githubusercontent.com/developerz-ai/magik/main/docs/architecture/04-testing-strategy.md) for the mechanism and its risks; [wiki/Testing.md](https://raw.githubusercontent.com/developerz-ai/magik/main/wiki/Testing.md) for what you type.
@@ -102,11 +102,11 @@ Ten spec phases — 1, 2, 3, 4, 4b, 5, 6, 7, 8, 9 — delivered in a thirteen-st
 The product **is** the enforcement. Declarations are refused at boot rather than at runtime, each refusal carrying a code, a cause and a runnable `fix:` — which is the correction signal an agent acts on. Full reasoning: [docs/idea/03-guardrails.md](https://raw.githubusercontent.com/developerz-ai/magik/main/docs/idea/03-guardrails.md). Full catalogue: [wiki/Error-Codes.md](https://raw.githubusercontent.com/developerz-ai/magik/main/wiki/Error-Codes.md).
 
 - Ledger entries must balance — `MAGIK_LEDGER_UNBALANCED`
-- No PAN-shaped field may exist — `MAGIK_PAN_FIELD_FORBIDDEN`
-- No cross-domain direct model access — `MAGIK_DOMAIN_BOUNDARY_VIOLATION`
-- No in-process state across requests in a screen or action — `MAGIK_STATEFUL_SCREEN`
-- No timestamp rendered without an explicit timezone — `MAGIK_TIMEZONE_UNSPECIFIED`
-- No query without `tenant_id` in its `WHERE` — `MAGIK_TENANT_SCOPE_MISSING`, via `magik check --scale`
+- No PAN-shaped field may exist — `MAGIK_MODEL_FORBIDDEN_FIELD`
+- No cross-domain direct model access — `MAGIK_DOMAIN_BOUNDARY`
+- No in-process state across requests in a screen or action — `MAGIK_RENDER_SCREEN_STATEFUL`
+- No timestamp rendered without an explicit timezone — `MAGIK_RENDER_TIMESTAMP_NO_ZONE`
+- No query without `tenant_id` in its `WHERE` — `MAGIK_SCALE_UNSCOPED_QUERY`, via `magik check --scale`
 - **No surface reaches a model without naming a policy verb** — `MAGIK_POLICY_UNDECLARED`, the load-bearing one: it makes authorization non-optional the way `tenant_id` is, and makes an unprotected admin panel a boot failure rather than a documented risk. Its siblings refuse a predicate that does I/O, an unknown verb, a missing `default :deny`, and a rule that passes on a `nil` record
 - **No screen without a layout**, and no `nav_item` naming a screen that does not exist — `MAGIK_LAYOUT_MISSING` · `MAGIK_LAYOUT_UNKNOWN_SCREEN`
 - **No unbounded upload** — a `:file` field or an `attachment` with no `max_size` and no `content_types` — `MAGIK_MODEL_UNCONSTRAINED_UPLOAD`
@@ -118,14 +118,16 @@ MAGIK_LEDGER_UNBALANCED: entry :invoice_issued debits 14999, credits 14900
   fix: correct the amounts in app/ledgers/receivables.rb — debits must equal credits
 ```
 
-The codes that exist today are the CLI's own — `MAGIK_ERROR`, `MAGIK_UNKNOWN_COMMAND`, `MAGIK_COMMAND_NOT_IMPLEMENTED`, `MAGIK_INVALID_OPTION`, plus the `MAGIK_DOCS_*` set behind `magik docs`. Resolve the list rather than quoting it: `grep -rhoE '"MAGIK_[A-Z0-9_]+"' lib/ | sort -u`. Every other code on the catalogue page is seeded from the guardrails and raised by nothing.
+Eight codes exist today: the root `MAGIK_ERROR`, the CLI's `MAGIK_CLI_UNKNOWN_COMMAND`, `MAGIK_CLI_COMMAND_NOT_IMPLEMENTED` and `MAGIK_CLI_INVALID_OPTION`, and the four `MAGIK_DOCS_*` behind `magik docs`. Resolve the list rather than quoting it: `ruby scripts/checks/error_codes.rb` prints the count, and `jq -r '.error_codes[].code' magik.manifest.json` prints the names. A bare grep for the prefix over `lib/` over-counts — it also matches the `MAGIK_DOCS_ROOT` environment variable and the codes named in doc-comment examples. Every other code on the catalogue page is seeded from the guardrails and raised by nothing.
+
+`MAGIK_` is a prefix, not a promise that a string is a code. Two other things wear it: environment variables (`MAGIK_DOCS_ROOT`, `MAGIK_YARD_MIN_COVERAGE`), and the `MAGIK_DEV_*` refusals this repository's own `bin/` scripts print, which ship to nobody and are in no catalogue ([docs/architecture/03-error-codes.md](https://raw.githubusercontent.com/developerz-ai/magik/main/docs/architecture/03-error-codes.md)).
 
 ## The limits
 
 Permanent exclusions, not gaps. They are refusals with codes rather than silent no-ops, because a limit that fails quietly is worse than one that refuses loudly. Full detail: [docs/idea/05-limits.md](https://raw.githubusercontent.com/developerz-ai/magik/main/docs/idea/05-limits.md).
 
-- **No offline support.** The server is the single source of truth — `MAGIK_OFFLINE_UNSUPPORTED`.
-- **No heavy client-side compute.** Canvas editors, games, in-browser media editing — `MAGIK_CLIENT_COMPUTE_UNSUPPORTED`.
+- **No offline support.** The server is the single source of truth — `MAGIK_PWA_OFFLINE_UNSUPPORTED`.
+- **No heavy client-side compute.** Canvas editors, games, in-browser media editing — `MAGIK_RENDER_CLIENT_COMPUTE_UNSUPPORTED`.
 - **No SPA framework, ever.** React/Vue/Svelte owning rendering is forbidden; attaching your own JavaScript behaviour to server-rendered markup is not.
 - **No GraphQL.** REST, generated from `resource` declarations. A second query language is a second authorization surface.
 - **CRuby is not the target.** TruffleRuby is production; CRuby `>= 3.2` is for tooling. Where they diverge, TruffleRuby is documented behaviour.
@@ -148,6 +150,7 @@ Permanent exclusions, not gaps. They are refusals with codes rather than silent 
 - [10-saas-coverage.md](https://raw.githubusercontent.com/developerz-ai/magik/main/docs/idea/10-saas-coverage.md): the adversarial audit of the 99% claim, and the command that re-counts the table. It is where `policy`, `layout` and media came from.
 - [11-dsl-as-tool-surface.md](https://raw.githubusercontent.com/developerz-ai/magik/main/docs/idea/11-dsl-as-tool-surface.md): the DSL as a tool surface — the rules new grammar is designed against, why `magik describe` exists, and why `magik mcp` is deferred.
 - [12-the-range.md](https://raw.githubusercontent.com/developerz-ai/magik/main/docs/idea/12-the-range.md): the two axes one framework has to span, from a weekend idea to a large product.
+- [13-decisions.md](https://raw.githubusercontent.com/developerz-ai/magik/main/docs/idea/13-decisions.md): the governance model — the agent decides within the spec's frame, what is reserved to the owner, what a decision owes, and the log of decisions taken.
 
 ### Internals — docs/architecture
 
@@ -178,7 +181,7 @@ The public documentation surface. Source of truth is `wiki/` in this repository,
 - [Getting started](https://raw.githubusercontent.com/developerz-ai/magik/main/wiki/Getting-Started.md): the intended first run — `magik new` → `bin/setup` → `magik server`.
 - [Development loop](https://raw.githubusercontent.com/developerz-ai/magik/main/wiki/Development-Loop.md): hot reload, the console, generators, `--watch`, the error page. No JS build step, ever.
 - [Project layout](https://raw.githubusercontent.com/developerz-ai/magik/main/wiki/Project-Layout.md): the annotated tree, the filename ↔ declaration mapping both directions, how it scales to domains, and generated versus hand-written.
-- [CLI reference](https://raw.githubusercontent.com/developerz-ai/magik/main/wiki/CLI-Reference.md): every command, flag, `--json` shape and exit code, with the two that run today marked.
+- [CLI reference](https://raw.githubusercontent.com/developerz-ai/magik/main/wiki/CLI-Reference.md): every command, flag, `--json` shape and exit code, with the ones that run today marked. `magik help --json` is the authority on which those are.
 - [Models](https://raw.githubusercontent.com/developerz-ai/magik/main/wiki/Models.md): `model`, `migrate`, field types, tenancy, UUIDv7, the Sequel seam.
 - [Screens and components](https://raw.githubusercontent.com/developerz-ai/magik/main/wiki/Screens-And-Components.md): `screen`, `component`, the kit, theming, and the four-rung override ladder for your own components.
 - [Actions](https://raw.githubusercontent.com/developerz-ai/magik/main/wiki/Actions.md): the only thing that mutates. Params, guards, routing by convention, idempotency.
@@ -189,7 +192,7 @@ The public documentation surface. Source of truth is `wiki/` in this repository,
 - [Auth, billing, admin](https://raw.githubusercontent.com/developerz-ai/magik/main/wiki/Auth-Billing-Admin.md): Rodauth-backed auth, Stripe billing, generated admin panels, `tenant_by`.
 - [Testing](https://raw.githubusercontent.com/developerz-ai/magik/main/wiki/Testing.md): the `test` DSL over Minitest, every helper in use, inferred factories, generated tests, all cores by default.
 - [Domains](https://raw.githubusercontent.com/developerz-ai/magik/main/wiki/Domains.md): `depends_on`, `exposes`, `publishes_events`, and boot-time boundary enforcement.
-- [Error codes](https://raw.githubusercontent.com/developerz-ai/magik/main/wiki/Error-Codes.md): the format contract, the four live codes, and the catalogue seeded from the guardrails.
+- [Error codes](https://raw.githubusercontent.com/developerz-ai/magik/main/wiki/Error-Codes.md): the format contract, the codes that are live today, and the catalogue seeded from the guardrails. Which rows are live is re-derived by `ruby scripts/checks/error_codes.rb`, never counted by hand.
 - [Known gaps](https://raw.githubusercontent.com/developerz-ai/magik/main/wiki/Known-Gaps.md): the honest page. The gap is the entire framework.
 - [FAQ](https://raw.githubusercontent.com/developerz-ai/magik/main/wiki/FAQ.md): why TruffleRuby, why Sequel, why Minitest, why htmx, why no offline, is it production ready, how it differs from Rails.
 - [Contributing](https://raw.githubusercontent.com/developerz-ai/magik/main/wiki/Contributing.md): a pointer to the root guide.

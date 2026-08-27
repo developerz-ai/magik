@@ -329,7 +329,7 @@ For an admin screen where a human genuinely wants page 500, offset is available 
 index paginate: :offset, max_page: 100
 ```
 
-**Default on, switchable — at the declaration, not globally**, because it is a per-list property. `magik check --scale` reports an offset paginator with no `max_page:` (proposed code `MAGIK_SCALE_OFFSET_PAGINATION`, `warning`). An `index` with no page ceiling at all is already refused: the wiki catalogue reserves `MAGIK_PAGINATION_UNBOUNDED` for it — see the [naming note](#conflicts-and-open-questions).
+**Default on, switchable — at the declaration, not globally**, because it is a per-list property. `magik check --scale` reports an offset paginator with no `max_page:` (proposed code `MAGIK_SCALE_OFFSET_PAGINATION`, `warning`). An `index` with no page ceiling at all is already refused: the wiki catalogue reserves `MAGIK_API_PAGINATION_UNBOUNDED` for it — see the [naming note](#conflicts-and-open-questions).
 
 ---
 
@@ -339,11 +339,11 @@ The core of this is already designed elsewhere and is not restated:
 
 | Already covered | Where |
 |---|---|
-| No lazy loading — an unloaded association raises `MAGIK_LAZY_ASSOCIATION` rather than issuing a silent query | [`../../wiki/Models.md`](../../wiki/Models.md), [`../idea/05-limits.md`](../idea/05-limits.md) |
+| No lazy loading — an unloaded association raises `MAGIK_MODEL_LAZY_ASSOCIATION` rather than issuing a silent query | [`../../wiki/Models.md`](../../wiki/Models.md), [`../idea/05-limits.md`](../idea/05-limits.md) |
 | N+1, slow query, unscoped query and missing-index detection, in the dev trace and in `magik check --scale` | [`06-observability.md`](06-observability.md) |
 | Why all four are warnings rather than boot failures | [`../idea/03-guardrails.md`](../idea/03-guardrails.md) |
 
-`MAGIK_LAZY_ASSOCIATION` is the strongest performance default in the framework and it is not on this page's classification table because it is a *guardrail*, not a tuning knob. It is worth naming why it works: it converts the most common performance bug in Ruby from an invisible one into a stack trace at the line that caused it.
+`MAGIK_MODEL_LAZY_ASSOCIATION` is the strongest performance default in the framework and it is not on this page's classification table because it is a *guardrail*, not a tuning knob. It is worth naming why it works: it converts the most common performance bug in Ruby from an invisible one into a stack trace at the line that caused it.
 
 ### What is missing, and belongs in `--scale`
 
@@ -694,9 +694,9 @@ Detailed in §6. `use :cache, :memory` is right for "an app with no Redis"; it i
 
 §2.3 sets four Postgres timeouts through `:connect_sqls`. PgBouncer lists `SET` as never working in transaction pooling mode, and `LISTEN` — the default realtime and job-wakeup transport — as never working either. So the deployment that most needs a pooler is the one whose defaults it breaks. Magik's answer is the libpq `options=` startup-parameter route when a pooler is declared, plus documentation that transaction pooling and the Postgres realtime backend are mutually exclusive. **That interaction is not currently in [`../ops/README.md`](../ops/README.md).**
 
-### 5. A code-naming drift worth fixing
+### 5. A code-naming drift worth fixing — **resolved 2026-08-26**
 
-`wiki/Error-Codes.md` reserves `MAGIK_PAGINATION_UNBOUNDED`, which does not fit the `MAGIK_<SUBSYSTEM>_<CONDITION>` format from [`03-error-codes.md`](03-error-codes.md) — `pagination` is not a subsystem in [`01-module-map.md`](01-module-map.md). `MAGIK_API_PAGINATION_UNBOUNDED` would. Flagged for whoever owns the catalogue; not changed here.
+`wiki/Error-Codes.md` reserved `MAGIK_PAGINATION_UNBOUNDED`, which did not fit the `MAGIK_<SUBSYSTEM>_<CONDITION>` format from [`03-error-codes.md`](03-error-codes.md) — `pagination` is not a subsystem in [`01-module-map.md`](01-module-map.md). It is now `MAGIK_API_PAGINATION_UNBOUNDED`, and it was not the only one: the catalogue clean-up of that date renamed forty-nine spellings and collapsed sixteen second names for guardrails the spec had already named. The token set is now closed and [`../../scripts/checks/error_codes.rb`](../../scripts/checks/error_codes.rb) enforces it, so the next such drift fails the gate rather than waiting for a reader to notice it.
 
 ---
 

@@ -11,7 +11,7 @@ module Magik
   # Three commands work today — {version}, {help} and `docs`
   # ({Magik::CLI::DocsCommand}). Every other command named in
   # `docs/idea/00-build-spec.md` is listed by `magik help` with status `planned`
-  # and exits non-zero with `MAGIK_COMMAND_NOT_IMPLEMENTED` if you run it. That
+  # and exits non-zero with `MAGIK_CLI_COMMAND_NOT_IMPLEMENTED` if you run it. That
   # is deliberate: the CLI tells you the truth about what exists.
   #
   # Every working command supports `--json`, so scripts, CI and agents can

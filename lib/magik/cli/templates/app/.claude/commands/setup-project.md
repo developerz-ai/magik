@@ -91,7 +91,7 @@ what is in them.
 **Only after the user confirms the entity list**, offer to scaffold it — do not just do it:
 
 ```bash
-magik generate model <Entity>       # planned; exits 1 today with MAGIK_COMMAND_NOT_IMPLEMENTED
+magik generate model <Entity>       # planned; exits 1 today with MAGIK_CLI_COMMAND_NOT_IMPLEMENTED
 magik generate screen <First>
 magik generate action <first_action>
 ```

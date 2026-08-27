@@ -40,13 +40,15 @@ consequential, unambiguous and fixable — the four bars at the bottom of this p
 
 | Guardrail | What fails | When | Code | `fix:` |
 |---|---|---|---|---|
-| **Every surface reaching a model names a policy verb** | a `screen`, `action`, `api resource`, `channel`, `job`, `webhook :incoming` or `admin_panel` with no `policy:` and no explicit `policy: :public` / `policy: :system` | boot | `MAGIK_POLICY_UNDECLARED` | `magik describe policy --json` |
+| **Every surface reaching a model names a policy verb** | a `screen`, `action`, `api resource`, `channel`, `job`, `flow`, `webhook :incoming` or `admin_panel` with no `policy:` and no explicit `policy: :public` / `policy: :system` | boot | `MAGIK_POLICY_UNDECLARED` | `magik describe policy --json` |
 | A policy predicate performs no I/O | a `can` block issuing a query — `live` re-evaluates one per subscriber per change, so a query here is one round trip per row per open socket | boot | `MAGIK_POLICY_IO` | `magik errors explain MAGIK_POLICY_IO` |
 | A named verb exists | `policy: %i[Invoice publish]` where `policy :Invoice` declares no `:publish` | boot | `MAGIK_POLICY_UNKNOWN_VERB` | `magik registry --kind policy --json` |
 | Denial is the default | a `policy` block with no `default :deny` | boot | `MAGIK_POLICY_NO_DEFAULT` | `magik errors explain MAGIK_POLICY_NO_DEFAULT` |
 | A rule receiving a `nil` record denies | a row-level rule that would pass on an absent record | boot (static) | `MAGIK_POLICY_NULL_PASSES` | `magik errors explain MAGIK_POLICY_NULL_PASSES` |
 | Every screen has a layout | a `screen` with no `layout:` and no `layout: :None` | boot | `MAGIK_LAYOUT_MISSING` | `magik generate layout App` |
 | Navigation cannot rot | a `nav_item` naming a screen that does not exist | boot | `MAGIK_LAYOUT_UNKNOWN_SCREEN` | `magik registry --kind screen --json` |
+| An incoming webhook names the verbs it may exercise | a `webhook :incoming` with no `acts_as :service, can: [...]`, or one naming `policy: :system`. A verified signature authenticates an origin, not a person, and `:system` would grant every verb in the app to the one surface a stranger can call directly | boot | `MAGIK_WEBHOOK_UNSCOPED_ACTOR` | `magik describe webhook --json` |
+| A policy subject is a declared construct | `policy :Receivables` where nothing declares `Receivables`. The subject may be any construct that owns data — a `model`, a `ledger`, a `flow` — but it must exist | boot | `MAGIK_POLICY_UNKNOWN_SUBJECT` | `magik registry --json` |
 | Navigation cannot rot, actions included | a layout declaration naming an action that does not exist — `search action: :global_search` in a `topbar` is the same rot as a `nav_item` pointing at a deleted screen, and was missed because only screens were guarded | boot | `MAGIK_LAYOUT_UNKNOWN_ACTION` | `magik registry --kind action --json` |
 | Uploads are bounded | a `:file` field or an `attachment` with no `max_size` and no `content_types` — an unbounded upload field is an unbounded storage bill and a trivial DoS | boot | `MAGIK_MODEL_UNCONSTRAINED_UPLOAD` | `magik describe model.attachment --json` |
 

@@ -2,7 +2,7 @@
 
 **Status:** `Mostly planned`. **Three commands exist today: `version`, `help` and `docs`.**
 Everything else in this reference is specified and not implemented — calling it exits `1` with
-`MAGIK_COMMAND_NOT_IMPLEMENTED`. `As of 2026-08-26`.
+`MAGIK_CLI_COMMAND_NOT_IMPLEMENTED`. `As of 2026-08-26`.
 
 The binary is `magik`. There is one command registry; a command that is not in it does not exist.
 
@@ -24,9 +24,9 @@ magik version --json
 | Errors | always `code` + `cause` + `fix`. Same three fields in the terminal, the error page and `--json`. See [Error codes](Error-Codes.md) |
 | Flags | long form, `--flag value` or `--flag=value`. Booleans negate as `--no-<flag>` |
 | Global flags | `--json`, `--help`, `--version`, `--cwd <dir>`, `--verbose` |
-| App detection | most commands walk up for `config/app.rb` and fail with `MAGIK_NOT_IN_APP` if there is none. Exceptions: `new`, `version`, `help` |
-| Not built vs not a command | a **planned** command exits `MAGIK_COMMAND_NOT_IMPLEMENTED`; an **unknown** one exits `MAGIK_UNKNOWN_COMMAND`. "Not built yet" and "not a command" are different facts and get different codes |
-| Bad flags | `MAGIK_INVALID_OPTION`, exit `2` |
+| App detection | most commands walk up for `config/app.rb` and fail with `MAGIK_CLI_NOT_IN_APP` if there is none. Exceptions: `new`, `version`, `help` |
+| Not built vs not a command | a **planned** command exits `MAGIK_CLI_COMMAND_NOT_IMPLEMENTED`; an **unknown** one exits `MAGIK_CLI_UNKNOWN_COMMAND`. "Not built yet" and "not a command" are different facts and get different codes |
+| Bad flags | `MAGIK_CLI_INVALID_OPTION`, exit `2` |
 
 ### `--json` shape
 
@@ -42,7 +42,7 @@ A failure adds the error triple:
   "command": "new",
   "summary": "not implemented",
   "error": {
-    "code": "MAGIK_COMMAND_NOT_IMPLEMENTED",
+    "code": "MAGIK_CLI_COMMAND_NOT_IMPLEMENTED",
     "cause": "`magik new` is specified in docs/idea/00-build-spec.md and not implemented",
     "fix": "run `magik help` for the commands that work today"
   }
@@ -56,7 +56,7 @@ That triple is `Magik::Error#to_h` — one object, three renderings.
 ## Command index
 
 `As of 2026-08-26`. **shipped** = it runs. **planned** = specified, registered, and exits
-`MAGIK_COMMAND_NOT_IMPLEMENTED`.
+`MAGIK_CLI_COMMAND_NOT_IMPLEMENTED`.
 
 | Command | Does | Status |
 |---|---|---|
@@ -162,7 +162,7 @@ Plus `agents`, which takes no `<name>` — see below.
 | Flag | Does |
 |---|---|
 | `--dry-run` | print the files, write nothing |
-| `--force` | overwrite. Without it, an existing file is `MAGIK_GENERATE_WOULD_OVERWRITE` |
+| `--force` | overwrite. Without it, an existing file is `MAGIK_CLI_WOULD_OVERWRITE` |
 | `--no-test` | skip the test file. Discouraged, and it says so |
 
 Every generator writes a **real test**, never a `# TODO` stub. Exit `0`, or `1` on a collision.
@@ -177,7 +177,7 @@ Refreshes, in place, the AI harness `magik new` emitted into the app. Takes no `
 
 | Flag | Does |
 |---|---|
-| `--update` | rewrite the framework-owned harness: `.claude/agents/`, `.claude/commands/` and `.claude/settings.json` whole, since they carry no project content; and in `CLAUDE.md`, `llms.txt` and `docs/FEATURE.md` **only** the marked framework block, leaving the project block untouched. Missing ownership markers is a refusal — `MAGIK_HARNESS_MARKERS_MISSING` — never a guess at where the boundary was |
+| `--update` | rewrite the framework-owned harness: `.claude/agents/`, `.claude/commands/` and `.claude/settings.json` whole, since they carry no project content; and in `CLAUDE.md`, `llms.txt` and `docs/FEATURE.md` **only** the marked framework block, leaving the project block untouched. Missing ownership markers is a refusal — `MAGIK_CLI_HARNESS_MARKERS_MISSING` — never a guess at where the boundary was |
 
 It is the `fix:` line a stale harness prints. The ownership rule it implements is
 [`docs/idea/09-app-scaffold.md`](../docs/idea/09-app-scaffold.md).
@@ -209,7 +209,7 @@ magik server --no-reload
 | `--no-reload` | disable hot reload |
 | `--workers <n>` | worker threads in the server's pool |
 
-Boots on `MAGIK_SETUP_INCOMPLETE` with `fix: run bin/setup` if there is no bundle or database — an
+Boots on `MAGIK_CLI_SETUP_INCOMPLETE` with `fix: run bin/setup` if there is no bundle or database — an
 error naming the next command, not a stack trace. See [Development loop](Development-Loop.md).
 
 ### `magik worker`
@@ -278,7 +278,7 @@ magik check --json
   "summary": "2 findings",
   "findings": [
     {
-      "code": "MAGIK_TENANT_SCOPE_MISSING",
+      "code": "MAGIK_SCALE_UNSCOPED_QUERY",
       "cause": "app/screens/revenue.rb:14 queries :Invoice with no tenant_id predicate",
       "fix": "add `.for_tenant` to the scope, or declare the query tenant-exempt with `global_scope!`",
       "at": "app/screens/revenue.rb:14"
@@ -344,7 +344,7 @@ magik errors explain MAGIK_LEDGER_UNBALANCED --json
 |---|---|
 | `0` | success |
 | `1` | the command ran and failed. A typed `MAGIK_*` error is printed |
-| `2` | usage error: `MAGIK_UNKNOWN_COMMAND`, `MAGIK_INVALID_OPTION` |
+| `2` | usage error: `MAGIK_CLI_UNKNOWN_COMMAND`, `MAGIK_CLI_INVALID_OPTION` |
 
 ## Next
 

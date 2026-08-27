@@ -23,11 +23,11 @@ Invoice.create(amount: 149.99)          # refused
 ```
 
 ```text
-MAGIK_MONEY_FLOAT: :Invoice#amount received a Float (149.99)
+MAGIK_MODEL_FLOAT_MONEY: :Invoice#amount received a Float (149.99)
   fix: pass integer cents (14999) or Money.usd("149.99")
 ```
 
-Arithmetic across currencies is refused (`MAGIK_CURRENCY_MISMATCH`) rather than silently converted at
+Arithmetic across currencies is refused (`MAGIK_CORE_CURRENCY_MISMATCH`) rather than silently converted at
 a rate nobody chose. Conversion is an explicit call with an explicit rate and an audit trail.
 
 ## A ledger
@@ -82,7 +82,7 @@ end
 state:
 
 ```text
-MAGIK_IMMUTABLE_RECORD: :Invoice 0192... is :paid and immutable_after :paid
+MAGIK_MODEL_IMMUTABLE_VIOLATION: :Invoice 0192... is :paid and immutable_after :paid
   fix: issue a credit note instead of editing a settled invoice
 ```
 
@@ -104,7 +104,7 @@ end
 
 A second call with the same key inside the window returns the first call's result and performs
 nothing. An action that writes to a ledger **without** `idempotent_by` is a boot failure
-(`MAGIK_IDEMPOTENCY_REQUIRED`) — a double-submittable payment is not something to catch in review.
+(`MAGIK_ACTION_IDEMPOTENCY_REQUIRED`) — a double-submittable payment is not something to catch in review.
 
 ## Flows
 
@@ -146,7 +146,7 @@ with the billing provider; store the token. The framework does not offer the sto
 exists to find.
 
 ```text
-MAGIK_PAN_FIELD_FORBIDDEN: :PaymentMethod declares field :card_number
+MAGIK_MODEL_FORBIDDEN_FIELD: :PaymentMethod declares field :card_number
   fix: store the provider token — `field :payment_method_token, :string`
 ```
 
@@ -155,13 +155,13 @@ MAGIK_PAN_FIELD_FORBIDDEN: :PaymentMethod declares field :card_number
 | Guardrail | Fails with | When |
 |---|---|---|
 | Ledger entries balance | `MAGIK_LEDGER_UNBALANCED` | boot |
-| No PAN-shaped field names | `MAGIK_PAN_FIELD_FORBIDDEN` | boot |
-| A ledger-writing action declares idempotency | `MAGIK_IDEMPOTENCY_REQUIRED` | boot |
-| No `Float` in a `:money` field | `MAGIK_MONEY_FLOAT` | assignment |
-| No cross-currency arithmetic | `MAGIK_CURRENCY_MISMATCH` | arithmetic |
-| No update or delete of a ledger entry | `MAGIK_LEDGER_APPEND_ONLY` | write |
-| No write past `immutable_after:` | `MAGIK_IMMUTABLE_RECORD` | write |
-| Money moves only through a ledger | `MAGIK_MONEY_OUTSIDE_LEDGER` | boot |
+| No PAN-shaped field names | `MAGIK_MODEL_FORBIDDEN_FIELD` | boot |
+| A ledger-writing action declares idempotency | `MAGIK_ACTION_IDEMPOTENCY_REQUIRED` | boot |
+| No `Float` in a `:money` field | `MAGIK_MODEL_FLOAT_MONEY` | assignment |
+| No cross-currency arithmetic | `MAGIK_CORE_CURRENCY_MISMATCH` | arithmetic |
+| No update or delete of a ledger entry | `MAGIK_LEDGER_ENTRY_MUTATED` | write |
+| No write past `immutable_after:` | `MAGIK_MODEL_IMMUTABLE_VIOLATION` | write |
+| Money moves only through a ledger | `MAGIK_LEDGER_MONEY_OUTSIDE` | boot |
 
 ## Swap points
 

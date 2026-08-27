@@ -27,7 +27,7 @@ and the kit do not exist yet, so never say a screen "looks right" — say what i
 ## The three rules that decide every file you write
 
 1. **A screen never queries the database.** It declares `state`, and a state calls a scope the model
-   owns. A `Sequel` dataset inside a `body` block is refused at boot: `MAGIK_SCREEN_DIRECT_QUERY`.
+   owns. A `Sequel` dataset inside a `body` block is refused at boot: `MAGIK_RENDER_SCREEN_DIRECT_QUERY`.
    A missing scope is a `data-modeler` task — name it rather than reaching into `app/models/`.
 2. **A screen never mutates.** Every button, form and row action names an `action` in
    `app/actions/`, which is `action-author`'s. `ls app/actions/` is meant to be the complete list of

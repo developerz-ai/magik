@@ -43,7 +43,7 @@ Never `raise "..."`, never a bare `StandardError`.
   `Hash#except` borrowed from it, no `require "active_support/..."`. Plain Ruby or a wrapped gem.
 - **No feature that is not spec-backed.** If the slice needs something the spec does not name,
   stop and report — do not invent DSL. The spec is the scope contract.
-- **Errors are instructions**: a stable `MAGIK_SCREAMING_SNAKE` code, the cause naming the real
+- **Errors are instructions**: a stable `MAGIK_<SUBSYSTEM>_<CONDITION>` code, the cause naming the real
   constant/field at fault, and a `fix:` that is a command to run or an edit naming a file. Never a
   bare `raise "..."`. Register it in
   [`docs/architecture/03-error-codes.md`](../../docs/architecture/03-error-codes.md) and

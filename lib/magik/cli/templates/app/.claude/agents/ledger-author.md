@@ -38,7 +38,7 @@ discovered by their auditor. The rules below are not style.
 | **Integer cents, everywhere** | a `Float` in a money path is a rounding error that compounds silently. The type system refuses it; do not route around the type system |
 | **Entries are append-only** | you never update or delete an entry. A mistake is corrected by a *reversing entry*, which is a new row. Editing history is how a ledger stops being evidence |
 | **A `balance` column is a bug** | balances are derived from entries, not stored and incremented. An action that increments a balance is exactly what double-entry exists to prevent — if you find one, say so loudly |
-| **No money movement outside a ledger** | writing a `:money` field anywhere else is refused: `MAGIK_MONEY_OUTSIDE_LEDGER` |
+| **No money movement outside a ledger** | writing a `:money` field anywhere else is refused: `MAGIK_LEDGER_MONEY_OUTSIDE` |
 
 ## Writing one
 

@@ -63,7 +63,7 @@ class MagikCLITest < Minitest::Test
     status, _, err = run_cli("describe", "model")
 
     assert_equal Magik::CLI::EXIT_ERROR, status
-    assert_includes err, "MAGIK_COMMAND_NOT_IMPLEMENTED"
+    assert_includes err, "MAGIK_CLI_COMMAND_NOT_IMPLEMENTED"
     assert_includes err, "magik describe"
   end
 
@@ -92,7 +92,7 @@ class MagikCLITest < Minitest::Test
 
     assert_equal Magik::CLI::EXIT_ERROR, status
     assert_empty out
-    assert_includes err, "MAGIK_COMMAND_NOT_IMPLEMENTED"
+    assert_includes err, "MAGIK_CLI_COMMAND_NOT_IMPLEMENTED"
     assert_includes err, "fix:"
   end
 
@@ -100,7 +100,7 @@ class MagikCLITest < Minitest::Test
     status, _, err = run_cli("frobnicate")
 
     assert_equal Magik::CLI::EXIT_ERROR, status
-    assert_includes err, "MAGIK_UNKNOWN_COMMAND"
+    assert_includes err, "MAGIK_CLI_UNKNOWN_COMMAND"
   end
 
   def test_errors_are_json_when_json_is_requested
@@ -109,7 +109,7 @@ class MagikCLITest < Minitest::Test
 
     assert_equal Magik::CLI::EXIT_ERROR, status
     assert_empty err
-    assert_equal "MAGIK_UNKNOWN_COMMAND", payload["code"]
+    assert_equal "MAGIK_CLI_UNKNOWN_COMMAND", payload["code"]
     assert_match(/\S/, payload["cause"])
     assert_match(/\S/, payload["fix"])
   end
@@ -118,7 +118,7 @@ class MagikCLITest < Minitest::Test
     status, _, err = run_cli("version", "--nope")
 
     assert_equal Magik::CLI::EXIT_ERROR, status
-    assert_includes err, "MAGIK_INVALID_OPTION"
+    assert_includes err, "MAGIK_CLI_INVALID_OPTION"
   end
 
   # --- magik docs ------------------------------------------------------------
@@ -131,7 +131,7 @@ class MagikCLITest < Minitest::Test
 
     assert_equal Magik::CLI::EXIT_SUCCESS, status
     assert_empty err
-    refute_includes out, "MAGIK_COMMAND_NOT_IMPLEMENTED"
+    refute_includes out, "MAGIK_CLI_COMMAND_NOT_IMPLEMENTED"
   end
 
   def test_docs_lists_the_catalogue_grouped_by_audience

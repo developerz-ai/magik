@@ -33,8 +33,8 @@ declarations; nothing runs. Never claim a job enqueued or a webhook verified.
 
 | Directory | Is the only place that | Breaking it fails with |
 |---|---|---|
-| `app/actions/` | mutates data | `MAGIK_MUTATION_OUTSIDE_ACTION` |
-| `app/jobs/` | runs async work | `MAGIK_ASYNC_OUTSIDE_JOB` |
+| `app/actions/` | mutates data | `MAGIK_ACTION_MUTATION_OUTSIDE` |
+| `app/jobs/` | runs async work | `MAGIK_JOBS_ASYNC_OUTSIDE` |
 | `app/channels/` | routes realtime events (it does not decide them) | — |
 | `app/webhooks/` | verifies a signature and maps an event — then hands off | — |
 | `app/api/` | exposes a resource — by **calling the same action a screen calls** | — |

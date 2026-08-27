@@ -102,7 +102,8 @@ dummy/
 │   │   └── payment.rb             model :Payment
 │   ├── policies/                  authorization             (the ONLY rules)
 │   │   ├── customer.rb            policy :Customer
-│   │   └── invoice.rb             policy :Invoice
+│   │   ├── invoice.rb             policy :Invoice
+│   │   └── receivables.rb         policy :Receivables — subject is a ledger, not a model
 │   ├── components/                reusable UI                (pure; never queries)
 │   │   └── money_badge.rb         component :MoneyBadge
 │   ├── layouts/                   the application shell      (nav lives here)
@@ -209,6 +210,7 @@ One rule, applied everywhere, in both directions:
 ```text
 app/models/invoice.rb          <->  model :Invoice
 app/policies/invoice.rb        <->  policy :Invoice
+app/policies/receivables.rb    <->  policy :Receivables
 app/layouts/app.rb             <->  layout :App
 app/screens/dashboard.rb       <->  screen :Dashboard
 app/actions/issue_invoice.rb   <->  action :issue_invoice
@@ -339,19 +341,35 @@ design rather than a note about this app:
   writes a different one and none of them is checkable. `layout` is the answer,
   and `nav_item :Invoices` naming a screen *constant* rather than a URL is what
   makes a dead link a boot failure instead of a 404.
-- **An incoming webhook has no actor.** `action :record_payment` names
-  `policy: %i[Invoice record_payment]`, and its two callers are a modal and
-  Stripe. A policy predicate takes an actor; a verified signature is not one.
-  `webhook :incoming` is not among the surfaces `MAGIK_POLICY_UNDECLARED`
-  lists, so nothing fails to boot — which means the spec has a gap rather than
-  a rule. Recorded in [`app/webhooks/stripe_incoming.rb`](app/webhooks/stripe_incoming.rb).
-- **A ledger is not a model, so an API over it has no policy to name.**
-  `resource :ledger_entries` in [`app/api/v1.rb`](app/api/v1.rb) is the one
-  place naming a verb was awkward: `policy :Model` presumes a model, and
-  `ledger :Receivables` is not one. It borrows `%i[Invoice read]`, on the
-  grounds that an actor who may read the invoice may read the postings that
-  explain it — but "what is a policy's subject when the surface is not a model"
-  is unanswered.
+- **An incoming webhook has no actor — and now says what it may do instead.**
+  `action :record_payment` names `policy: %i[Invoice record_payment]`, and its
+  two callers are a modal and Stripe. A policy predicate takes an actor; a
+  verified signature is not one, it authenticates an *origin*. This app asked
+  the question and the spec answered it: an incoming webhook declares
+  `acts_as :service, can: %i[Invoice.record_payment]` — a verb list rather than
+  a role, because there is no actor to carry one — and `policy: :system` is
+  **illegal** here, since `:system` would grant every verb in the application to
+  the one surface a stranger can call directly. Missing it is a boot failure
+  (`MAGIK_WEBHOOK_UNSCOPED_ACTOR`). See
+  [`app/webhooks/stripe_incoming.rb`](app/webhooks/stripe_incoming.rb).
+- **A ledger is not a model, and a policy's subject no longer has to be one.**
+  `resource :ledger_entries` in [`app/api/v1.rb`](app/api/v1.rb) was the one
+  place naming a verb was awkward: it borrowed `%i[Invoice read]` because
+  `policy :Model` presumed a model and `ledger :Receivables` is not one. The
+  alternative on the table was to invent a `LedgerEntry` model purely so the
+  guard had something to hang on — a data model written to satisfy an
+  authorization rule, which is backwards. So a subject is now any declared
+  construct that owns data, and
+  [`app/policies/receivables.rb`](app/policies/receivables.rb) guards the ledger
+  directly. It is deliberately stricter than the invoice policy: reading the
+  books aggregates across customers, so a viewer who may read their own invoice
+  may not read the account it posts to.
+- **A flow needed a verb of its own.** `flow :Onboarding` renders forms that
+  post to actions, so the tempting rule is that it inherits their verbs. That
+  would make one line's meaning a function of code in five other files, and
+  silently change it when a step is edited. It names `policy: :public` — it is
+  reachable before an account exists — and each step's action still evaluates
+  its own verb. The flow gates entry; the action gates the write.
 - **There is no ActiveSupport in a Magik app**, and this file set was full of
   `12.hours`, `30.seconds` and `1.minute` — each of which is a `NoMethodError`
   on an Integer in plain Ruby. Every one is now a `:duration`: a unit-suffixed

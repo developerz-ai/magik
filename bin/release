@@ -100,7 +100,7 @@ check(
 if version.nil?
   puts JSON.pretty_generate(ok: false, version: nil, checks: CHECKS) if json_mode
   unless json_mode
-    warn "MAGIK_NO_VERSION: #{version_file} does not define Magik::VERSION"
+    warn "MAGIK_DEV_NO_VERSION: #{version_file} does not define Magik::VERSION"
     warn "  fix: set VERSION to a MAJOR.MINOR.PATCH string in #{version_file}"
   end
   exit 1

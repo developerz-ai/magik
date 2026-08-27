@@ -31,7 +31,7 @@ Five commands, no Docker, no Node, no `config/` archaeology. Open `http://localh
 
 `magik server` straight after `cd` is intended to **fail loudly**, not mysteriously: `magik new`
 installs no gems, so there is no bundle and no database. The boot is meant to stop on
-`MAGIK_SETUP_INCOMPLETE` with `fix: run bin/setup`. An error that names the next command is the
+`MAGIK_CLI_SETUP_INCOMPLETE` with `fix: run bin/setup`. An error that names the next command is the
 design; a stack trace is a bug. See [Error codes](Error-Codes.md).
 
 ## Your first feature, intended

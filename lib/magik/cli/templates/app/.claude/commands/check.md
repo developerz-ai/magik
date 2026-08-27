@@ -21,7 +21,7 @@ bin/check --json          # the summary as data
 Exit status is the contract: `0` green · `1` this app is wrong · `64` bad usage · `69` a step could
 not run. **`69` is not a pass.**
 
-**Magik is spec only:** both commands exit `1` today with `MAGIK_COMMAND_NOT_IMPLEMENTED`. That is
+**Magik is spec only:** both commands exit `1` today with `MAGIK_CLI_COMMAND_NOT_IMPLEMENTED`. That is
 not a red gate — it is an unbuilt one. Report it as `not implemented`, never as `passing`, and fall
 back to `guardrail-reviewer` reading the diff. `magik version --json` tells you which you are in.
 
@@ -45,17 +45,17 @@ runnable is a defect in the error — report that too, with the code.
 | Finding | What it means and who owns it |
 |---|---|
 | `MAGIK_LEDGER_UNBALANCED` | debits ≠ credits in a declared entry. `ledger-author`. Never "fix" it by adjusting an amount until it balances — find which leg is wrong |
-| `MAGIK_TENANT_SCOPE_MISSING` | a query with no `tenant_id`. `data-modeler` — the fix is a scope on the model, not a `where` at the call site |
-| `MAGIK_SCREEN_DIRECT_QUERY` | a screen built its own dataset. `screen-builder` + `data-modeler`: the screen names a `state`, the model owns the scope |
-| `MAGIK_MUTATION_OUTSIDE_ACTION` | something writes outside `app/actions/`. `action-author`. Move the write; do not add an exception |
+| `MAGIK_SCALE_UNSCOPED_QUERY` | a query with no `tenant_id`. `data-modeler` — the fix is a scope on the model, not a `where` at the call site |
+| `MAGIK_RENDER_SCREEN_DIRECT_QUERY` | a screen built its own dataset. `screen-builder` + `data-modeler`: the screen names a `state`, the model owns the scope |
+| `MAGIK_ACTION_MUTATION_OUTSIDE` | something writes outside `app/actions/`. `action-author`. Move the write; do not add an exception |
 | `MAGIK_POLICY_UNDECLARED` / `MAGIK_POLICY_UNKNOWN_VERB` / `MAGIK_POLICY_IO` | a surface with no `policy:` verb, a verb no policy declares, or a predicate that queries. `policy-author` names the verb; the surface's own agent adds the argument |
-| `MAGIK_ASYNC_OUTSIDE_JOB` | a fiber or thread outside `app/jobs/`. Untracked and unretryable |
-| `MAGIK_MONEY_OUTSIDE_LEDGER` | a `:money` field written outside a ledger entry. `ledger-author` |
-| `MAGIK_DECLARATION_MISPLACED` / `MAGIK_FILE_MULTIPLE_DECLARATIONS` | the layout rule. One declaration per file, in its kind's directory |
+| `MAGIK_JOBS_ASYNC_OUTSIDE` | a fiber or thread outside `app/jobs/`. Untracked and unretryable |
+| `MAGIK_LEDGER_MONEY_OUTSIDE` | a `:money` field written outside a ledger entry. `ledger-author` |
+| `MAGIK_CHECK_DECLARATION_MISPLACED` / `MAGIK_CHECK_FILE_MULTIPLE_DECLARATIONS` | the layout rule. One declaration per file, in its kind's directory |
 | `MAGIK_COMPONENT_CONTRACT_VIOLATION` | a rung-3 override is missing a slot, prop, target or event the kit composes. `screen-builder` |
-| `MAGIK_DOMAIN_BOUNDARY_VIOLATION` | a domain reached into another's models. Add `exposes`, or subscribe to the event — do not widen the dependency without saying why |
+| `MAGIK_DOMAIN_BOUNDARY` | a domain reached into another's models. Add `exposes`, or subscribe to the event — do not widen the dependency without saying why |
 | a test failure | read the assertion **before** touching anything. Never edit a test to match new behaviour unless that behaviour is what was asked for |
-| `MAGIK_SETUP_INCOMPLETE` | no bundle or no database. `bin/setup` |
+| `MAGIK_CLI_SETUP_INCOMPLETE` | no bundle or no database. `bin/setup` |
 | a code you do not recognise | `magik errors explain <CODE> --json` · `magik docs Error-Codes` |
 
 | a `scripts/checks/` finding (`APP_*`) | one of **this team's own rules**. Read the check — it is a short file and it says what it wants. Fix the code, not the check |
@@ -73,8 +73,8 @@ One line per step, and nothing softer than the truth:
 
 ```
 ✓ magik check          <n> guardrails, clean
-✗ magik check --scale  <file:line> — MAGIK_TENANT_SCOPE_MISSING — <the fix, run or not>
-– magik test           not implemented (exits 1 with MAGIK_COMMAND_NOT_IMPLEMENTED)
+✗ magik check --scale  <file:line> — MAGIK_SCALE_UNSCOPED_QUERY — <the fix, run or not>
+– magik test           not implemented (exits 1 with MAGIK_CLI_COMMAND_NOT_IMPLEMENTED)
 ```
 
 If you could not make it green, say which finding and why, and stop.

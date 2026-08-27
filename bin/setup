@@ -79,13 +79,13 @@ died() { FAILED+=("$1: $2"); bad "$2"; }
 # --- 1. Ruby (required) ----------------------------------------------------
 say "Checking Ruby"
 if ! command -v ruby >/dev/null 2>&1; then
-  echo "MAGIK_NO_RUBY: ruby is not on PATH" >&2
+  echo "MAGIK_DEV_NO_RUBY: ruby is not on PATH" >&2
   echo "  fix: install Ruby >= 3.2 (see .ruby-version), then re-run bin/setup" >&2
   exit 1
 fi
 note "$(ruby -v)"
 if ! ruby -e 'exit(Gem::Version.new(RUBY_VERSION) >= Gem::Version.new("3.2"))'; then
-  echo "MAGIK_RUBY_TOO_OLD: magik requires Ruby >= 3.2, found $(ruby -e 'print RUBY_VERSION')" >&2
+  echo "MAGIK_DEV_RUBY_TOO_OLD: magik requires Ruby >= 3.2, found $(ruby -e 'print RUBY_VERSION')" >&2
   echo "  fix: install the version named in .ruby-version, then re-run bin/setup" >&2
   exit 1
 fi
