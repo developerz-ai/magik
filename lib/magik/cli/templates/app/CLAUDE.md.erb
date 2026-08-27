@@ -1,0 +1,231 @@
+# CLAUDE.md — <%= app_title %>
+
+The working contract for Claude Code inside this application. `AGENTS.md` is a symlink to this file,
+so an agent looking for either name finds the same text.
+
+## The whole journey, in three lines
+
+```
+magik new <%= app_name %>     stage 1 — static boilerplate. Deterministic, run once by the CLI
+/setup-project      stage 2 — AI boilerplate. An interview, run once, makes this app YOURS
+/feature            stage 3 — real work. Run forever, one slice at a time
+```
+
+**`/feature` is the loop.** After `/setup-project` it is the only command most people ever need:
+`/feature` after `/feature`, each one ending with `magik check` green. Everything below exists to
+make that one command work well on feature #40 as well as on feature #2.
+
+<!-- magik:stage2-pending -->
+> ## ⚠ This app has not been set up yet
+>
+> `magik new` wrote a **generic** scaffold. It knows nothing about what you are building — no
+> domains, no entities, no plan. **Run `/setup-project` before writing any code.** It interviews you
+> about the product, then writes the project-owned half of this file, `docs/ARCHITECTURE.md`,
+> `docs/PLAN.md` and the domain map.
+>
+> **Do not invent a domain model from the app's name.** If you are an agent and this banner is still
+> here, your next move is to route the user to `/setup-project`, not to start guessing entities.
+> `/setup-project` deletes this banner on its first successful run.
+
+<!-- magik:project-block BEGIN -->
+<!--
+  PROJECT-OWNED. Yours. No magik command rewrites anything between these markers —
+  not `magik new`, not `magik generate agents --update`. `/setup-project` writes it
+  the first time and proposes edits on later runs; you approve them.
+-->
+
+## What <%= app_title %> is
+
+_Not written yet — `/setup-project` fills this in._ One paragraph: what the product does, who pays
+for it, and what a tenant is (an org? a person? a workspace?).
+
+## Domains and their boundaries
+
+_Not written yet._ The reasoning lives in `docs/ARCHITECTURE.md`; the enforceable version lives in
+`domains/<name>/domain.rb` and is printed by `magik domains --json`. This section says which
+boundary decisions were deliberate and why.
+
+## Conventions this app has chosen
+
+_Not written yet._ Only things an agent would get wrong by reasonable inference: a naming rule, an
+external system, a policy that is business policy rather than framework policy. Facts that a command
+can print do not belong here — link the command instead.
+
+<!-- magik:project-block END -->
+
+<!-- magik:framework-block BEGIN version=<%= magik_version %> generated=<%= generated_on %> -->
+<!--
+  FRAMEWORK-OWNED, written by `magik new` from the magik gem's app templates and rewritten
+  wholesale by `magik generate agents --update`. EDITS HERE ARE LOST — put your own rules in
+  the project block above. Budget: this block stays under 11,000 bytes so it never crowds out
+  the project block. Why it is generated at all:
+  https://github.com/developerz-ai/magik/blob/main/docs/idea/09-app-scaffold.md
+-->
+
+## Before you write any DSL: read the local docs
+
+**The Magik DSL is not in your training data.** `model`, `screen`, `action`, `ledger`, `channel`,
+`flow`, `component` — none of it. Writing them from memory produces confident, Rails-shaped code
+for a framework that does not work that way, and it is the single most expensive mistake available
+in this repository.
+
+The gem ships its own documentation. It is on disk, it is instant, and it is **the documentation for
+the exact magik version this app has** — which no web page can promise.
+
+```bash
+magik docs path                  # the directory. Point your normal grep/glob/read tools at it
+magik docs list                  # every page and its slug
+magik docs search ledger         # find the page before you guess the API
+magik docs Models                # read one page
+```
+
+`magik docs path` is the one to reach for first: it turns the shipped docs into ordinary files your
+existing search already handles. **Do not web-search the DSL** — it is slow, rate-limited, and
+returns whatever is on `main` rather than what your gem does.
+
+`magik docs` works today. Almost nothing else does.
+
+## The framework is not implemented
+
+**`As of <%= generated_on %>` this app cannot run.** Magik `<%= magik_version %>` is a
+name-reservation release: `App.define`, `model`, `screen`, `action`, the router and the server are
+**specified and not implemented**. `magik server`, `magik test` and `magik check` exit `1` with
+`MAGIK_COMMAND_NOT_IMPLEMENTED`.
+
+Check rather than trust this paragraph:
+
+```bash
+magik version --json     # {"version":"<%= magik_version %>","status":"spec only",…}
+magik help               # every command, each marked `ready` or `planned`
+```
+
+You can write declarations, docs and a plan today. You cannot boot, migrate, render or test.
+**Never write a comment, commit message or doc claiming otherwise.** This section leaves the
+template when Phases 1–2 land; while it is here, it is true.
+
+## Layout — the file tree is part of the product
+
+One declaration per file, and the path says what the file declares before you open it.
+
+| Declaration | Lives in |
+|---|---|
+| `model :Invoice` | `app/models/invoice.rb` |
+| `screen :Invoices` | `app/screens/invoices.rb` |
+| `component :MoneyCell` | `app/components/money_cell.rb` |
+| `action :mark_paid` | `app/actions/mark_paid.rb` |
+| `job :SendInvoiceEmail` | `app/jobs/send_invoice_email.rb` |
+| `channel :invoice_updates` | `app/channels/invoice_updates.rb` |
+| `ledger :Receivables` | `app/ledgers/receivables.rb` |
+| `migrate :CreateInvoices` | `db/migrations/002_create_invoices.rb` — hand-written, append-only |
+| any test | `test/<kind>/<name>_test.rb`, mirroring `app/` exactly |
+
+Constants are `snake_case`d for the filename; an `action` name is already a symbol and the filename
+is that symbol. A file declaring two things, or the wrong kind for its directory, is refused —
+`MAGIK_FILE_MULTIPLE_DECLARATIONS`, `MAGIK_DECLARATION_MISPLACED`.
+
+`config/app.rb` is the composition root: `App.define :<%= app_class %>`. It holds what is true of the
+whole app — tenancy, swap points, auth, billing, theme, locales, admin. Anything true of *one* model,
+screen or job lives in that thing's own file.
+
+<% if layout == :domains -%>
+Generated with `--domains`: each domain nests the same `app/` tree one level in, at
+`domains/<name>/app/models/…`, and declares `depends_on`, `exposes` and `publishes_events` in
+`domains/<name>/domain.rb`. Cross-domain direct model access fails at boot.
+<% else -%>
+This app is **flat** — everything in `app/<kind>/`, no `domains/` directory. That is right until
+more than one team owns parts of `app/`, or `app/models/` passes ~25 models. The move to domains is
+`git mv` plus one `domain.rb`: a path-prefix change, and nothing inside a moved file changes.
+<% end -%>
+
+## Non-negotiables that apply to your app code
+
+Enforced at boot, not by review. Breaking one is a `MAGIK_*` failure with a runnable `fix:`.
+
+| Rule | What it means here |
+|---|---|
+| **Money is integer cents** | the `:money` field type. **No `Float` near currency** — not in a model, a test, a fixture or a seed |
+| **A ledger is the only thing that moves money** | a `balance` column an action increments is the bug double-entry exists to prevent. Debits must equal credits or boot fails |
+| **Multi-tenant by default** | every model auto-scoped by `tenant_id`. A query with no `tenant_id` predicate is a `magik check --scale` finding |
+| **UUIDv7 primary keys** | from the first migration. Sortable, shard-safe, no sequence to reconcile after a split |
+| **An action is the only thing that mutates** | `ls app/actions/` is meant to be the complete list of writes in the product |
+| **A screen never queries the database** | it names a `state`; the state calls a scope the model owns. A `Sequel` dataset built inside a `body` block is refused |
+| **A job is the only thing that runs async** | a fiber or thread spawned outside a `job` is untracked and unretryable |
+| **Stateless app servers** | no in-process session or UI state across requests. An `@ivar` on a screen that survives a request is refused |
+| **No SPA framework** | server-rendered HTML plus htmx, compiled from the DSL. Never add React, Vue, a bundler or a client build step |
+| **No offline, no heavy client compute** | the server is the single source of truth. A canvas editor or a game loop is out of scope — say so and refuse rather than half-building it |
+| **SOLID, SRP hardest** | one class, one reason to change. New behaviour is a new declaration in its own file, never another branch in a growing `case` |
+| **Minitest, never RSpec** | tests live in `test/` as `*_test.rb`. There is no `spec/` |
+| **No secrets in the tree** | `.env` and `config/master.key` are gitignored and stay that way; `.env.example` holds names and blanks |
+| **Lint is not yours to configure** | `.rubocop.yml` `inherit_gem`s the rules from the magik gem. Override a cop in your own file with a reason; never copy the rules in |
+
+## Commands
+
+| Task | Command |
+|---|---|
+| the dev server | `magik server` |
+| tests | `magik test` · one file: `magik test test/models/invoice_test.rb` · `magik test --changed` |
+| **the gate** | `bin/check` — lint, tests, `magik check`, and every rule in `scripts/checks/`. `--json`, `--only <step>`, `--list` |
+| just the guardrails | `magik check` — every boot rule at once. `--json` for findings as data |
+| sharding pain, pre-empted | `magik check --scale` |
+| scaffold a declaration and its test | `magik generate model\|screen\|component\|action\|job\|channel\|ledger\|migration\|domain <Name>` |
+| the database | `magik db create` · `migrate` · `rollback --step 1` · `seed` · `schema` |
+| a REPL with the app loaded | `magik console` · `--sandbox` rolls the session back on exit |
+| what a route or a code means | `magik routes` · `magik errors explain MAGIK_LEDGER_UNBALANCED` |
+| the domain graph | `magik domains --json` |
+| refresh this file's framework half | `magik generate agents --update` |
+
+Every command takes `--json`. Exit codes are contract: `0` success · `1` your app is wrong ·
+`2` the invocation is wrong.
+
+## The loop
+
+1. **Name the screen or action the change is for.** A change with no user-visible reason has no test.
+2. **`magik generate` rather than hand-placing a file.** The generator knows the layout; a path you
+   invented is a `MAGIK_DECLARATION_MISPLACED` waiting to happen.
+3. **Make the generated test fail before you make it pass.**
+4. **`magik check`, then `magik test`** — in that order. A guardrail failure explains a test failure,
+   never the reverse.
+5. **Tick `docs/PLAN.md`.** A plan that outlives its facts is worse than no plan.
+
+**Run `bin/check` before claiming anything is done.** Nothing else counts. It exits `0` green, `1`
+this app is wrong, `69` a step is missing or not implemented yet — and `69` is not a pass. If a
+magik step is still `planned`, say so plainly rather than reporting a green run you did not get.
+
+**Noticed a convention? Write it as a check.** A rule in this file is advice an agent may not follow
+on feature #40; the same rule in `scripts/checks/` is a gate failure with a runnable `fix:`, forever.
+That is the whole argument for boot-time guardrails, applied to *your* rules — `scripts/README.md`
+has the how, and it is a short file.
+
+## The harness in this app
+
+| Where | What | What it costs you |
+|---|---|---|
+| `.claude/agents/` | `data-modeler`, `screen-builder`, `action-author`, `ledger-author`, `test-writer`, `guardrail-reviewer` — scoped by **file set**, so two can run without colliding | one `description` line each until dispatched |
+| `.claude/commands/` | `/setup-project`, `/feature`, `/screen`, `/check`, `/next` | nothing until you type one |
+| `.claude/settings.json` | the allowlist: `magik`, read-only git, read-only shell. Destructive commands and anything touching `.env` or `config/master.key` are denied | nothing in context |
+| `docs/` | `README.md` the map · `ARCHITECTURE.md` what this app is made of · **`FEATURE.md` how a feature gets built here** · `PLAN.md` what is being built next | read `FEATURE.md` before building anything |
+| `llms.txt` | this app's link map, same two-block ownership split as this file | — |
+
+## Reference — read it locally, not on the web
+
+This file describes **your app**. It deliberately does not restate the DSL: a copy of a reference
+manual is a copy that goes stale. The manual is already on your disk.
+
+| Need | Read | Slug for `magik docs` |
+|---|---|---|
+| the whole manual | `magik docs list` | — |
+| where a declaration goes | the layout page | `Project-Layout` |
+| models · screens · actions | one page each | `Models` · `Screens-And-Components` · `Actions` |
+| money, ledgers, audit | the money page | `Money-And-Ledgers` |
+| jobs · realtime · domains · tests | one page each | `Jobs` · `Realtime` · `Domains` · `Testing` |
+| a `MAGIK_*` code | the catalogue, or `magik errors explain <CODE>` | `Error-Codes` |
+| every command and flag · what is missing | the CLI and gaps pages | `CLI-Reference` · `Known-Gaps` |
+| replacing a kit component | the override ladder | `08-component-overrides` |
+| secrets · the dev loop · debugging | the architecture pages | `07-configuration-and-secrets` · `08-dev-loop` · `06-observability` |
+| why the framework is shaped this way, and this file with it | the design argument | `07-ai-first` · `09-app-scaffold` |
+
+Run `magik docs list` for the authoritative slugs — the table above is a copy and copies go stale.
+The same pages are on the web at <https://github.com/developerz-ai/magik/wiki>, which is for a human
+in a browser: it tracks `main`, and your gem may not.
+
+<!-- magik:framework-block END -->

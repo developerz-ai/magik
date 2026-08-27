@@ -1,0 +1,40 @@
+# <%= app_title %> — docs
+
+The map. Four documents, each answering one question, none of them repeating another.
+
+**Stage 1 wrote these as empty frames.** `/setup-project` (stage 2) fills them in from an interview
+with you. They are **project-owned**: no magik command overwrites `ARCHITECTURE.md`, `PLAN.md` or
+this file, and `FEATURE.md` is rewritten only inside its framework-owned block.
+
+| File | Answers | Stage that owns it | May `magik generate agents --update` rewrite it? |
+|---|---|---|---|
+| [`ARCHITECTURE.md`](ARCHITECTURE.md) | what this app is made of, and which parts may not touch which | 2 | no |
+| [`FEATURE.md`](FEATURE.md) | **how** a unit of work gets built here, start to finish | 1 writes the generic loop, 2 fills the project slots | only the framework block |
+| [`PLAN.md`](PLAN.md) | **what** is being built, in order, and what each slice proves | 2, then every `/feature` | no |
+| this file | where to look | 1 | no |
+
+`FEATURE.md` is *how*, `PLAN.md` is *what next*. `/feature` reads the first; `/next` reads the
+second. Keeping them apart is what stops either from becoming a document nobody trusts.
+
+## What is deliberately not here
+
+| Not written | Because |
+|---|---|
+| a `DOMAIN.md` listing entities and their fields | the domain map is **executable** in a Magik app — `domains/<name>/domain.rb` declares `depends_on`, `exposes` and `publishes_events`, boot enforces them, and `magik domains --json` prints the graph. A prose copy is a second statement of the same fact, and the copy is the one that rots. `ARCHITECTURE.md` carries the **reasoning**, which no command can re-derive |
+| a copy of the Magik DSL reference | it ships with the gem. `magik docs path` gives you the directory; `magik docs list` gives you the pages. It is the documentation for the exact version this app runs, which no web page can promise |
+| a `CHANGELOG.md` | add one when you start releasing to someone who is not you |
+| a `gotchas.md` | worth adding the first time a symptom costs you an hour, headed by the **literal error string** so the next person finds it by pasting. Nothing has run yet, so there are no symptoms yet |
+| a `CONVENTIONS.md` | a convention worth writing down is a convention worth **enforcing**. It goes in `scripts/checks/` as an executable check that `bin/check` runs, not in a document an agent may not read — see [`../scripts/README.md`](../scripts/README.md) |
+
+## The framework's own docs
+
+Local and instant, versioned with your gem:
+
+```bash
+magik docs path       # the directory — point grep/glob/read at it
+magik docs list       # every page and its slug
+magik docs search <term>
+```
+
+On the web, for a human in a browser: <https://github.com/developerz-ai/magik/wiki>. It tracks
+`main`; your installed gem may not.

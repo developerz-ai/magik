@@ -1,0 +1,194 @@
+# Path-based pull-request labels, applied by .github/workflows/labeler.yml (actions/labeler v5
+# syntax: every rule is a list of match objects, and `any-glob-to-any-file` means "at least one
+# changed file matches at least one of these globs").
+#
+# The `area:*` names are the subsystem modules from docs/idea/00-build-spec.md, one label per
+# directory under lib/magik/. That correspondence is the reason this file is worth keeping: a
+# reviewer filtering for `area:ledger` gets the money code and nothing else, and a label that does
+# not map onto a directory would be a taxonomy somebody has to maintain by hand.
+#
+# Each rule matches the subsystem's own directory, its entry file, and its tests, because a change
+# to `test/magik/ledger/` is a change to the ledger even when no lib/ file moved.
+#
+# ADDING A SUBSYSTEM: add the directory under lib/magik/, add the rule here, and create the label
+# in Settings → Labels. A rule whose label does not exist is silently dropped by the API, so the
+# missing half is the label, not the YAML.
+
+# ── Phase 1: foundation ───────────────────────────────────────────────────────────────────────
+'area:core':
+  - changed-files:
+      - any-glob-to-any-file:
+          - 'lib/magik/core/**'
+          - 'lib/magik/core.rb'
+          - 'lib/magik.rb'
+          - 'lib/magik/version.rb'
+          - 'test/magik/core/**'
+
+'area:cli':
+  - changed-files:
+      - any-glob-to-any-file:
+          - 'lib/magik/cli/**'
+          - 'lib/magik/cli.rb'
+          - 'exe/**'
+          - 'test/magik/cli/**'
+
+'area:model':
+  - changed-files:
+      - any-glob-to-any-file:
+          - 'lib/magik/model/**'
+          - 'lib/magik/model.rb'
+          - 'test/magik/model/**'
+
+'area:schema':
+  - changed-files:
+      - any-glob-to-any-file:
+          - 'lib/magik/schema/**'
+          - 'lib/magik/schema.rb'
+          - 'test/magik/schema/**'
+
+# ── Phase 2: rendering and actions ────────────────────────────────────────────────────────────
+'area:render':
+  - changed-files:
+      - any-glob-to-any-file:
+          - 'lib/magik/render/**'
+          - 'lib/magik/render.rb'
+          - 'test/magik/render/**'
+
+'area:action':
+  - changed-files:
+      - any-glob-to-any-file:
+          - 'lib/magik/action/**'
+          - 'lib/magik/action.rb'
+          - 'test/magik/action/**'
+
+'area:router':
+  - changed-files:
+      - any-glob-to-any-file:
+          - 'lib/magik/router/**'
+          - 'lib/magik/router.rb'
+          - 'test/magik/router/**'
+
+# ── Phase 3-4: realtime and jobs ──────────────────────────────────────────────────────────────
+'area:realtime':
+  - changed-files:
+      - any-glob-to-any-file:
+          - 'lib/magik/realtime/**'
+          - 'lib/magik/realtime.rb'
+          - 'test/magik/realtime/**'
+
+'area:jobs':
+  - changed-files:
+      - any-glob-to-any-file:
+          - 'lib/magik/jobs/**'
+          - 'lib/magik/jobs.rb'
+          - 'test/magik/jobs/**'
+
+# ── Phase 5: money and compliance ─────────────────────────────────────────────────────────────
+'area:ledger':
+  - changed-files:
+      - any-glob-to-any-file:
+          - 'lib/magik/ledger/**'
+          - 'lib/magik/ledger.rb'
+          - 'test/magik/ledger/**'
+
+# ── Phase 6: API and integration ──────────────────────────────────────────────────────────────
+'area:api':
+  - changed-files:
+      - any-glob-to-any-file:
+          - 'lib/magik/api/**'
+          - 'lib/magik/api.rb'
+          - 'test/magik/api/**'
+
+# ── Phase 7: batteries ────────────────────────────────────────────────────────────────────────
+'area:auth':
+  - changed-files:
+      - any-glob-to-any-file:
+          - 'lib/magik/auth/**'
+          - 'lib/magik/auth.rb'
+          - 'test/magik/auth/**'
+
+'area:billing':
+  - changed-files:
+      - any-glob-to-any-file:
+          - 'lib/magik/billing/**'
+          - 'lib/magik/billing.rb'
+          - 'test/magik/billing/**'
+
+'area:admin':
+  - changed-files:
+      - any-glob-to-any-file:
+          - 'lib/magik/admin/**'
+          - 'lib/magik/admin.rb'
+          - 'test/magik/admin/**'
+
+# ── Phase 8: i18n, PWA, notifications ─────────────────────────────────────────────────────────
+'area:i18n':
+  - changed-files:
+      - any-glob-to-any-file:
+          - 'lib/magik/i18n/**'
+          - 'lib/magik/i18n.rb'
+          - 'test/magik/i18n/**'
+
+'area:pwa':
+  - changed-files:
+      - any-glob-to-any-file:
+          - 'lib/magik/pwa/**'
+          - 'lib/magik/pwa.rb'
+          - 'test/magik/pwa/**'
+
+'area:notify':
+  - changed-files:
+      - any-glob-to-any-file:
+          - 'lib/magik/notify/**'
+          - 'lib/magik/notify.rb'
+          - 'test/magik/notify/**'
+
+# ── Phase 9 and the boot-time guardrails ──────────────────────────────────────────────────────
+'area:testing':
+  - changed-files:
+      - any-glob-to-any-file:
+          - 'lib/magik/testing/**'
+          - 'lib/magik/testing.rb'
+          - 'test/magik/testing/**'
+          - 'test/test_helper.rb'
+
+'area:domains':
+  - changed-files:
+      - any-glob-to-any-file:
+          - 'lib/magik/domains/**'
+          - 'lib/magik/domains.rb'
+          - 'test/magik/domains/**'
+
+'area:check':
+  - changed-files:
+      - any-glob-to-any-file:
+          - 'lib/magik/check/**'
+          - 'lib/magik/check.rb'
+          - 'test/magik/check/**'
+
+# ── cross-cutting ─────────────────────────────────────────────────────────────────────────────
+#
+# No `area:` prefix: these are not subsystems, and the distinction is what makes `area:*` a useful
+# filter. Their globs mirror the `docs`, `ci` and `dummy` filters in .github/workflows/ci.yml — the
+# label a PR carries and the jobs it runs should be answering the same question about the diff.
+docs:
+  - changed-files:
+      - any-glob-to-any-file:
+          - 'docs/**'
+          - 'wiki/**'
+          - '**/*.md'
+          - 'llms.txt'
+          - '.yardopts'
+
+ci:
+  - changed-files:
+      - any-glob-to-any-file:
+          - '.github/**'
+          - 'bin/**'
+          - 'Rakefile'
+          - '.rubocop.yml'
+
+dummy:
+  - changed-files:
+      - any-glob-to-any-file:
+          - 'dummy/**'

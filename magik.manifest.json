@@ -1,0 +1,329 @@
+{
+  "schema": 1,
+  "build_id": "77e39f7d51cc7c94287cb8a9fde6c76ce09123e7de61a87678dbe514e6ed7b83",
+  "generator": "scripts/checks/manifest.rb",
+  "gem": {
+    "name": "magik",
+    "version": "0.0.1",
+    "status": "spec only",
+    "spec": "docs/idea/00-build-spec.md"
+  },
+  "tiers": {
+    "0": [
+      "core"
+    ],
+    "1": [
+      "schema",
+      "router",
+      "i18n"
+    ],
+    "2": [
+      "model",
+      "render",
+      "realtime",
+      "jobs"
+    ],
+    "3": [
+      "action",
+      "ledger",
+      "api",
+      "auth",
+      "notify",
+      "pwa"
+    ],
+    "4": [
+      "billing",
+      "admin",
+      "domains"
+    ],
+    "5": [
+      "check",
+      "testing"
+    ],
+    "6": [
+      "cli"
+    ]
+  },
+  "subsystems": [
+    {
+      "name": "action",
+      "constant": "Magik::Action",
+      "tier": 3,
+      "phase": "Phase 2 — Rendering & Actions",
+      "status": "Not implemented — spec only",
+      "spec_only": true,
+      "file": "lib/magik/action.rb"
+    },
+    {
+      "name": "admin",
+      "constant": "Magik::Admin",
+      "tier": 4,
+      "phase": "Phase 7 — Auth, Billing, Admin",
+      "status": "Not implemented — spec only",
+      "spec_only": true,
+      "file": "lib/magik/admin.rb"
+    },
+    {
+      "name": "api",
+      "constant": "Magik::API",
+      "tier": 3,
+      "phase": "Phase 6 — API & Integration",
+      "status": "Not implemented — spec only",
+      "spec_only": true,
+      "file": "lib/magik/api.rb"
+    },
+    {
+      "name": "auth",
+      "constant": "Magik::Auth",
+      "tier": 3,
+      "phase": "Phase 7 — Auth, Billing, Admin",
+      "status": "Not implemented — spec only",
+      "spec_only": true,
+      "file": "lib/magik/auth.rb"
+    },
+    {
+      "name": "billing",
+      "constant": "Magik::Billing",
+      "tier": 4,
+      "phase": "Phase 7 — Auth, Billing, Admin",
+      "status": "Not implemented — spec only",
+      "spec_only": true,
+      "file": "lib/magik/billing.rb"
+    },
+    {
+      "name": "check",
+      "constant": "Magik::Check",
+      "tier": 5,
+      "phase": "Build order step 12 — `magik check` linter",
+      "status": "Not implemented — spec only",
+      "spec_only": true,
+      "file": "lib/magik/check.rb"
+    },
+    {
+      "name": "cli",
+      "constant": "Magik::CLI",
+      "tier": 6,
+      "phase": null,
+      "status": "spec only",
+      "spec_only": false,
+      "file": "lib/magik/cli.rb"
+    },
+    {
+      "name": "core",
+      "constant": "Magik::Core",
+      "tier": 0,
+      "phase": "Phase 1 — Foundation",
+      "status": "Not implemented — spec only",
+      "spec_only": true,
+      "file": "lib/magik/core.rb"
+    },
+    {
+      "name": "domains",
+      "constant": "Magik::Domains",
+      "tier": 4,
+      "phase": "Build order step 12 — Domain module system",
+      "status": "Not implemented — spec only",
+      "spec_only": true,
+      "file": "lib/magik/domains.rb"
+    },
+    {
+      "name": "i18n",
+      "constant": "Magik::I18n",
+      "tier": 1,
+      "phase": "Phase 8 — i18n, PWA, Notifications",
+      "status": "Not implemented — spec only",
+      "spec_only": true,
+      "file": "lib/magik/i18n.rb"
+    },
+    {
+      "name": "jobs",
+      "constant": "Magik::Jobs",
+      "tier": 2,
+      "phase": "Phase 4 — Jobs & Async",
+      "status": "Not implemented — spec only",
+      "spec_only": true,
+      "file": "lib/magik/jobs.rb"
+    },
+    {
+      "name": "ledger",
+      "constant": "Magik::Ledger",
+      "tier": 3,
+      "phase": "Phase 5 — Money & Compliance",
+      "status": "Not implemented — spec only",
+      "spec_only": true,
+      "file": "lib/magik/ledger.rb"
+    },
+    {
+      "name": "model",
+      "constant": "Magik::Model",
+      "tier": 2,
+      "phase": "Phase 1 — Foundation",
+      "status": "Not implemented — spec only",
+      "spec_only": true,
+      "file": "lib/magik/model.rb"
+    },
+    {
+      "name": "notify",
+      "constant": "Magik::Notify",
+      "tier": 3,
+      "phase": "Phase 8 — i18n, PWA, Notifications",
+      "status": "Not implemented — spec only",
+      "spec_only": true,
+      "file": "lib/magik/notify.rb"
+    },
+    {
+      "name": "pwa",
+      "constant": "Magik::PWA",
+      "tier": 3,
+      "phase": "Phase 8 — i18n, PWA, Notifications",
+      "status": "Not implemented — spec only",
+      "spec_only": true,
+      "file": "lib/magik/pwa.rb"
+    },
+    {
+      "name": "realtime",
+      "constant": "Magik::Realtime",
+      "tier": 2,
+      "phase": "Phase 3 — Realtime (opt-in)",
+      "status": "Not implemented — spec only",
+      "spec_only": true,
+      "file": "lib/magik/realtime.rb"
+    },
+    {
+      "name": "render",
+      "constant": "Magik::Render",
+      "tier": 2,
+      "phase": "Phase 2 — Rendering & Actions",
+      "status": "Not implemented — spec only",
+      "spec_only": true,
+      "file": "lib/magik/render.rb"
+    },
+    {
+      "name": "router",
+      "constant": "Magik::Router",
+      "tier": 1,
+      "phase": "Phase 2 — Rendering & Actions (build order step 4)",
+      "status": "Not implemented — spec only",
+      "spec_only": true,
+      "file": "lib/magik/router.rb"
+    },
+    {
+      "name": "schema",
+      "constant": "Magik::Schema",
+      "tier": 1,
+      "phase": "Phase 1 — Foundation",
+      "status": "Not implemented — spec only",
+      "spec_only": true,
+      "file": "lib/magik/schema.rb"
+    },
+    {
+      "name": "testing",
+      "constant": "Magik::Testing",
+      "tier": 5,
+      "phase": "Phase 9 — Testing",
+      "status": "Not implemented — spec only",
+      "spec_only": true,
+      "file": "lib/magik/testing.rb"
+    }
+  ],
+  "error_codes": [
+    {
+      "code": "MAGIK_COMMAND_NOT_IMPLEMENTED",
+      "class": "Magik::CommandNotImplementedError",
+      "fix": "run `magik help` for the commands that work today; track the rest in docs/idea/00-build-spec.md",
+      "at": "lib/magik.rb:233"
+    },
+    {
+      "code": "MAGIK_DOCS_AMBIGUOUS_PAGE",
+      "class": "Magik::Docs::AmbiguousPageError",
+      "fix": "run `magik docs list` and use the full slug, e.g. `magik docs wiki/models`",
+      "at": "lib/magik/docs.rb:118"
+    },
+    {
+      "code": "MAGIK_DOCS_MISSING_TERM",
+      "class": "Magik::Docs::MissingTermError",
+      "fix": "run `magik docs search <term>`, e.g. `magik docs search ledger`",
+      "at": "lib/magik/docs.rb:124"
+    },
+    {
+      "code": "MAGIK_DOCS_PAGE_NOT_FOUND",
+      "class": "Magik::Docs::PageNotFoundError",
+      "fix": "run `magik docs list` to see every page that ships with this gem",
+      "at": "lib/magik/docs.rb:112"
+    },
+    {
+      "code": "MAGIK_DOCS_UNAVAILABLE",
+      "class": "Magik::Docs::UnavailableError",
+      "fix": "reinstall the gem with `gem install magik`, or set `MAGIK_DOCS_ROOT` to a checkout of https://github.com/developerz-ai/magik",
+      "at": "lib/magik/docs.rb:105"
+    },
+    {
+      "code": "MAGIK_ERROR",
+      "class": "Magik::Error",
+      "fix": "read the raised cause above, then see docs/idea/00-build-spec.md",
+      "at": "lib/magik.rb:110"
+    },
+    {
+      "code": "MAGIK_INVALID_OPTION",
+      "class": "Magik::InvalidOptionError",
+      "fix": "run `magik help` to list the supported options",
+      "at": "lib/magik.rb:250"
+    },
+    {
+      "code": "MAGIK_UNKNOWN_COMMAND",
+      "class": "Magik::UnknownCommandError",
+      "fix": "run `magik help` to list every command",
+      "at": "lib/magik.rb:242"
+    }
+  ],
+  "checks": [
+    {
+      "name": "boundaries",
+      "summary": "Requires and constant references inside lib/magik/ go down a tier only.",
+      "order": 10,
+      "path": "scripts/checks/boundaries.rb"
+    },
+    {
+      "name": "error-codes",
+      "summary": "Every shipped MAGIK_* code is well-formed, unique, fixable, and documented.",
+      "order": 20,
+      "path": "scripts/checks/error_codes.rb"
+    },
+    {
+      "name": "spec-only-drift",
+      "summary": "Magik::SPEC_ONLY_SUBSYSTEMS matches which subsystems actually refuse to run.",
+      "order": 30,
+      "path": "scripts/checks/spec_only_drift.rb"
+    },
+    {
+      "name": "doc-commands",
+      "summary": "Every shell command a doc shows in a fenced block is one this repo provides.",
+      "order": 40,
+      "path": "scripts/checks/doc_commands.rb"
+    },
+    {
+      "name": "changelog",
+      "summary": "CHANGELOG.md is Keep a Changelog, has [Unreleased], and covers Magik::VERSION.",
+      "order": 50,
+      "path": "scripts/checks/changelog.rb"
+    },
+    {
+      "name": "version-consistency",
+      "summary": "Magik::VERSION, the gemspec, the changelog and every doc stamp agree.",
+      "order": 60,
+      "path": "scripts/checks/version_consistency.rb"
+    },
+    {
+      "name": "dummy-parses",
+      "summary": "Every file under dummy/ is syntactically valid Ruby — and nothing more.",
+      "order": 70,
+      "path": "scripts/checks/dummy_parses.rb"
+    },
+    {
+      "name": "manifest",
+      "summary": "magik.manifest.json still describes the tree it was generated from.",
+      "order": 80,
+      "path": "scripts/checks/manifest.rb"
+    }
+  ]
+}

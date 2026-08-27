@@ -1,0 +1,81 @@
+name: stale
+
+# Deliberately slow, and it closes issues only.
+#
+# The default `actions/stale` configuration (60 days to stale, 7 to close) is written for a busy
+# product repository with more inbound than maintainer hours. This is not that: as of 2026-08-26
+# Magik is spec-only, so most of what arrives here is design discussion about software that has not
+# been written, and a thread that goes quiet for two months is usually waiting on the roadmap
+# rather than abandoned. Closing those teaches people that filing here is pointless, which costs
+# far more than an old open issue does.
+#
+# So: six months of silence before an issue is even marked, another month before it closes, and the
+# three labels that mean "this is supposed to stay open" are exempt.
+#
+# PULL REQUESTS ARE NEVER AUTO-CLOSED. A stale PR is somebody's unmerged work, and `-1` here means
+# it gets marked and then left alone. Closing it is a maintainer's decision with a reason attached.
+
+on:
+  schedule:
+    # Daily, at an hour nothing else in this repository runs.
+    - cron: '23 5 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+  pull-requests: write
+
+concurrency:
+  group: stale
+  cancel-in-progress: false
+
+jobs:
+  stale:
+    name: stale
+    # Skipped in forks, which inherit this workflow and have no reason to run a triage policy over
+    # issues they did not receive.
+    if: github.repository == 'developerz-ai/magik'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/stale@v9
+        with:
+          days-before-issue-stale: 180
+          days-before-issue-close: 30
+          # Marked, never closed. See the note at the top of this file.
+          days-before-pr-stale: 120
+          days-before-pr-close: -1
+
+          # `pinned`  — a maintainer decided this stays
+          # `roadmap` — tracking an unbuilt phase of docs/idea/00-build-spec.md, which is most of
+          #             the backlog while the framework is spec-only
+          # `spec`    — a question about what Magik should be, which has no expiry
+          exempt-issue-labels: 'pinned,roadmap,spec'
+          exempt-pr-labels: 'pinned,roadmap,spec'
+          # Anything a maintainer has scheduled is already triaged.
+          exempt-all-milestones: true
+
+          stale-issue-label: stale
+          stale-pr-label: stale
+          stale-issue-message: >
+            No activity here for six months. Magik is pre-alpha and spec-only, so this may simply be
+            waiting on a phase of `docs/idea/00-build-spec.md` that has not been built — if that is
+            the case, add the `roadmap` label and it will be left alone from now on.
+
+
+            Otherwise: a comment reopens the clock, and with nothing further this closes in 30 days.
+            A closed issue is still searchable and can be reopened.
+          stale-pr-message: >
+            No activity here for four months. This is a marker, not a deadline — nothing closes
+            pull requests in this repository automatically. Push, comment, or say what it is waiting
+            on and the label comes off.
+          close-issue-message: >
+            Closing after 30 days with no further activity. Nothing here is a judgement about the
+            idea; reopen it or link it from a new issue whenever it becomes actionable.
+
+          # The default is 30 API operations per run, which silently stops partway through a backlog
+          # and processes the same head of the queue every day.
+          operations-per-run: 100
+          # Oldest first, so the queue actually drains.
+          ascending: true

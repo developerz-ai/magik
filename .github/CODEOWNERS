@@ -1,0 +1,30 @@
+# Every file has an owner. Review is where the conventions a test cannot check become enforcement:
+# whether prose claims something works that does not, whether an error carries a runnable `fix:`
+# line, and whether a change adds a second way to do something the spec already covers.
+
+*                                   @sebyx07
+
+# ── the gate, and everything that decides what "green" means ─────────────────────────────────
+# bin/check IS the gate; the workflows run it. A change to either changes what merging proves.
+/bin/                               @sebyx07
+/.github/                           @sebyx07
+/.rubocop.yml                       @sebyx07
+/Rakefile                           @sebyx07
+
+# ── publishing is irreversible ───────────────────────────────────────────────────────────────
+# `gem yank` removes a version from the index; it does not free the number and it does not un-ship
+# what people already downloaded. These four decide what gets pushed and under what name.
+/.github/workflows/release.yml      @sebyx07
+/PUBLISHING.md                      @sebyx07
+/magik.gemspec                      @sebyx07
+/lib/magik/version.rb               @sebyx07
+
+# ── the source of truth ──────────────────────────────────────────────────────────────────────
+# Everything in docs/ elaborates on the build spec and nothing contradicts it, so editing the spec
+# is a change to the product rather than to a document.
+/docs/idea/                         @sebyx07
+
+# ── the error-code convention ────────────────────────────────────────────────────────────────
+# `MAGIK_*` codes are a public API: they end up in user code, in issue reports and in search
+# results, so a rename is a breaking change even before 1.0.
+/lib/magik.rb                       @sebyx07

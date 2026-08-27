@@ -1,0 +1,51 @@
+name: labeler
+
+# Applies the path-based labels in .github/labeler.yml to every pull request.
+#
+# `pull_request_target` rather than `pull_request`, and the reason is the permission: a
+# `pull_request` run from a FORK gets a read-only token, so labelling silently does nothing on
+# exactly the contributions where an automatic label is most useful. `pull_request_target` runs in
+# the context of the base repository and can write.
+#
+# That trigger is dangerous in general, because it hands a writable token to a workflow evaluated
+# against a pull request an untrusted author controls. It is safe HERE for one specific reason, and
+# it stops being safe the moment that reason stops holding:
+#
+#   THIS WORKFLOW NEVER CHECKS OUT THE PULL REQUEST'S CODE, AND NEVER RUNS IT.
+#
+# `actions/labeler` reads the changed-file list from the API and reads `.github/labeler.yml` from
+# the BASE branch — nothing from the head is executed. So do not add `actions/checkout` here, do
+# not add a build step, and do not add a step that reads a script out of the PR. If this workflow
+# ever needs to run something from the diff, it needs a different trigger.
+
+on:
+  pull_request_target:
+    types: [opened, synchronize, reopened, ready_for_review]
+
+permissions:
+  contents: read
+  pull-requests: write
+
+concurrency:
+  group: labeler-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  label:
+    name: label
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/labeler@v5
+        with:
+          configuration-path: .github/labeler.yml
+          # Labels come OFF again when the files that earned them leave the diff. Without this, a
+          # PR that started in lib/magik/ledger/ and ended up touching only docs keeps `area:ledger`
+          # forever, and the label stops meaning anything.
+          #
+          # It only ever touches labels this configuration knows about: a `bug` or `pinned` label a
+          # human added by hand is not in .github/labeler.yml and is therefore never removed.
+          sync-labels: true
+          # Dotfile paths count. Without it `.github/**` matches nothing, and the `ci` label — the
+          # one that marks a change to the gate itself — would never be applied.
+          dot: true

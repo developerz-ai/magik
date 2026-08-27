@@ -1,0 +1,57 @@
+#!/usr/bin/env bash
+# bin/gem-push — publish pkg/magik-<version>.gem to rubygems.org.
+#
+# THIS ONE IS IRREVERSIBLE. A published version can be yanked but never
+# replaced, and the name is permanently taken. Read PUBLISHING.md first and run
+# `bin/release` to confirm the version, the tag and the CHANGELOG agree.
+#
+# Requires `bin/gem-build` (for the artifact) and `bin/gem-login` (for the key).
+# MFA is enforced by the gemspec, so this prompts for an OTP; pass one
+# non-interactively as the single argument.
+#
+#   bin/gem-push
+#   bin/gem-push 123456      # OTP from your authenticator
+#
+# Exit status:
+#   0   published
+#   1   gem push failed
+#   64  bad usage
+#   69  the built gem is missing (run bin/gem-build) or no key is cached
+set -euo pipefail
+cd "$(dirname "$0")/.."
+
+if [ "${1:-}" = "-h" ] || [ "${1:-}" = "--help" ]; then
+  # Print the leading comment block and stop at the first line of code, so the
+  # help text can never drift out of sync with the range of a sed expression.
+  sed -n '2,${/^#/!q;s/^# \{0,1\}//p;}' "$0"
+  exit 0
+fi
+if [ $# -gt 1 ]; then
+  echo "bin/gem-push: takes at most one argument, an OTP (got $#)" >&2
+  exit 64
+fi
+
+version="$(ruby -Ilib -e 'require "magik/version"; print Magik::VERSION')"
+gemfile="pkg/magik-${version}.gem"
+
+if [ ! -f "$gemfile" ]; then
+  echo "✗ ${gemfile} not found." >&2
+  echo "  cause: the artifact for ${version} has not been built." >&2
+  echo "  fix:   bin/gem-build" >&2
+  exit 69
+fi
+
+if [ ! -f "${HOME}/.gem/credentials" ] || ! grep -q rubygems_api_key "${HOME}/.gem/credentials"; then
+  echo "✗ no rubygems_api_key in ~/.gem/credentials." >&2
+  echo "  fix: bin/gem-login" >&2
+  exit 69
+fi
+
+echo "==> Pushing ${gemfile} to rubygems.org"
+echo "    This cannot be undone. Ctrl-C now if bin/release did not say READY."
+if [ -n "${1:-}" ]; then
+  gem push "$gemfile" --otp "$1"
+else
+  gem push "$gemfile"
+fi
+echo "==> published — https://rubygems.org/gems/magik/versions/${version}"

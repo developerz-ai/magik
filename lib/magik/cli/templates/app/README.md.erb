@@ -1,0 +1,153 @@
+# <%= app_title %>
+
+_One line about what this app does — replace this._
+
+Built with [Magik](https://github.com/developerz-ai/magik): one Ruby DSL for models, screens,
+actions, jobs, ledgers and APIs. Server-rendered HTML plus htmx — no frontend framework, no build
+step. Generated with magik `<%= magik_version %>` on `<%= generated_on %>`.
+
+---
+
+## ⚠ Two things to read before anything else
+
+### 1. This app cannot run yet
+
+**Magik is not implemented.** `<%= magik_version %>` is a RubyGems name-reservation release: there
+is no `App.define`, no `model`, no `screen`, no router, no server and no database code. `magik
+server`, `magik test` and `magik check` exit `1` with `MAGIK_COMMAND_NOT_IMPLEMENTED`.
+
+You can write declarations, docs and a plan today. You cannot boot, migrate, render or test. Check
+rather than trust that — if it has stopped being true, this section is the first thing to delete:
+
+```bash
+magik version --json     # {"version":"<%= magik_version %>","status":"spec only",…}
+magik help               # every command, each marked `ready` or `planned`
+```
+
+The one thing that does work today is the shipped documentation:
+
+```bash
+magik docs path          # the local docs directory — point grep/glob/read at it
+magik docs list          # every page and its slug
+```
+
+<!-- magik:stage2-pending -->
+### 2. This app has not been set up yet
+
+Building a Magik app is three steps, and you have done one:
+
+```
+magik new <%= app_name %>     ✓ done — static boilerplate, written by the CLI
+/setup-project      ← YOU ARE HERE. An interview, run once, that makes this app yours
+/feature            then this, forever — one slice at a time, gate green each run
+```
+
+`magik new` wrote a **generic** scaffold. It knows nothing about what you are building — no domains,
+no entities, no plan. Open a Claude Code session here and run:
+
+```
+/setup-project
+```
+
+It interviews you about the product and then writes [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md),
+[`docs/PLAN.md`](docs/PLAN.md), the project half of [`docs/FEATURE.md`](docs/FEATURE.md) and the
+project half of `CLAUDE.md`. **It asks before it writes** — a domain model guessed from an app's
+name is the most expensive mistake available here.
+
+`/setup-project` removes this section on its first successful run. While it is here, the app is
+still generic.
+
+---
+
+## Getting started
+
+```bash
+bin/setup            # gems, .env, git hooks, database — idempotent, safe to re-run
+bin/check            # THE gate: lint, tests, magik check, and this app's own rules
+```
+
+### What works today, and what does not
+
+The **framework** is unimplemented; the **tooling** is not. That distinction is real, and it is the
+difference between a scaffold you can start working in and one you can only read.
+
+| Works today | Does not — `planned` |
+|---|---|
+| `bundle install` · `bin/setup` (gems, `.env`, git hooks) | `magik server` · `magik console` · `bin/dev` |
+| `rake test` · `rake rubocop` · `bundle exec rubocop` | `magik test` · `magik check` · `magik db …` |
+| `bin/check` — it runs lint, the suite and every rule in `scripts/checks/`, and reports the magik steps as `MISSING` rather than pretending | `magik generate …` — write files by hand until it lands |
+| `scripts/checks/*.rb` — plain Ruby over plain files, no framework needed | booting, migrating, rendering, serving |
+| `magik docs path` · `magik docs list` — the DSL reference, versioned with your gem | everything else in `magik help` marked `planned` |
+
+`bin/check` exits `69` (`EX_UNAVAILABLE`) rather than `1` when a step is missing rather than broken,
+so "not built yet" and "your app is wrong" never look the same to a script. Re-derive all of it:
+
+```bash
+magik help          # every command, marked `ready` or `planned`
+bin/check --list    # every step in the gate
+```
+
+## Your own rules are part of the gate
+
+`scripts/checks/` holds this team's rules as executable checks, discovered by `bin/check` and run on
+every change. **When the developer is an agent, a convention that is not executable does not
+exist** — a line in `CLAUDE.md` is advice on feature #40, and a check is a gate failure with a
+runnable fix. Three working examples ship with the app; add your own.
+[`scripts/README.md`](scripts/README.md) has the how.
+
+## Layout
+
+```text
+app/          models · screens · components · actions · jobs · channels · ledgers
+config/       app.rb is the composition root — App.define :<%= app_class %>
+db/           migrations (hand-written, append-only) · schema.rb (generated) · seeds.rb
+<% if layout == :domains -%>
+domains/      one per bounded context; each nests the same app/ tree
+<% end -%>
+locales/      one file per locale
+test/         mirrors app/ exactly, one file per declaration
+docs/         README · ARCHITECTURE · FEATURE · PLAN
+bin/          the verbs: setup · check · dev · console · test · magik
+scripts/      YOUR rules, as executable checks that bin/check discovers
+CLAUDE.md     the contract for an agent working here (AGENTS.md is a symlink to it)
+llms.txt      this app's link map
+```
+
+**One declaration per file**, and the path tells you what the file declares before you open it:
+`app/actions/void_invoice.rb` declares `action :void_invoice` and nothing else.
+
+## Working on it with an agent
+
+`CLAUDE.md` is the contract; `.claude/` carries the harness.
+
+| Command | Does |
+|---|---|
+| `/setup-project` | turn this generic scaffold into your project. **Run it first**, once |
+| **`/feature [what a user can do]`** | **the loop.** One slice end to end, ending with the gate green. No argument takes the next item from `docs/PLAN.md`. This is the command you run over and over |
+| `/screen <Name>` | one screen or component |
+| `/check` | the gate, with every finding triaged to a file and a fix |
+| `/next` | the single next task, read from `docs/PLAN.md` |
+
+Six agents sit behind those, scoped by directory so two can run without colliding:
+`data-modeler`, `action-author`, `screen-builder`, `ledger-author`, `test-writer`,
+`guardrail-reviewer`. See [`.claude/README.md`](.claude/README.md).
+
+## The rules that are not negotiable
+
+Money is integer cents — no `Float`, anywhere near currency. Every model is scoped by `tenant_id`;
+every primary key is UUIDv7. An action is the only thing that mutates, a job the only thing that
+runs async, a ledger the only thing that moves money, and a screen never queries the database.
+Server-rendered HTML plus htmx — no SPA, no offline, no heavy client-side compute. Minitest, never
+RSpec. These are enforced at boot, not by review.
+
+## Documentation
+
+| Need | Where |
+|---|---|
+| the DSL, versioned with your gem | `magik docs list` · `magik docs path` |
+| this app's architecture, loop and plan | [`docs/`](docs/) |
+| the manual on the web, for a human | <https://github.com/developerz-ai/magik/wiki> |
+
+## Licence
+
+_Your licence here._

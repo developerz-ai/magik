@@ -1,0 +1,95 @@
+{
+  "terminal.integrated.defaultProfile.linux": "Persistent Shell",
+
+  "editor.formatOnSave": true,
+  "editor.insertSpaces": true,
+  "editor.tabSize": 2,
+  "editor.rulers": [120],
+  "files.trimTrailingWhitespace": true,
+  "files.insertFinalNewline": true,
+  "files.trimFinalNewlines": true,
+  "files.eol": "\n",
+  "files.encoding": "utf8",
+
+  "[markdown]": {
+    "files.trimTrailingWhitespace": false,
+    "editor.formatOnSave": false
+  },
+
+  "[ruby]": {
+    "editor.defaultFormatter": "Shopify.ruby-lsp",
+    "editor.formatOnSave": true,
+    "editor.formatOnType": true,
+    "editor.semanticHighlighting.enabled": true,
+    "editor.tabSize": 2
+  },
+
+  "rubyLsp.enabledFeatures": {
+    "codeActions": true,
+    "diagnostics": true,
+    "documentHighlights": true,
+    "documentLink": true,
+    "documentSymbols": true,
+    "foldingRanges": true,
+    "formatting": true,
+    "hover": true,
+    "inlayHint": true,
+    "onTypeFormatting": true,
+    "selectionRanges": true,
+    "semanticHighlighting": true,
+    "completion": true,
+    "codeLens": true,
+    "definition": true,
+    "workspaceSymbol": true,
+    "signatureHelp": true
+  },
+  "rubyLsp.formatter": "rubocop_internal",
+  "rubyLsp.linters": ["rubocop_internal"],
+  "rubyLsp.rubyVersionManager": { "identifier": "none" },
+
+  "yaml.schemas": {
+    "https://json.schemastore.org/github-workflow.json": [
+      ".github/workflows/*.yml",
+      ".github/workflows/*.yaml"
+    ],
+    "https://json.schemastore.org/github-action.json": [
+      ".github/actions/*/action.yml",
+      ".github/actions/*/action.yaml"
+    ],
+    "https://json.schemastore.org/lefthook.json": ["lefthook.yml"],
+    "https://raw.githubusercontent.com/compose-spec/compose-spec/master/schema/compose-spec.json": [
+      "docker/compose.yml"
+    ]
+  },
+  "yaml.format.enable": true,
+  "yaml.validate": true,
+
+  "files.associations": {
+    "Gemfile": "ruby",
+    "Rakefile": "ruby",
+    "*.gemspec": "ruby",
+    "*.ru": "ruby",
+    ".env.example": "dotenv"
+  },
+
+  "files.exclude": {
+    "**/.yardoc": true,
+    "doc/": true,
+    "pkg/": true,
+    "coverage/": true
+  },
+  "search.exclude": {
+    "doc/**": true,
+    "pkg/**": true,
+    "coverage/**": true,
+    "vendor/**": true,
+    ".bundle/**": true
+  },
+
+  "files.watcherExclude": {
+    "**/.yardoc/**": true,
+    "**/doc/**": true,
+    "**/pkg/**": true,
+    "**/vendor/**": true
+  }
+}

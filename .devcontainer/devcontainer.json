@@ -1,0 +1,48 @@
+{
+  "name": "magik — TruffleRuby (production target) + CRuby (dev)",
+  "build": {
+    "dockerfile": "Dockerfile",
+    "context": "..",
+    "args": {
+      "RUBY_VERSION": "3.2",
+      "TRUFFLERUBY_VERSION": "24.2.1"
+    }
+  },
+  "features": {
+    "ghcr.io/devcontainers/features/github-cli:1": {},
+    "ghcr.io/devcontainers/features/docker-outside-of-docker:1": {}
+  },
+  "containerEnv": {
+    "MAGIK_ENV": "development",
+    "BUNDLE_PATH": "/workspaces/.bundle",
+    "EDITOR": "code --wait"
+  },
+  "remoteUser": "vscode",
+  "postCreateCommand": "bin/setup",
+  "postAttachCommand": {
+    "runtimes": "printf '\\nmagik dev container\\n  ruby         %s   (CRuby — development default, fast boot)\\n  truffleruby  %s   (PRODUCTION TARGET — run the suite here before claiming a change works)\\n\\n  bin/check    the gate\\n  bin/rake -T  every task\\n\\nMagik is spec only as of 2026-08-26: nothing here runs a Magik application yet.\\n\\n' \"$(ruby -e 'print RUBY_VERSION')\" \"$(truffleruby -e 'print RUBY_VERSION' 2>/dev/null || echo 'NOT INSTALLED — see .devcontainer/Dockerfile')\""
+  },
+  "forwardPorts": [3000, 5432, 6379],
+  "portsAttributes": {
+    "3000": { "label": "magik server (planned — nothing listens yet)", "onAutoForward": "silent" },
+    "5432": { "label": "postgres (docker/compose.yml)", "onAutoForward": "silent" },
+    "6379": { "label": "redis (docker/compose.yml, swap profile)", "onAutoForward": "silent" }
+  },
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "Shopify.ruby-lsp",
+        "rubocop.vscode-rubocop",
+        "EditorConfig.EditorConfig",
+        "redhat.vscode-yaml",
+        "DavidAnson.vscode-markdownlint",
+        "ms-azuretools.vscode-docker",
+        "GitHub.vscode-github-actions"
+      ],
+      "settings": {
+        "terminal.integrated.defaultProfile.linux": "bash",
+        "ruby.rubyVersionManager": { "identifier": "none" }
+      }
+    }
+  }
+}

@@ -1,0 +1,133 @@
+name: docs
+
+# Builds the YARD reference and publishes it to GitHub Pages.
+#
+# THE PATH IS LOAD-BEARING. magik.gemspec declares
+#   spec.metadata["documentation_uri"] = "https://developerz-ai.github.io/magik/api/"
+# and that string is printed on the gem's RubyGems page, so the site this workflow deploys has to
+# answer at `/api/`, not at `/`. `.yardopts` writes to `doc/`, which is the right local default and
+# the wrong URL path — so the site is ASSEMBLED here: `doc/` is copied to `_site/api/` and a
+# redirect is written at `_site/index.html`. Same layout wurk's pages.yml produces, arrived at from
+# the same metadata line.
+#
+# The API reference is generated from the source and nowhere else. A hand-written copy of a method
+# signature goes stale the first time somebody renames a parameter and does not think to look.
+# `docs/` is narrative prose reviewed in PRs and `wiki/` is mirrored separately; this ships the
+# generated half only.
+#
+# HONESTY NOTE: as of 2026-08-26 lib/ is documented stubs, so what this publishes is a documented
+# SHAPE — the modules the spec calls for, each saying what it will do and that it does not do it
+# yet. The site must not read as documentation of working software. README.md and `.yardopts`
+# (`--title "Magik — full-stack Ruby framework (spec only)"`) carry that framing; this workflow
+# only builds what they produce.
+
+on:
+  push:
+    branches: [main]
+    # `on.push.paths` rather than the `dorny/paths-filter` job ci.yml uses, and the difference is
+    # the event: a push has exactly one base to diff against, so GitHub answers this itself and the
+    # run is never created at all. ci.yml needs a filter job because a pull request's answer has to
+    # be computed once and then handed to six `if:` conditions.
+    paths:
+      - 'lib/**'
+      - 'exe/**'
+      - 'docs/**'
+      - '**/*.md'
+      - '.yardopts'
+      - 'Gemfile'
+      - 'Gemfile.lock'
+      - '.github/workflows/docs.yml'
+  workflow_dispatch:
+
+# `pages`, so two workflows cannot race to deploy the same site. NOT cancelled in progress: a
+# half-finished deploy that is cancelled leaves the site serving whatever the CDN last had, and the
+# run that would have fixed it is the one that was killed.
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: ./.github/actions/setup
+
+      - uses: actions/configure-pages@v6
+
+      # `rake yard`, the same task `bin/check --only yard` runs, so the docs on the website and the
+      # docs the gate measures are one build. Publishing is not the place to discover a YARD parse
+      # error — if this can go red it should already have gone red on the pull request.
+      - name: rake yard
+        run: bundle exec rake yard
+
+      - name: assemble the site — YARD at /api/, a redirect at /
+        run: |
+          set -euo pipefail
+          # Asserted rather than assumed: `.yardopts` owns `--output-dir`, and if it moves, the
+          # failure without this check is an empty site rather than a red step.
+          if [ ! -f doc/index.html ]; then
+            echo "::error title=YARD produced no doc/index.html::The Pages artifact would be empty. fix: run 'bundle exec rake yard' locally and check --output-dir in .yardopts — if it is no longer 'doc', update this step in .github/workflows/docs.yml to match."
+            exit 1
+          fi
+
+          mkdir -p _site/api
+          cp -R doc/. _site/api/
+
+          # The bare domain has to go somewhere. A redirect rather than a second landing page: this
+          # repository has exactly one generated site, and a hand-written index here would be a
+          # second thing to keep in sync with README.md.
+          cat > _site/index.html <<'HTML'
+          <!doctype html>
+          <html lang="en">
+            <head>
+              <meta charset="utf-8">
+              <title>Magik — API reference</title>
+              <meta http-equiv="refresh" content="0; url=./api/">
+              <link rel="canonical" href="https://developerz-ai.github.io/magik/api/">
+            </head>
+            <body>
+              <p>Magik is pre-alpha and spec-only. Redirecting to the
+                 <a href="./api/">YARD API reference</a> —
+                 the source is at <a href="https://github.com/developerz-ai/magik">developerz-ai/magik</a>.</p>
+            </body>
+          </html>
+          HTML
+
+          # Jekyll is not in play here and would skip `_`-prefixed files if it were.
+          touch _site/.nojekyll
+          echo "pages: $(find _site -name '*.html' | wc -l) html files, api/index.html present:"
+          test -f _site/api/index.html && echo "  yes"
+
+      - uses: actions/upload-pages-artifact@v5
+        with:
+          path: _site
+
+  deploy:
+    name: deploy
+    needs: build
+    # A fork pushing to its own main would otherwise run this and fail on a Pages site it has not
+    # enabled. Not a security control — `deploy-pages` can only ever write the running repository's
+    # own site — just the difference between a skipped job and a red one nobody can fix.
+    if: github.repository == 'developerz-ai/magik'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      pages: write
+      # `deploy-pages` authenticates to the Pages service with an OIDC token, not with GITHUB_TOKEN.
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      # One-time human setup: Settings → Pages → Build and deployment → Source: GitHub Actions.
+      # Without it this step fails with a 404 that does not say "Pages is off".
+      - id: deployment
+        uses: actions/deploy-pages@v5

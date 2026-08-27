@@ -1,0 +1,23 @@
+blank_issues_enabled: false
+
+contact_links:
+  - name: 🗺️ "Feature X does not work" — that is expected, here is why
+    url: https://github.com/developerz-ai/magik/blob/main/ROADMAP.md
+    about: >-
+      Magik is pre-alpha. As of 2026-08-26 every DSL in the spec — model, screen, action, channel,
+      job, ledger, api, auth, billing, admin_panel — is unimplemented. Nothing is missing by
+      accident, so please do not file it as a bug.
+  - name: 💬 Design discussion, questions, "should Magik do X?"
+    url: https://github.com/developerz-ai/magik/discussions
+    about: >-
+      Everything about what Magik should become belongs here rather than in an issue. An issue is
+      for something the repository does wrong today; a discussion is for something it should do
+      one day.
+  - name: 📐 The spec itself
+    url: https://github.com/developerz-ai/magik/blob/main/docs/idea/00-build-spec.md
+    about: >-
+      The source of truth for what Magik is meant to be, and the thing to read before proposing a
+      change to it. Nothing in docs/ contradicts it.
+  - name: 🔒 Security
+    url: https://github.com/developerz-ai/magik/blob/main/SECURITY.md
+    about: Never in a public issue. SECURITY.md says where instead.

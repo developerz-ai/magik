@@ -1,0 +1,19 @@
+#!/usr/bin/env bash
+# A binstub for the magik CLI, so `bin/magik` works whether or not the gem's
+# executable is on PATH and whether or not there is a bundle.
+#
+# It is a SHIM ON PURPOSE. The logic lives in the installed gem, so a fix
+# arrives with `gem update magik` instead of being frozen into every app that
+# was ever generated from this template.
+set -euo pipefail
+cd "$(dirname "$0")/.."
+
+if [ -f Gemfile.lock ] && command -v bundle >/dev/null 2>&1; then
+  exec bundle exec magik "$@"
+elif command -v magik >/dev/null 2>&1; then
+  exec magik "$@"
+fi
+
+echo "magik is not installed." >&2
+echo "  fix: bundle install   # or: gem install magik" >&2
+exit 69

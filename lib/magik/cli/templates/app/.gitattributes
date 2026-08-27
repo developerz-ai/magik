@@ -1,0 +1,34 @@
+# Line endings and diff behaviour. Framework-owned: `magik generate agents
+# --update` replaces this file.
+
+# Normalise to LF in the repository, whatever the checkout platform does.
+* text=auto eol=lf
+
+# Shell scripts and binstubs must keep LF even on Windows — CRLF makes a
+# shebang unparseable and the error ("bad interpreter") does not say why.
+*.sh      text eol=lf
+bin/*     text eol=lf
+
+# Ruby, config and docs.
+*.rb      text diff=ruby
+*.rake    text diff=ruby
+*.gemspec text diff=ruby
+*.erb     text
+*.yml     text
+*.yaml    text
+*.json    text
+*.md      text diff=markdown
+
+# Generated and never hand-edited. Marked so a review can skip it, and so a
+# conflict here is resolved by regenerating rather than by merging.
+db/schema.rb linguist-generated=true
+
+# Binary — never diffed, never merged.
+*.png     binary
+*.jpg     binary
+*.jpeg    binary
+*.gif     binary
+*.ico     binary
+*.pdf     binary
+*.woff    binary
+*.woff2   binary

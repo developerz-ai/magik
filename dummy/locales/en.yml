@@ -1,0 +1,47 @@
+# ASPIRATIONAL — nothing reads this file. Magik is spec only as of 2026-08-26:
+# there is no i18n loader, and `t("invoices.new")` resolves to nothing because
+# nothing resolves anything. See dummy/README.md.
+#
+# locales/en.yml  —  one file per locale, named by the locale code.
+#
+# Every key that appears as `t("...")` anywhere in dummy/app/ appears here.
+# That is the property `magik check` is specified to enforce: a translation key
+# with no entry renders as a visible placeholder rather than as an empty string,
+# and a key here that nothing renders is dead weight.
+#
+# Declared in config/app.rb: `locales :en, :es, :de, default: :en`.
+en:
+  dashboard:
+    outstanding: "Outstanding"
+    overdue: "Overdue"
+    plan: "Plan"
+    revenue_12m: "Revenue, last 12 months"
+
+  invoices:
+    new: "New invoice"
+    number: "Number"
+    customer: "Customer"
+    total: "Total"
+    due: "Due"
+    amount: "Amount"
+    status: "Status"
+    issue: "Issue"
+    issue_confirm: "Issue this invoice? Once issued its total cannot change."
+    record_payment: "Record payment"
+    record: "Record"
+    create: "Create"
+
+  onboarding:
+    company_name: "Company name"
+    currency: "Currency"
+    vat_id: "VAT ID"
+    customer_name: "Customer name"
+    continue: "Continue"
+    finish: "Finish"
+
+  notifications:
+    invoice_issued:
+      subject: "Invoice %{number}"
+      title: "Invoice %{number} issued"
+    invoice_overdue:
+      push: "Invoice %{number} is overdue"

@@ -1,0 +1,60 @@
+# frozen_string_literal: true
+
+# Tasks for <%= app_title %>. `rake -T` lists them.
+#
+# The names mirror the magik framework repository's own, so what you learn in
+# one applies to the other: `test`, `rubocop`, `check`.
+#
+# Every development gem is loaded behind a `rescue LoadError`, so `rake test`
+# works on a machine with nothing but Ruby and Rake. A task whose gem is missing
+# is still defined and aborts with an install hint — never a task that passes
+# vacuously.
+
+# magik:framework-block BEGIN version=<%= magik_version %> generated=<%= generated_on %>
+#
+# FRAMEWORK-OWNED. Rewritten by `magik generate agents --update`. Put your own
+# tasks in the project block at the bottom.
+
+require "rake/testtask"
+
+Rake::TestTask.new(:test) do |t|
+  t.description = "Run the Minitest suite"
+  t.libs = %w[app test]
+  t.warning = false
+  t.test_files = FileList["test/**/*_test.rb"]
+end
+
+begin
+  require "rubocop/rake_task"
+  RuboCop::RakeTask.new(:rubocop) do |t|
+    t.options = ["--display-cop-names"]
+  end
+rescue LoadError
+  desc "Run RuboCop (gem not installed)"
+  task :rubocop do
+    abort "rubocop is not installed. fix: run `bundle install`"
+  end
+end
+
+desc "Run the guardrail checker (magik check)"
+task :guardrails do
+  sh "magik check" do |ok, status|
+    next if ok
+
+    abort "magik check exited #{status.exitstatus}. fix: magik check --json   # findings as data"
+  end
+end
+
+desc "Run the full gate — the same steps bin/check runs"
+task :check do
+  sh "./bin/check"
+end
+
+task default: %i[test rubocop]
+# magik:framework-block END
+
+# magik:project-block BEGIN
+#
+# PROJECT-OWNED. Yours. No magik command writes here.
+
+# magik:project-block END

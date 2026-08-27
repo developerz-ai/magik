@@ -1,0 +1,82 @@
+name: setup
+description: Ruby, the bundle and its cache — the three lines every Ruby job in this repo starts with.
+
+# CHECKOUT STAYS IN THE CALLER, and that is not an oversight: this file has to be on disk before
+# Actions can run it, and `ruby/setup-ruby` needs a Gemfile in the workspace before
+# `bundler-cache: true` has anything to resolve. A composite that checked out for you would also
+# decide `fetch-depth` and `persist-credentials` for jobs that have very different reasons to care
+# about both — `changes` in ci.yml needs history, and the publish job in release.yml must not carry
+# a writable token. So callers do:
+#
+#   - uses: actions/checkout@v7
+#   - uses: ./.github/actions/setup
+#
+# PINNING RULE for this repository: every third-party action is pinned to a MAJOR TAG (`@v1`,
+# `@v3`), never to `@main` and never left floating. Dependabot's `github-actions` ecosystem
+# (.github/dependabot.yml) opens one grouped PR a week that moves those majors, so the pins do not
+# rot and a bump is a reviewable diff rather than something that arrives on its own. The single
+# documented exception is `rubygems/configure-rubygems-credentials@main` in release.yml, and the
+# reason it is an exception is written above the step that uses it.
+
+inputs:
+  ruby-version:
+    description: >-
+      Anything ruby/setup-ruby accepts: `3.2`, `3.4`, `truffleruby-head`, `.ruby-version`.
+      Default `3.2` because that is `required_ruby_version` in magik.gemspec — the oldest engine
+      the gem claims to support is the one an unconfigured job should prove first.
+    required: false
+    default: '3.2'
+  bundler-cache:
+    description: >-
+      Install the bundle and cache it. `false` for jobs that need a Ruby but no bundle — the gem
+      smoke test in ci.yml installs the built artifact into an empty GEM_HOME on purpose, and a
+      pre-warmed bundle there would hide a missing runtime dependency.
+    required: false
+    default: 'true'
+  cache-version:
+    description: >-
+      Bump to invalidate the bundle cache without touching the Gemfile. Needed roughly never; when
+      it is needed (a cached native extension built against a since-removed system library) nothing
+      else will do.
+    required: false
+    default: '0'
+
+outputs:
+  ruby-version:
+    description: >-
+      The engine and version that actually resolved, e.g. `ruby-3.2.3` or `truffleruby-25.0.0`.
+      The matrix asks for `truffleruby-head`, which is a moving target — this is what it moved to
+      on this run, and it belongs in the log of any job whose result someone will quote later.
+    value: ${{ steps.resolved.outputs.ruby-version }}
+  ruby-prefix:
+    description: Install prefix of the resolved Ruby, straight from ruby/setup-ruby.
+    value: ${{ steps.ruby.outputs.ruby-prefix }}
+
+runs:
+  using: composite
+  steps:
+    # `@v1` is the whole major line for this action and has been since 2020 — it is not a stale
+    # pin, it is the only tag upstream publishes for consumers. Dependabot tracks it anyway.
+    - id: ruby
+      uses: ruby/setup-ruby@v1
+      with:
+        ruby-version: ${{ inputs.ruby-version }}
+        # Runs `bundle install` and caches `vendor/bundle` keyed on the lockfile, the platform and
+        # the resolved engine. Keyed on the ENGINE, which matters here more than in a CRuby-only
+        # repo: TruffleRuby and CRuby resolve different platform gems from the same Gemfile, and a
+        # cache shared between them would hand one engine the other's native extensions.
+        bundler-cache: ${{ inputs.bundler-cache }}
+        cache-version: ${{ inputs.cache-version }}
+
+    # Printed, not just captured. When `truffleruby-head` goes red, the first question is always
+    # "against which build", and a run whose log cannot answer it is a run nobody can act on.
+    - id: resolved
+      shell: bash
+      run: |
+        set -euo pipefail
+        resolved="$(ruby -e 'print "#{RUBY_ENGINE}-#{RUBY_ENGINE_VERSION}"')"
+        echo "ruby-version=${resolved}" >> "$GITHUB_OUTPUT"
+        {
+          echo "resolved: ${resolved}"
+          ruby -v
+        } | tee -a "$GITHUB_STEP_SUMMARY"

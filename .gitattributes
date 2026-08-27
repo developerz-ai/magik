@@ -1,0 +1,59 @@
+# Normalise line endings on the way in, check out LF everywhere. Ruby shebang
+# scripts under bin/ and exe/ are unrunnable with CRLF endings, so this is
+# correctness rather than tidiness.
+* text=auto eol=lf
+
+# Ruby gets git's Ruby-aware hunk headers, so a diff says which method it is in
+# instead of leaving you to scroll for the `def`.
+*.rb      text diff=ruby
+*.rake    text diff=ruby
+*.gemspec text diff=ruby
+Gemfile   text diff=ruby
+Rakefile  text diff=ruby
+*.ru      text diff=ruby
+
+# Markdown and config stay text; binaries stay binary.
+*.md   text
+*.yml  text
+*.yaml text
+*.json text
+*.erb  text
+*.png  binary
+*.jpg  binary
+*.gif  binary
+*.ico  binary
+*.pdf  binary
+*.gem  binary
+
+# Linguist. Without these hints GitHub reports this repo's language breakdown
+# from whatever has the most bytes, which for a spec-only framework is prose.
+docs/**   linguist-documentation
+wiki/**   linguist-documentation
+*.md      linguist-documentation
+
+# The dummy app is the reference application written ahead of the framework —
+# design-by-example, not shipped source. It is example code and it does not run
+# yet (see dummy/README.md), so it must not count toward the language stats and
+# must not be vendored into the gem.
+dummy/**     linguist-language=Ruby linguist-documentation=false
+dummy/**     linguist-vendored=false
+dummy/**     linguist-generated=false
+examples/**  linguist-documentation
+
+# export-ignore: dev-only paths, stripped from `git archive` tarballs. The gem
+# package itself is built from the gemspec's file list, not from git archive —
+# this covers the GitHub source tarball people download from a release page.
+.github/        export-ignore
+.vscode/        export-ignore
+.devcontainer/  export-ignore
+docker/         export-ignore
+bin/            export-ignore
+test/           export-ignore
+dummy/          export-ignore
+wiki/           export-ignore
+lefthook.yml    export-ignore
+.editorconfig   export-ignore
+.gitattributes  export-ignore
+.gitignore      export-ignore
+.rubocop.yml    export-ignore
+.env.example    export-ignore

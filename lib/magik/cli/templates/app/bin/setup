@@ -1,0 +1,64 @@
+#!/usr/bin/env bash
+# bin/setup — a fresh clone to a working checkout. Idempotent: safe to run after
+# every pull, and it never overwrites something you edited.
+#
+# What genuinely works today, on a magik that is spec only:
+#   * bundle install          real
+#   * .env from .env.example  real
+#   * git hooks               real
+#   * the database steps      NOT IMPLEMENTED — they print and skip
+#
+# Framework-owned: `magik generate agents --update` replaces this file.
+set -euo pipefail
+cd "$(dirname "$0")/.."
+
+say() { printf '\n\033[1m==> %s\033[0m\n' "$1"; }
+have() { command -v "$1" >/dev/null 2>&1; }
+
+say "Gems"
+if have bundle; then
+  bundle install
+else
+  echo "bundler is not installed."
+  echo "  fix: gem install bundler"
+  exit 69
+fi
+
+say "Environment"
+if [ -f .env ]; then
+  echo ".env already exists — left alone. Compare it with .env.example after a pull:"
+  echo "  diff <(grep -o '^[A-Z_]*' .env | sort) <(grep -o '^[A-Z_]*' .env.example | sort)"
+else
+  cp .env.example .env
+  echo "Wrote .env from .env.example. Fill in the blanks — SECRET_KEY_BASE has no default,"
+  echo "deliberately. Generate one with:"
+  echo "  ruby -rsecurerandom -e 'puts SecureRandom.hex(64)'"
+fi
+
+say "Git hooks"
+if have lefthook; then
+  lefthook install
+elif [ -d .git ]; then
+  mkdir -p .git/hooks
+  cat > .git/hooks/pre-push <<'HOOK'
+#!/bin/sh
+exec ./bin/check
+HOOK
+  chmod +x .git/hooks/pre-push
+  echo "lefthook is not installed; wrote a plain .git/hooks/pre-push running bin/check."
+  echo "  fix (optional): gem install lefthook && lefthook install"
+fi
+
+say "Database"
+if have magik && magik db create >/dev/null 2>&1; then
+  magik db migrate
+  magik db seed
+else
+  echo "Skipped. \`magik db\` is planned and not implemented in this magik version."
+  echo "  check: magik help          # every command, marked ready or planned"
+fi
+
+say "Gate"
+./bin/check || true
+echo
+echo "Next: /setup-project in a Claude Code session, then /feature."

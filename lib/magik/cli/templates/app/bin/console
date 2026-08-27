@@ -1,0 +1,12 @@
+#!/usr/bin/env bash
+# bin/console — a REPL with this app loaded.
+#
+# A SHIM: it delegates to `magik console`, so improvements arrive with
+# `gem update magik` rather than being frozen into this app. Flags pass
+# straight through — see `bin/console --help`.
+#
+# `magik console` is PLANNED and not implemented; this exits non-zero with
+# MAGIK_COMMAND_NOT_IMPLEMENTED until the phase that builds it lands.
+set -euo pipefail
+cd "$(dirname "$0")/.."
+exec ./bin/magik console "$@"

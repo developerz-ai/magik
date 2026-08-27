@@ -1,0 +1,125 @@
+name: ✨ Feature
+description: Propose something Magik should do, or a change to what the spec says it will do.
+labels: [feature]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        ### Read this first
+
+        **Magik is pre-alpha and spec-only.** As of 2026-08-26 nothing in
+        [`docs/idea/00-build-spec.md`](https://github.com/developerz-ai/magik/blob/main/docs/idea/00-build-spec.md)
+        is implemented, so almost everything anyone could ask for is **already planned and not yet
+        built**. Check [`ROADMAP.md`](https://github.com/developerz-ai/magik/blob/main/ROADMAP.md)
+        before filing: if it is on the roadmap, the useful action is a
+        [Discussion](https://github.com/developerz-ai/magik/discussions) about the shape of it, not
+        an issue asking for it.
+
+        This form is for something the spec does **not** cover, or something it covers in a way you
+        think is wrong. Both are welcome. "Please implement Phase 3" is not.
+
+        Two things will close a proposal on sight, because they are architecture decisions the spec
+        makes on purpose and states as non-negotiable:
+
+        - **an SPA framework, or client-side rendering.** UI is server-rendered HTML plus htmx.
+        - **offline support, or heavy client-side compute.** The server is the single source of
+          truth, and canvas editors and games are out of scope. The docs say so rather than
+          silently failing.
+
+        A proposal that adds a second way to do something the spec already covers will also be
+        closed — one grammar for the whole framework is the product.
+
+  - type: checkboxes
+    id: checked
+    attributes:
+      label: Confirm
+      options:
+        - label: I have read ROADMAP.md and this is not "build a phase that is already planned".
+          required: true
+        - label: >-
+            This does not ask for an SPA framework, client-side rendering, offline support, or
+            heavy client-side compute.
+          required: true
+
+  - type: dropdown
+    id: subsystem
+    attributes:
+      label: Which subsystem does this belong to?
+      description: >-
+        The module names under `lib/magik/`, which are the spec's phases. If it fits none of them,
+        pick "none of these" and say why — a proposal that needs a new subsystem is a bigger change
+        than one that extends an existing one.
+      options:
+        - core
+        - cli
+        - model
+        - schema
+        - render
+        - action
+        - router
+        - realtime
+        - jobs
+        - ledger
+        - api
+        - auth
+        - billing
+        - admin
+        - i18n
+        - pwa
+        - notify
+        - testing
+        - domains
+        - check
+        - none of these
+    validations:
+      required: true
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: The problem
+      description: >-
+        What breaks, or what costs time, in an app someone is actually trying to build. Not the
+        solution yet — a problem stated well usually has more than one, and the spec should get to
+        pick.
+    validations:
+      required: true
+
+  - type: textarea
+    id: shape
+    attributes:
+      label: Proposed declaration
+      description: >-
+        What the user writes. Magik is one DSL, so match the grammar the spec already uses —
+        `model :Name do ... end`, `action :name do |params| ... end`. Ruby, please, even if it is
+        hand-waved.
+      render: ruby
+    validations:
+      required: true
+
+  - type: input
+    id: code
+    attributes:
+      label: New error code, if this can fail
+      description: >-
+        Magik errors carry a stable `MAGIK_*` code, a cause, and a runnable `fix:` line. If your
+        proposal introduces a failure mode, name the code it would raise. `none` if it cannot fail.
+      placeholder: MAGIK_LEDGER_UNBALANCED
+    validations:
+      required: true
+
+  - type: checkboxes
+    id: principles
+    attributes:
+      label: Spec check
+      description: The non-negotiables from docs/idea/00-build-spec.md that a proposal has to survive.
+      options:
+        - label: One way to do this — it does not add an alternative to something the spec covers.
+        - label: >-
+            It is enforced rather than documented — a violation fails at boot or fails
+            `magik check`, instead of being a paragraph nobody reads.
+        - label: >-
+            If it is an opinionated default, it has a config-level swap point (DB, cache, jobs,
+            search, realtime backends must all be switchable without app-code changes).
+        - label: It is multi-tenant safe — nothing here can read across `tenant_id`.
+        - label: If it touches money, it is integer minor units. Never a float.

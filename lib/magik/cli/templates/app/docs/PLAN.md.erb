@@ -1,0 +1,73 @@
+# <%= app_title %> — plan
+
+**What** is being built, in order, and what each slice proves. *How* it gets built is
+[`FEATURE.md`](FEATURE.md); what the app is made of is [`ARCHITECTURE.md`](ARCHITECTURE.md).
+
+<!-- magik:stage2-pending -->
+> **There is no plan yet.** This is an empty frame from `magik new`. **Run `/setup-project`** — it
+> interviews you about the product and writes the first slices from your answers.
+>
+> `/next` reads this file. With the banner still here, its only correct answer is "run
+> `/setup-project`". Do not invent slices to fill the table: a plan assembled from guesses gets
+> built, and that is the expensive part.
+
+**Project-owned.** No magik command writes this file. `/setup-project` fills it, `/feature` ticks
+it, `/next` reads it.
+
+## Now
+
+_The one slice in progress. One at a time — a plan with three "in progress" rows is a plan nobody
+is following._
+
+| Slice | Proves | Done when | Owner |
+|---|---|---|---|
+| _—_ | | | |
+
+## Next
+
+_Three or four, in order. Each is one thing a user can do, with the assertion or screen that proves
+it. If a row cannot name its proof, it is not ready to be a row._
+
+| # | Slice | Proves | Depends on |
+|---|---|---|---|
+| 1 | _—_ | | |
+
+## Later
+
+_Ideas, unordered, unpromised. Nothing here has a date. Moving a row up is a decision someone makes
+deliberately, not a thing that happens by drift._
+
+- _—_
+
+## Done
+
+_Append-only, newest last, each with the date and the commit or PR. This is the section that makes
+the plan worth trusting: it is the record of what the estimates above turned out to be worth._
+
+| Date | Slice | Landed as |
+|---|---|---|
+| _—_ | | |
+
+## What building this taught us
+
+_Add a row the first time something surprised you: a framework gap, a wrong assumption in
+`ARCHITECTURE.md`, a guardrail that fired for a reason nobody predicted. This section is worth more
+than the rest of the file, and it only gets written if you write it while it stings._
+
+| Found | Cost | What changed because of it |
+|---|---|---|
+| _—_ | | |
+
+## Standing constraint
+
+**Magik is not implemented.** `As of <%= generated_on %>`, magik `<%= magik_version %>` is a
+name-reservation release: no `magik server`, no `magik test`, no `magik check`, no database. Every
+slice above can be *declared* today and none can be *run*.
+
+Check rather than trust that sentence — if it has stopped being true, this section is the first
+thing to delete:
+
+```bash
+magik version --json
+magik help          # every command, marked ready or planned
+```

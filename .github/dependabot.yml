@@ -1,0 +1,80 @@
+version: 2
+
+# Weekly, grouped, and small. A dependency PR that nobody can review in one sitting gets merged
+# without being read, which is worse than being a version behind.
+#
+# Grouping is the point of this file. Ungrouped, a Ruby project with a rubocop family, a yard and a
+# minitest stack produces five or six PRs on a quiet week, each with its own CI run and its own
+# review; grouped, it produces two. Majors are deliberately left OUT of every group and arrive
+# alone, because a major is a decision rather than a green checkmark.
+#
+# ONE THING TO KNOW ABOUT THE bundler ECOSYSTEM HERE: Gemfile.lock is not committed (see
+# .gitignore — magik is a library gem, so a checked-in lockfile would pin resolutions the gem does
+# not actually require of its users). Without a lockfile Dependabot can only propose changes to the
+# declared CONSTRAINTS in Gemfile and magik.gemspec, so it stays quiet until a release moves past a
+# `~>` bound rather than tracking every patch. That is the correct trade for a library, and it is
+# why CI resolves fresh on every run: the gate is what notices a bad upstream release here, not a
+# lockfile bump.
+
+updates:
+  # ── the bundle ────────────────────────────────────────────────────────────────────────────
+  - package-ecosystem: bundler
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+      time: '06:00'
+      timezone: Europe/Berlin
+    open-pull-requests-limit: 5
+    labels: [dependencies, ruby]
+    commit-message:
+      prefix: 'chore(deps)'
+    # Let a release sit for 14 days before it is proposed. Most yanked versions and supply-chain
+    # incidents are caught inside that window, and the default is 3.
+    cooldown:
+      default-days: 14
+    groups:
+      # Everything that only ever runs on a maintainer's machine or on a runner: rake, minitest,
+      # simplecov, the rubocop family, yard, redcarpet. A minor bump here cannot reach a user, so
+      # these travel as one diff and the only question worth asking is whether `bin/check` is still
+      # green.
+      dev-dependencies:
+        dependency-type: development
+        update-types: [minor, patch]
+      # Runtime dependencies are the gem's public promise: whatever range magik.gemspec declares is
+      # what a user's bundler has to solve alongside their own application.
+      #
+      # As of 2026-08-26 there are none — magik.gemspec declares zero runtime dependencies on
+      # purpose, because the boilerplate loads only the standard library and declaring a dependency
+      # the code does not require would be a lie about what is wired up. This group is therefore
+      # inert today and becomes live the moment Phase 1 adds sequel and falcon; it is here now so
+      # that day does not also need a Dependabot change.
+      runtime-dependencies:
+        dependency-type: production
+        update-types: [minor, patch]
+    ignore:
+      # The engine is chosen by the CI matrix and by `required_ruby_version` in magik.gemspec.
+      # Bundler resolving a "newer ruby" is not an update anyone applies from a PR.
+      - dependency-name: ruby
+
+  # ── the workflows ─────────────────────────────────────────────────────────────────────────
+  #
+  # Every third-party action in this repository is pinned to a major tag, and this is what keeps
+  # those pins from rotting — the rule and its reasoning are in .github/actions/setup/action.yml.
+  # One grouped PR a week, because a workflow bump is only reviewable as "did the gate still pass
+  # with all of them moved".
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+      time: '06:00'
+      timezone: Europe/Berlin
+    open-pull-requests-limit: 5
+    labels: [dependencies, ci]
+    commit-message:
+      prefix: 'chore(ci)'
+    groups:
+      minor-and-patch:
+        patterns: ['*']
+        update-types: [minor, patch]

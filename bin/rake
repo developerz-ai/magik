@@ -1,0 +1,42 @@
+#!/usr/bin/env ruby
+# frozen_string_literal: true
+
+# bin/rake — rake, without the bundler ceremony.
+#
+# `bundle exec rake` when the bundle is installed, plain `rake` when it is not.
+# Magik's Rakefile is written so that `rake test` runs on a bare Ruby with no
+# bundler at all, and this wrapper keeps that true: a contributor who has not
+# run `bin/setup` yet still gets a working `bin/rake test` instead of a
+# Bundler::GemNotFound.
+#
+#   bin/rake -T           list the tasks
+#   bin/rake test         the unit suite
+#   bin/rake rubocop yard
+#
+# Exit status: whatever rake exits with. 69 if rake itself is not installed.
+
+if ARGV.first == "--help" && ARGV.size == 1
+  puts File.read(__FILE__).lines.drop(3).take_while { |l| l.start_with?("#") }.map { |l| l.sub(/\A# ?/, "") }.join
+  exit 0
+end
+
+root = File.expand_path("..", __dir__)
+Dir.chdir(root)
+
+if File.exist?("Gemfile")
+  begin
+    require "bundler/setup"
+  rescue LoadError, StandardError => e
+    # Not fatal. The Rakefile's own tasks do not need the bundle; only rubocop
+    # and yard do, and those tasks say so themselves when they are missing.
+    warn "bin/rake: running without the bundle (#{e.class}). `bin/setup` installs it."
+  end
+end
+
+begin
+  load Gem.bin_path("rake", "rake")
+rescue Gem::Exception
+  warn "MAGIK_NO_RAKE: rake is not installed."
+  warn "  fix: gem install rake   # or run bin/setup"
+  exit 69
+end

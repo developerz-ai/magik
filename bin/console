@@ -1,0 +1,41 @@
+#!/usr/bin/env bash
+# bin/console — an IRB with this checkout's `magik` already loaded.
+#
+# `-Ilib` rather than an installed gem: you are poking at the source in front of
+# you, not at whatever version happens to be in the gem path.
+set -euo pipefail
+
+cd "$(dirname "$0")/.."
+
+if [ "${1:-}" = "-h" ] || [ "${1:-}" = "--help" ]; then
+  cat <<'TXT'
+Usage: bin/console [irb args...]
+
+Starts IRB with -Ilib and `require "magik"` already done, against the working
+tree — not against an installed copy of the gem.
+
+Try:
+  Magik::VERSION            # => "0.0.1"
+  Magik::SUBSYSTEMS.keys    # every planned subsystem
+  Magik::CLI.start(["help"])
+
+Magik is spec only as of 2026-08-26. Every subsystem constant except Magik::CLI
+is a documented stub whose entry points raise NotImplementedError; there is no
+app to boot and no database to talk to. This console is for reading the object
+model, not for running a Magik application. That is `magik console`, which is
+listed as `planned` in `magik help`.
+
+Any extra arguments are passed straight through to irb.
+
+Exit status: whatever irb exits with (0 when you quit normally).
+TXT
+  exit 0
+fi
+
+echo "==> irb -Ilib -rmagik   (magik $(ruby -Ilib -e 'require "magik"; print Magik::VERSION'), spec only)"
+
+if [ -f Gemfile ] && bundle check >/dev/null 2>&1; then
+  exec bundle exec irb -Ilib -rmagik "$@"
+fi
+
+exec irb -Ilib -rmagik "$@"

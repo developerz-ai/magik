@@ -1,0 +1,54 @@
+# Local services for <%= app_title %>.
+#
+#   docker compose -f docker/compose.yml up -d
+#   docker compose -f docker/compose.yml down          # keeps the data
+#   docker compose -f docker/compose.yml down -v       # deletes it
+#
+# Postgres is the only service you need, and that is the point: it is the
+# default database, the default transactional job queue and the default realtime
+# backend (LISTEN/NOTIFY) all at once. A single-database deployment runs the
+# whole framework.
+#
+# Redis is the documented ALTERNATIVE for cache and realtime, never the default.
+# It sits behind a profile so it does not start unless you ask:
+#
+#   docker compose -f docker/compose.yml --profile swap up -d
+#
+# PROJECT-OWNED: no magik command rewrites this file.
+
+name: <%= app_name %>
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: <%= app_name %>
+      POSTGRES_PASSWORD: <%= app_name %>
+      POSTGRES_DB: <%= app_name %>_development
+      # Deterministic collation, so an index built on a developer's machine and
+      # one built in production sort the same way.
+      POSTGRES_INITDB_ARGS: "--locale=C --encoding=UTF8"
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U <%= app_name %>"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    profiles: ["swap"]
+    image: redis:7-alpine
+    command: ["redis-server", "--appendonly", "no"]
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+volumes:
+  postgres-data:

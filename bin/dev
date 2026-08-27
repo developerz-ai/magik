@@ -1,0 +1,115 @@
+#!/usr/bin/env bash
+# bin/dev — the framework-development loop: rerun the tests when a file changes.
+#
+# This watches the FRAMEWORK's own suite. It is not `magik server` and it does
+# not boot an application — there is no application to boot (Magik is spec only
+# as of 2026-08-26).
+#
+# There is no bundled watcher and none is added as a dependency for this. The
+# script uses whichever of the common ones you already have, and if you have
+# none it tells you exactly how to get one instead of pretending to work.
+set -euo pipefail
+
+cd "$(dirname "$0")/.."
+
+STEP="test"
+
+usage() {
+  cat <<'TXT'
+Usage: bin/dev [--step STEP] [--once] [--help]
+
+Reruns `bin/check --only test` every time a watched file changes.
+
+Watched: lib/ exe/ test/ Rakefile Gemfile magik.gemspec
+
+Options:
+  --step STEP  Run a different bin/check step instead of `test`
+               (bin/check --list prints them all).
+  --once       Run the step once and exit. No watcher needed — this is what CI
+               and a pre-push hook effectively do.
+  -h, --help   Show this message.
+
+Watcher: the first of watchexec, entr, fswatch or inotifywait found on PATH.
+If none is installed, this script prints the one-line install command for your
+platform and exits non-zero rather than silently doing nothing.
+
+Exit status:
+  0   --once, and the step passed; or the watcher exited cleanly
+  1   --once, and the step failed
+  64  bad usage
+  69  no file watcher is installed — nothing here is broken, install one of the
+      four named above
+TXT
+}
+
+while [ $# -gt 0 ]; do
+  case "$1" in
+    --step) STEP="${2:-}"; [ -n "$STEP" ] || { echo "bin/dev: --step needs a value (bin/check --list)" >&2; exit 64; }; shift ;;
+    --once) exec ./bin/check --only "$STEP" ;;
+    -h|--help) usage; exit 0 ;;
+    *) echo "bin/dev: unknown argument '$1'" >&2; echo >&2; usage >&2; exit 64 ;;
+  esac
+  shift
+done
+
+WATCH_PATHS=(lib exe test)
+WATCH_FILES=(Rakefile Gemfile magik.gemspec)
+
+echo "==> bin/dev: rerunning \`bin/check --only ${STEP}\` on change"
+echo "    watching: ${WATCH_PATHS[*]} ${WATCH_FILES[*]}"
+echo "    stop with Ctrl-C"
+echo
+
+# Run once up front, so you start from a known verdict rather than from silence.
+./bin/check --only "$STEP" || true
+
+if command -v watchexec >/dev/null 2>&1; then
+  echo "==> watcher: watchexec"
+  exec watchexec --clear --exts rb,rake,gemspec --watch lib --watch exe --watch test -- ./bin/check --only "$STEP"
+fi
+
+if command -v entr >/dev/null 2>&1; then
+  echo "==> watcher: entr"
+  while true; do
+    find "${WATCH_PATHS[@]}" -type f -name '*.rb' 2>/dev/null
+    printf '%s\n' "${WATCH_FILES[@]}"
+  done | entr -c -d ./bin/check --only "$STEP"
+fi
+
+if command -v fswatch >/dev/null 2>&1; then
+  echo "==> watcher: fswatch"
+  exec fswatch -o -r "${WATCH_PATHS[@]}" "${WATCH_FILES[@]}" | while read -r _; do
+    clear
+    ./bin/check --only "$STEP" || true
+  done
+fi
+
+if command -v inotifywait >/dev/null 2>&1; then
+  echo "==> watcher: inotifywait"
+  while inotifywait -qq -r -e close_write,move,create,delete "${WATCH_PATHS[@]}" "${WATCH_FILES[@]}"; do
+    clear
+    ./bin/check --only "$STEP" || true
+  done
+  exit 0
+fi
+
+cat >&2 <<'TXT'
+
+MAGIK_NO_WATCHER: no file watcher is installed, so there is nothing to watch with.
+
+  Magik does not ship a watcher or depend on a gem for one — a watcher is a
+  machine-local tool, not a project dependency. Install any one of these:
+
+    watchexec   cargo install watchexec-cli   |  brew install watchexec
+    entr        apt install entr              |  brew install entr
+    fswatch     apt install fswatch           |  brew install fswatch
+    inotifywait apt install inotify-tools     (Linux only)
+
+  Then re-run bin/dev.
+
+  In the meantime, `bin/dev --once` runs the step a single time, and
+  `bin/check` runs the whole gate.
+
+  (Exit 69 = "not installed", not "broken". Nothing in this repo is wrong.)
+TXT
+exit 69

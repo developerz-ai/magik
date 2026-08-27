@@ -1,0 +1,348 @@
+name: release
+
+# Publishes `magik` to RubyGems and attaches the .gem to the GitHub Release.
+#
+# A gem push cannot be undone. `gem yank` removes a version from the index; it does not free the
+# version number and it does not un-ship what people already downloaded. Everything below is built
+# around that one fact: this run refuses BEFORE it publishes, never after.
+#
+# THE HUMAN PROCEDURE IS PUBLISHING.md, and `bin/release` is the local pre-flight that prints the
+# commands. This workflow is the automated half of the same procedure, not a second one.
+#
+# ── how a release happens ─────────────────────────────────────────────────────────────────────
+#   1. bump Magik::VERSION in lib/magik/version.rb and add the CHANGELOG.md section
+#   2. merge that to main (`bin/release` checks you are ready; it publishes nothing)
+#   3. tag `vX.Y.Z` and publish a GitHub Release for it — publishing is what fires this workflow
+#
+# A NOTE ON THE TRIGGER, because the sibling repo does it the other way round. wurk releases on a
+# version-bump push to main and derives the tag as an OUTPUT, after RubyGems has accepted the gem —
+# it moved to that after seven runs where a bot cut a tag on an unbumped version, leaving a red
+# release and a GitHub Release marked "Latest" with no gem behind it. Magik triggers on a PUBLISHED
+# RELEASE instead, which keeps the tag an input, so the same failure is possible here. Three things
+# are borrowed from wurk to blunt it, and they are the reason this file is not just "build and
+# push": the `preflight` job treats RubyGems itself as the idempotency key so a re-run is a no-op
+# rather than a failure; the tag, `Magik::VERSION` and `CHANGELOG.md` must all agree before
+# anything runs; and the .gem is attached to the Release only after the push succeeds. If a bot
+# ever starts cutting tags here, invert the trigger the way wurk did.
+#
+# ── trusted publishing (OIDC), and the one-time human setup it needs ──────────────────────────
+# RubyGems mints a short-lived credential from this run's OIDC id-token, so no long-lived API key
+# exists anywhere to leak. It requires BOTH of these, done by a human, once:
+#
+#   a) the gem must already exist on RubyGems. Trusted publishing CANNOT bootstrap a name. The
+#      first version — 0.0.1, the name reservation — is pushed by hand:
+#        bin/gem-build && bin/gem-login && bin/gem-push <otp>
+#      magik.gemspec sets `rubygems_mfa_required = "true"`, so that push needs an OTP from the
+#      owner's authenticator: `gem push pkg/magik-0.0.1.gem --otp 123456`. MFA is enforced on the
+#      HUMAN path only — an OIDC credential is already scoped and short-lived, so a trusted-
+#      publishing push takes no OTP and cannot be automated around one.
+#
+#   b) rubygems.org → sign in as the gem owner → Gems → magik → Trusted publishers → GitHub Actions
+#        Repository owner:   developerz-ai
+#        Repository name:    magik
+#        Workflow filename:  release.yml
+#        Environment:        rubygems
+#      All four must match exactly, including the environment name — RubyGems compares them against
+#      the claims in the OIDC token and answers 401 for any mismatch, with no hint as to which.
+#
+# The `preflight` job checks (a) and says so in plain words, because a missing (a) otherwise
+# surfaces as that same opaque 401 four minutes into the run. (b) cannot be checked from outside —
+# there is no API that reports a gem's trusted publishers — so the `gem push` step catches a
+# failure and prints the checklist rather than letting a bare 401 stand as the whole message.
+#
+# ── fallback, if trusted publishing is not configured yet ─────────────────────────────────────
+# Delete the `rubygems/configure-rubygems-credentials` step and give `gem push`:
+#     env:
+#       GEM_HOST_API_KEY: ${{ secrets.RUBYGEMS_API_KEY }}
+# with a key scoped to "push rubygems" for this gem only, stored in Settings → Secrets → Actions.
+# An API key created by an MFA-enabled account can push without an OTP, which is exactly why it is
+# worse: a long-lived credential in repository storage, readable by any workflow that can reach the
+# secret. It is a bridge to trusted publishing, not an alternative to it.
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: >-
+          Run everything except the push. Leave this on to rehearse a release — the run then proves
+          the version agreement, the gate and the build, and stops at the registry.
+        type: boolean
+        required: false
+        default: true
+      tag:
+        description: >-
+          Tag to check against, e.g. v0.0.1. Leave blank to use the ref this run is checked out at,
+          which is what selecting the tag in the Actions UI already does.
+        type: string
+        required: false
+        default: ''
+
+# Serialised, and NEVER cancelled mid-flight: a run interrupted between `gem push` and the release
+# upload has already published, and cancelling it cannot take that back.
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  # ── is there anything to release, and does this repository agree with itself ───────────────
+  #
+  # Holds no id-token and no write permission. Everything that can refuse a release happens here,
+  # in a job that could not publish even if it decided to.
+  preflight:
+    name: preflight
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+      published: ${{ steps.registry.outputs.published }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: ./.github/actions/setup
+        with:
+          # lib/magik/version.rb is dependency-free, and this job only reads it.
+          bundler-cache: 'false'
+
+      # THREE sources have to agree, and none is derived from another:
+      #   the tag        — what the world was told this release is called
+      #   Magik::VERSION — what RubyGems will actually register it under
+      #   CHANGELOG.md   — whether anybody wrote down what changed
+      # Two-out-of-three is the interesting failure: a tag typo publishes the previous version's
+      # code under a new number, and a missing changelog ships a version whose only description is
+      # its commit range. `bin/release` runs the same three checks on a laptop, before the tag
+      # exists — this is the copy that runs when it is too late to be polite about it.
+      - name: the tag, Magik::VERSION and CHANGELOG.md name the same version
+        id: version
+        env:
+          RELEASE_TAG: ${{ github.event.release.tag_name }}
+          INPUT_TAG: ${{ inputs.tag }}
+          REF_NAME: ${{ github.ref_name }}
+        run: |
+          set -euo pipefail
+
+          tag="${RELEASE_TAG:-}"
+          [ -n "$tag" ] || tag="${INPUT_TAG:-}"
+          [ -n "$tag" ] || tag="${REF_NAME:-}"
+          if [ -z "$tag" ]; then
+            echo "::error title=No tag to check::This run has no release tag, no 'tag' input and no ref name, so there is nothing to verify the version against. fix: publish a GitHub Release for the tag, or dispatch this workflow with the tag selected in the Actions UI."
+            exit 1
+          fi
+          echo "tag: ${tag}"
+
+          case "$tag" in
+            v[0-9]*) ;;
+            *)
+              echo "::error title=Not a version tag::'${tag}' does not look like 'vX.Y.Z'. Every Magik release tag is the gem version with a leading 'v'. fix: run bin/release, then tag the release commit as it prints and publish the Release from that tag."
+              exit 1
+              ;;
+          esac
+
+          tag_version="${tag#v}"
+          gem_version="$(ruby -Ilib -e 'require "magik/version"; print Magik::VERSION')"
+          if [ "$tag_version" != "$gem_version" ]; then
+            echo "::error title=Tag does not match Magik::VERSION::The tag says ${tag_version} and lib/magik/version.rb says ${gem_version}. RubyGems would register ${gem_version} under a release announced as ${tag_version}. fix: set VERSION in lib/magik/version.rb to ${tag_version} and re-cut the release, or delete this tag and cut a new one for ${gem_version}. bin/release checks this before you tag."
+            exit 1
+          fi
+
+          if [ ! -f CHANGELOG.md ]; then
+            echo "::error title=No CHANGELOG.md::A release with no changelog is a version number and a commit range. fix: add CHANGELOG.md with a '## [${gem_version}] - YYYY-MM-DD' section."
+            exit 1
+          fi
+          escaped="${gem_version//./\\.}"
+          if ! grep -Eq "^##[[:space:]]+\[?v?${escaped}\]?" CHANGELOG.md; then
+            echo "::error title=CHANGELOG.md has no entry for ${gem_version}::No heading matching '## [${gem_version}]' or '## ${gem_version}'. fix: move the '## [Unreleased]' notes into a dated '## [${gem_version}] - YYYY-MM-DD' section — 'Unreleased' is not a released version."
+            exit 1
+          fi
+
+          echo "version=${gem_version}" >> "$GITHUB_OUTPUT"
+          echo "ok: tag, Magik::VERSION and CHANGELOG.md all say ${gem_version}" | tee -a "$GITHUB_STEP_SUMMARY"
+
+      # RubyGems is the authoritative "already shipped" record — it forbids re-pushing a version, so
+      # its answer is the one idempotency key that cannot drift. Two things fall out:
+      #
+      #   * a re-run of a release that failed AFTER the push (say, on the Release upload) finishes
+      #     the job instead of dying on "version already pushed"
+      #   * a gem that does not exist on RubyGems at all is caught HERE, in words, instead of as an
+      #     opaque 401 from the OIDC exchange several minutes later — trusted publishing cannot
+      #     create a name, and the fix is a human running bin/gem-push with an OTP
+      - name: ask RubyGems what it already has
+        id: registry
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          set -euo pipefail
+          if ! curl -fsS -o /dev/null "https://rubygems.org/api/v1/gems/magik.json"; then
+            echo "::error title=The gem 'magik' does not exist on RubyGems::Trusted publishing (OIDC) cannot create a gem name — it can only push a new version of a gem that is already there, and a trusted publisher can only be configured on a gem that exists. This run would fail with an unexplained 401. fix: a human owner pushes the first version by hand — 'bin/gem-build && bin/gem-login && bin/gem-push <otp>' (magik.gemspec sets rubygems_mfa_required, so the OTP is required) — then configures the trusted publisher at rubygems.org → Gems → magik → Trusted publishers, matching developerz-ai / magik / release.yml / rubygems. See PUBLISHING.md."
+            exit 1
+          fi
+
+          if curl -fsS -o /dev/null "https://rubygems.org/api/v2/rubygems/magik/versions/${VERSION}.json"; then
+            echo "published=true" >> "$GITHUB_OUTPUT"
+            echo "::notice::magik ${VERSION} is already on RubyGems — the push will be skipped and the release finished."
+          else
+            echo "published=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::magik ${VERSION} is not on RubyGems yet."
+          fi
+
+  # ── the gate, and the artifact ────────────────────────────────────────────────────────────
+  #
+  # A TAG IS NOT EXEMPT FROM THE GATE. The tag is immutable; the mistake it ships is not, and the
+  # only cheap moment to find out is before the push. `bin/check` with no `--only` is every step:
+  # rubocop, test, yard, build, cli, docs. ci.yml splits those across jobs so a red step names
+  # itself in the job list; a release runs all of them in one place because there is nothing to
+  # triage here, only a decision to proceed or stop.
+  build:
+    name: build
+    needs: preflight
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: ./.github/actions/setup
+
+      - name: bin/check
+        run: bin/check
+
+      # Built ONCE, here, and handed to the publish job as an artifact. Building again next to the
+      # push would mean the thing that was verified and the thing that ships are two files produced
+      # by two checkouts.
+      - name: gem build
+        env:
+          VERSION: ${{ needs.preflight.outputs.version }}
+        run: |
+          set -euo pipefail
+          mkdir -p pkg
+          gem build magik.gemspec --output "pkg/magik-${VERSION}.gem"
+          ls -l pkg
+          echo "::group::packaged files"
+          gem specification "pkg/magik-${VERSION}.gem" files
+          echo "::endgroup::"
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: magik-gem
+          path: pkg/*.gem
+          if-no-files-found: error
+
+  # ── the registry, and the only job in this repository that can reach it ───────────────────
+  publish:
+    name: publish
+    needs: [preflight, build]
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    # A deployment environment is the ONLY GitHub control that can hold a job carrying
+    # `id-token: write` until a human approves it, and this job's id-token IS this repository's
+    # RubyGems identity. Required reviewers and a deployment tag rule of `v*` are repository
+    # settings rather than YAML — Settings → Environments → rubygems. The environment NAME is also
+    # part of the OIDC claim RubyGems matches against the trusted publisher, so renaming it here
+    # breaks publishing until it is renamed there too.
+    environment:
+      name: rubygems
+      url: https://rubygems.org/gems/magik
+    permissions:
+      # Attaching the built gem to the Release is a write to this repository.
+      contents: write
+      # REQUIRED for OIDC: it is what lets RubyGems mint a short-lived credential for this run.
+      id-token: write
+    env:
+      VERSION: ${{ needs.preflight.outputs.version }}
+      # THREE guards, each closing a different door, evaluated once here so no two steps can
+      # disagree about whether this run publishes:
+      #   github.repository — a fork that inherits this workflow cannot push to the real gem
+      #   refs/tags/        — a publish comes from an immutable ref; a branch has no version to read
+      #   dry_run           — the rehearsal path, and the default for a manual dispatch
+      # A Release published for a tag satisfies the first two automatically and supplies no inputs,
+      # so `inputs.dry_run` is null there and the comparison passes.
+      SHOULD_PUBLISH: ${{ github.repository == 'developerz-ai/magik' && startsWith(github.ref, 'refs/tags/') && inputs.dry_run != true && needs.preflight.outputs.published == 'false' }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: ./.github/actions/setup
+        with:
+          # No bundle is needed to push a prebuilt gem, and installing the development bundle in
+          # the same job as the publishing identity buys nothing.
+          bundler-cache: 'false'
+
+      - uses: actions/download-artifact@v8
+        with:
+          name: magik-gem
+          path: pkg
+
+      - name: the artifact is the version this run verified
+        run: |
+          set -euo pipefail
+          ls -l pkg
+          test -f "pkg/magik-${VERSION}.gem" || {
+            echo "::error title=Built gem missing::pkg/magik-${VERSION}.gem is not in the artifact this run downloaded. fix: check the 'gem build' step in the build job — nothing may publish a file this run did not build."
+            exit 1
+          }
+
+      # Pinned to the major tag, like every other third-party action here (the rule is in
+      # .github/actions/setup/action.yml). RubyGems' own docs show `@main`; a moving branch on the
+      # one step that holds `id-token: write` is the last place to accept one, and wurk pins this
+      # same action by SHA for exactly that reason. Dependabot moves the major.
+      #
+      # The credential is minted here and revoked by the action's post step, so it exists for the
+      # length of the push and no longer.
+      - name: configure RubyGems credentials (OIDC trusted publishing)
+        if: env.SHOULD_PUBLISH == 'true'
+        uses: rubygems/configure-rubygems-credentials@v2
+
+      # No `--otp`, and that is not an oversight: `rubygems_mfa_required` applies to a HUMAN pushing
+      # with an account API key. An OIDC credential is already single-gem-scoped and short-lived, so
+      # RubyGems accepts it without a second factor. The OTP path is `bin/gem-push <otp>`, for the
+      # bootstrap push and for the day this lane is unavailable.
+      #
+      # The failure is caught rather than left bare because the one that actually happens — a
+      # trusted publisher that was never configured, or configured with a different environment or
+      # workflow filename — comes back as a 401 with nothing in it to act on.
+      - name: gem push
+        if: env.SHOULD_PUBLISH == 'true'
+        run: |
+          set -euo pipefail
+          if ! gem push "pkg/magik-${VERSION}.gem"; then
+            echo "::error title=gem push failed::If this was a 401/403, the trusted publisher on rubygems.org does not match this run. All four fields have to be exact: owner 'developerz-ai', repository 'magik', workflow filename 'release.yml', environment 'rubygems' — and this job's environment: name must equal that last one. fix: check rubygems.org → Gems → magik → Trusted publishers, or fall back to a human push: 'bin/gem-build && bin/gem-push <otp>' (MFA is required on that path). See PUBLISHING.md."
+            exit 1
+          fi
+
+      # RubyGems accepts a push before the version is servable, and the GitHub Release below is what
+      # tells the world to go and install it. Blocking on propagation is what keeps those two in
+      # order. `gem exec` fetches this on demand — it is not a dependency of the gem or the bundle.
+      - name: await RubyGems propagation
+        if: env.SHOULD_PUBLISH == 'true'
+        run: gem exec rubygems-await "pkg/magik-${VERSION}.gem"
+
+      - name: say why nothing was published
+        if: env.SHOULD_PUBLISH != 'true'
+        run: |
+          {
+            echo "### nothing was published"
+            echo ""
+            echo "| guard | value | required |"
+            echo "|---|---|---|"
+            echo "| repository | \`${{ github.repository }}\` | \`developerz-ai/magik\` |"
+            echo "| ref | \`${{ github.ref }}\` | starts with \`refs/tags/\` |"
+            echo "| dry_run input | \`${{ inputs.dry_run }}\` | false or absent |"
+            echo "| already on RubyGems | \`${{ needs.preflight.outputs.published }}\` | false |"
+            echo ""
+            echo "Everything else ran: the version agreement, \`bin/check\`, and \`gem build\` producing \`magik-${VERSION}.gem\`."
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      # LAST, and after the push, so a Release with a .gem attached always has a gem on RubyGems
+      # behind it. `--clobber` because a re-run must not fail on a file it already attached.
+      - name: attach the gem to the GitHub Release
+        if: github.event_name == 'release'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.event.release.tag_name }}
+          REPO: ${{ github.repository }}
+        run: gh release upload "$TAG" "pkg/magik-${VERSION}.gem" --clobber --repo "$REPO"

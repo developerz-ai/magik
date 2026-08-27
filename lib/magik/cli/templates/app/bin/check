@@ -1,0 +1,283 @@
+#!/usr/bin/env ruby
+# frozen_string_literal: true
+
+# bin/check — THE GATE for this application.
+#
+# One list of steps, cheapest first, so the fastest possible failure is the one
+# you get. `/feature` and `/check` end here, and CI runs this same script: a
+# check that lives only in a workflow cannot be run locally, and one that lives
+# only locally does not gate.
+#
+#   bin/check                     run every step
+#   bin/check --only test         run one step (repeatable)
+#   bin/check --list              print the step names and exit
+#   bin/check --json              machine-readable summary on stdout
+#   bin/check --help
+#
+# Exit status, sysexits-style, so "broken" and "not installed" are machine-
+# distinguishable without parsing a word of the output:
+#
+#   0   every selected step passed
+#   1   at least one step FAILED — something in this app is wrong
+#   64  bad usage: unknown flag, or --only naming a step that does not exist
+#   69  a step could not run because a tool is missing or unimplemented. The
+#       environment is not set up; nothing here is broken.
+#
+# ADD A RULE BY ADDING A CHECK, never by editing this file. Everything in
+# scripts/checks/ is discovered automatically — see scripts/README.md. This file
+# is framework-owned and `magik generate agents --update` replaces it.
+
+require "json"
+require "open3"
+
+ROOT = File.expand_path("..", __dir__)
+Dir.chdir(ROOT)
+require_relative "../scripts/lib/scripts"
+
+EXIT_OK = 0
+EXIT_FAILED = 1
+EXIT_USAGE = 64
+EXIT_NOT_INSTALLED = 69
+
+EXCERPT_LINES = 25
+
+Step = Struct.new(:name, :title, :command, :run, keyword_init: true)
+
+# @return [Boolean] true when this app has an installed bundle
+def bundled?
+  @bundled = File.exist?("Gemfile.lock") && system("bundle", "check", out: File::NULL, err: File::NULL) if
+    @bundled.nil?
+  @bundled
+end
+
+# @return [Array<String>] the command, through bundler when there is a bundle
+def maybe_bundled(*command)
+  bundled? ? ["bundle", "exec", *command] : command
+end
+
+# @return [Boolean] true when `name` is somewhere on PATH
+def on_path?(name)
+  ENV.fetch("PATH", "").split(File::PATH_SEPARATOR).any? do |dir|
+    File.executable?(File.join(dir, name)) && !File.directory?(File.join(dir, name))
+  end
+end
+
+# @return [Array(Integer, String)] exit status and combined output
+def capture(command)
+  output, status = Open3.capture2e(*command)
+  [status.exitstatus, output]
+rescue Errno::ENOENT
+  [127, "#{command.first}: not found"]
+end
+
+def pass(got, command)
+  { status: "pass", got: got, command: command }
+end
+
+def failed(got:, expected:, fix:, command:)
+  { status: "FAIL", got: got, expected: expected, fix: fix, command: command }
+end
+
+def missing(got:, fix:, command:)
+  { status: "MISSING", got: got, fix: fix, command: command }
+end
+
+# @return [String] the first and last few lines of a long output
+def excerpt(text)
+  lines = text.to_s.lines
+  return text.to_s.strip if lines.size <= EXCERPT_LINES
+
+  head = lines.first(EXCERPT_LINES - 5).join
+  "#{head}  … #{lines.size - EXCERPT_LINES + 5} more lines …\n#{lines.last(5).join}".strip
+end
+
+# --- the fixed steps -------------------------------------------------------
+
+def rubocop_step
+  command = maybe_bundled("rubocop", "--display-cop-names")
+  return missing(got: "rubocop is not installed", fix: "bundle install", command: command.join(" ")) unless
+    bundled? || on_path?("rubocop")
+
+  code, output = capture(command)
+  return pass("lint clean", command.join(" ")) if code.zero?
+
+  failed(got: excerpt(output), expected: "no RuboCop offences", command: command.join(" "),
+         fix: "#{maybe_bundled("rubocop", "-a").join(" ")}   # then fix what -a cannot")
+end
+
+def test_step
+  command = maybe_bundled("rake", "test")
+  return missing(got: "rake is not installed", fix: "bundle install", command: command.join(" ")) unless
+    bundled? || on_path?("rake")
+
+  code, output = capture(command)
+  return pass(output.lines.grep(/runs?,/).last&.strip || "suite green", command.join(" ")) if code.zero?
+
+  failed(got: excerpt(output), expected: "every test passes", command: command.join(" "),
+         fix: "#{command.join(" ")}   # read the first assertion, not the last")
+end
+
+# `magik check` and `magik test` are PLANNED. A planned command is MISSING, not
+# FAIL: the app is not wrong, the framework is not built. Saying otherwise would
+# teach the owner of a brand-new app that a red gate is normal.
+def magik_step(subcommand, expected)
+  command = ["magik", subcommand]
+  return missing(got: "the magik binary is not on PATH", fix: "gem install magik",
+                 command: command.join(" ")) unless on_path?("magik")
+
+  code, output = capture(command + ["--json"])
+  return pass("clean", command.join(" ")) if code.zero?
+  return missing(got: "`magik #{subcommand}` is planned and not implemented in this magik version",
+                 fix: "magik help   # every command, marked ready or planned",
+                 command: command.join(" ")) if output.include?("MAGIK_COMMAND_NOT_IMPLEMENTED")
+
+  failed(got: excerpt(output), expected: expected, command: command.join(" "),
+         fix: "#{command.join(" ")} --json   # findings as data")
+end
+
+# --- the discovered steps --------------------------------------------------
+
+def check_step(entry)
+  command = ["ruby", entry.path, "--json"]
+  code, output = capture(command)
+  payload = begin
+    JSON.parse(output)
+  rescue JSON::ParserError
+    nil
+  end
+
+  return check_crashed(entry, output, code) if payload.nil?
+  return pass(payload["got"], entry.command) if code.zero?
+  return missing(got: payload["got"], fix: payload["fix"], command: entry.command) if code == EXIT_NOT_INSTALLED
+
+  failed(got: render_findings(payload), expected: payload["expected"], fix: payload["fix"],
+         command: entry.command)
+end
+
+def check_crashed(entry, output, code)
+  failed(got: excerpt(output), expected: "#{entry.name} prints one JSON object and exits 0, 1 or 69",
+         fix: "#{entry.command}   # it exited #{code} without valid --json output",
+         command: entry.command)
+end
+
+def render_findings(payload)
+  findings = payload.fetch("findings", [])
+  return payload["got"].to_s if findings.empty?
+
+  findings.first(10).map do |finding|
+    at = finding["at"] ? " (#{finding["at"]})" : ""
+    "#{finding["code"]}#{at}\n      cause: #{finding["cause"]}\n      fix:   #{finding["fix"]}"
+  end.join("\n    ")
+end
+
+def steps
+  fixed = [
+    Step.new(name: "rubocop", title: "lint — RuboCop, with the rules inherited from the magik gem",
+             run: -> { rubocop_step }),
+    Step.new(name: "test", title: "tests — the Minitest suite", run: -> { test_step }),
+    Step.new(name: "magik-check", title: "guardrails — magik check",
+             run: -> { magik_step("check", "no boot-guardrail findings") }),
+    Step.new(name: "magik-test", title: "framework tests — magik test",
+             run: -> { magik_step("test", "every magik test passes") })
+  ]
+  discovered = AppScripts::Registry.discover.map do |entry|
+    Step.new(name: entry.name, title: "#{entry.name} — #{entry.summary}", run: -> { check_step(entry) })
+  end
+  fixed + discovered
+end
+
+# --- the command line ------------------------------------------------------
+
+def usage
+  <<~TEXT
+    Usage: bin/check [--only STEP]... [--json] [--list] [--help]
+
+    THE gate for this application. Steps run cheapest first.
+
+      --only STEP   Run only this step. Repeatable.
+      --json        A machine-readable summary on stdout.
+      --list        Print the step names, one per line, and exit 0.
+
+    Exit: 0 all passed · 1 a step FAILED · 64 bad usage · 69 a tool is missing
+          or a magik command is not implemented yet.
+
+    Add a rule by adding a file to scripts/checks/ — see scripts/README.md.
+    Never by editing this script: `magik generate agents --update` replaces it.
+  TEXT
+end
+
+def parse_argv(argv, names)
+  options = { json: false, only: [] }
+  argv.each_with_index do |arg, index|
+    case arg
+    when "--json" then options[:json] = true
+    when "--list" then options[:list] = true
+    when "--help", "-h" then options[:help] = true
+    when "--only" then options[:only] << argv[index + 1]
+    when /\A--only=(.+)\z/ then options[:only] << Regexp.last_match(1)
+    else next if index.positive? && argv[index - 1] == "--only"
+
+         options[:error] = arg
+    end
+  end
+  options[:only].compact!
+  unknown = options[:only] - names
+  options[:error] ||= "--only #{unknown.first}" if unknown.any?
+  options
+end
+
+def emit_human(results, log)
+  results.each do |(_name, title, outcome)|
+    log.puts format("[%s] %s", outcome[:status], title)
+    log.puts "      $ #{outcome[:command]}"
+    log.puts "      #{outcome[:got]}" if outcome[:got]
+    log.puts "      expected: #{outcome[:expected]}" if outcome[:expected]
+    log.puts "      fix: #{outcome[:fix]}" if outcome[:fix]
+    log.puts
+  end
+  summarise(results, log)
+end
+
+# The last line is the one people read. Say what to run next, never just a count.
+def summarise(results, log)
+  not_passed = results.reject { |(_, _, outcome)| outcome[:status] == "pass" }
+  if not_passed.empty?
+    log.puts "ALL #{results.size} STEPS PASSED"
+    return
+  end
+
+  log.puts "#{not_passed.size} of #{results.size} steps did not pass: " \
+           "#{not_passed.map { |(name, _, _)| name }.join(", ")}"
+  log.puts "   rerun just the first: bin/check --only #{not_passed.first.first}"
+end
+
+def exit_code_for(results)
+  statuses = results.map { |(_, _, outcome)| outcome[:status] }
+  return EXIT_FAILED if statuses.include?("FAIL")
+  return EXIT_NOT_INSTALLED if statuses.include?("MISSING")
+
+  EXIT_OK
+end
+
+def main(argv)
+  all = steps
+  options = parse_argv(argv, all.map(&:name))
+  if options[:error]
+    warn "bin/check: unknown argument #{options[:error].inspect}\n  fix: bin/check --list"
+    return EXIT_USAGE
+  end
+  return (puts(usage) || EXIT_OK) if options[:help]
+  return (puts(all.map(&:name)) || EXIT_OK) if options[:list]
+
+  selected = options[:only].empty? ? all : all.select { |step| options[:only].include?(step.name) }
+  results = selected.map { |step| [step.name, step.title, step.run.call] }
+
+  if options[:json]
+    puts JSON.pretty_generate(steps: results.map { |(name, _, outcome)| outcome.merge(name: name) })
+  else
+    emit_human(results, $stdout)
+  end
+  exit_code_for(results)
+end
+
+exit main(ARGV) if $PROGRAM_NAME == __FILE__

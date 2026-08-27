@@ -1,0 +1,72 @@
+# .gitignore for <%= app_title %>.
+
+# magik:framework-block BEGIN version=<%= magik_version %> generated=<%= generated_on %>
+#
+# FRAMEWORK-OWNED. `magik generate agents --update` rewrites everything between
+# these markers. Add your own patterns in the project block at the bottom.
+
+# --- Secrets ---------------------------------------------------------------
+#
+# The model is Rails-shaped: `config/credentials.yml.enc` is COMMITTED (it is
+# encrypted), `config/master.key` is NEVER committed, and production reads real
+# environment variables or the encrypted credentials — never a .env file.
+#
+# Ignore every .env variant, then un-ignore the one committed template. THE
+# NEGATION LINE IS LOAD-BEARING: the broad `.env.*` pattern above it would
+# otherwise swallow .env.example, and a deny-list of specific secret filenames
+# is wrong by construction — the next variant nobody thought of gets committed
+# in plaintext.
+.env
+.env.local
+.env.*
+.env.*.local
+!.env.example
+
+# The key that decrypts config/credentials.yml.enc. Committing it makes the
+# encrypted file pointless. It is supplied out of band: MAGIK_MASTER_KEY in
+# production, a file on a developer's machine locally.
+config/master.key
+**/config/master.key
+
+# --- Generated -------------------------------------------------------------
+#
+# `db/schema.rb` is deliberately NOT here: it is generated AND committed, because
+# it is the reproducible truth about the schema. Regenerate it with
+# `magik db schema`; never hand-edit it.
+tmp/
+log/
+*.log
+coverage/
+doc/
+.yardoc/
+pkg/
+
+# --- Dependencies ----------------------------------------------------------
+#
+# Gemfile.lock IS committed for an application (unlike a gem), so every machine
+# and every deploy resolves the same versions.
+vendor/bundle/
+.bundle/
+node_modules/
+
+# --- Editors and machines --------------------------------------------------
+.DS_Store
+*.swp
+*~
+.idea/
+.vscode/*
+!.vscode/extensions.json
+
+# --- Agent harness ---------------------------------------------------------
+#
+# `.claude/settings.json` IS committed — it is the team's allowlist. The local
+# override is per-developer and must never be.
+.claude/settings.local.json
+.claude/.local/
+# magik:framework-block END
+
+# magik:project-block BEGIN
+#
+# PROJECT-OWNED. Yours. No magik command writes here.
+
+# magik:project-block END

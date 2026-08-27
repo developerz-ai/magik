@@ -1,0 +1,15 @@
+--markup markdown
+--markup-provider redcarpet
+--no-private
+--protected
+--readme README.md
+--title "Magik - full-stack Ruby framework (spec only)"
+--output-dir doc
+--charset utf-8
+--exclude cli/templates
+lib/**/*.rb
+-
+README.md
+CHANGELOG.md
+LICENSE
+docs/**/*.md

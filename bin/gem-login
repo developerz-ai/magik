@@ -1,0 +1,52 @@
+#!/usr/bin/env bash
+# bin/gem-login — cache a rubygems.org API key in ~/.gem/credentials.
+#
+# Interactive and idempotent: it exits early, having changed nothing, if a key
+# is already cached. Run it once per machine; `bin/gem-push` reuses the key.
+#
+# magik.gemspec sets `rubygems_mfa_required`, so `gem signin` will ask for an
+# OTP from your authenticator in addition to email and password.
+#
+#   bin/gem-login
+#
+# Exit status:
+#   0   a key is cached (either already, or after signing in)
+#   1   gem signin failed
+#   64  bad usage
+set -euo pipefail
+
+if [ "${1:-}" = "-h" ] || [ "${1:-}" = "--help" ]; then
+  # Print the leading comment block and stop at the first line of code, so the
+  # help text can never drift out of sync with the range of a sed expression.
+  sed -n '2,${/^#/!q;s/^# \{0,1\}//p;}' "$0"
+  exit 0
+fi
+if [ $# -gt 0 ]; then
+  echo "bin/gem-login: takes no arguments (got '$1')" >&2
+  exit 64
+fi
+
+creds="${HOME}/.gem/credentials"
+
+if [ -f "$creds" ] && grep -q rubygems_api_key "$creds"; then
+  echo "==> ${creds} already holds a rubygems_api_key — nothing to do."
+  echo "    To sign in as a different account, remove that line (or the file) and re-run."
+  chmod 600 "$creds"
+  exit 0
+fi
+
+echo "==> gem signin (rubygems.org)"
+echo "    You will be asked for your email, your password, and an OTP —"
+echo "    magik.gemspec sets rubygems_mfa_required."
+gem signin
+
+if [ ! -f "$creds" ]; then
+  echo "✗ gem signin finished but ${creds} does not exist" >&2
+  echo "  fix: re-run bin/gem-login and read what gem signin reports" >&2
+  exit 1
+fi
+
+# The file holds a bearer token for publishing under your account. World- or
+# group-readable is a credential leak on any shared machine.
+chmod 600 "$creds"
+echo "==> signed in; key cached in ${creds} (chmod 600)"

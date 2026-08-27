@@ -1,0 +1,29 @@
+# RuboCop for <%= app_title %>.
+#
+# The rules are NOT copied here. They live inside the magik gem and are
+# inherited, so `gem update magik` improves your style rules and there is
+# nothing to regenerate and nothing to go stale.
+#
+#   bundle exec rubocop        lint
+#   bundle exec rubocop -a     autocorrect the mechanical ones
+#   rake rubocop               the same, through the task
+#   bin/check                  the whole gate, of which this is one step
+#
+# See what you actually inherited:
+#   bundle exec rubocop --show-cops | less
+#   ruby -e 'puts Gem.find_files("magik/cli/templates/rubocop.yml")'
+
+inherit_gem:
+  magik: lib/magik/cli/templates/rubocop.yml
+
+# --- Your rules ---------------------------------------------------------------
+#
+# Everything below is yours, and no magik command ever rewrites this file.
+# Override anything you disagree with; the inherited config is a default, not a
+# policy. Keep a one-line reason next to each override — the next reader (very
+# likely an agent) cannot infer why a cop was turned off.
+
+AllCops:
+  Exclude:
+    # Add paths this app does not want linted.
+    - "vendor/**/*"

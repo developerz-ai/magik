@@ -1,0 +1,35 @@
+# https://editorconfig.org — the settings RuboCop and the pre-commit hook already
+# enforce, applied by your editor before either has to complain. `bin/check` is
+# the authority; this file just keeps you out of its way.
+#
+# Framework-owned: `magik generate agents --update` replaces it.
+root = true
+
+[*]
+charset = utf-8
+end_of_line = lf
+insert_final_newline = true
+trim_trailing_whitespace = true
+indent_style = space
+indent_size = 2
+
+[*.{rb,rake,gemspec,ru}]
+indent_size = 2
+
+[{Gemfile,Rakefile}]
+indent_size = 2
+
+[*.{yml,yaml,json}]
+indent_size = 2
+
+[*.md]
+indent_size = 2
+# Markdown gives two trailing spaces the meaning "hard line break". Stripping
+# them silently rewrites the rendered document, so this is the one exception.
+trim_trailing_whitespace = false
+
+[Makefile]
+indent_style = tab
+
+[*.{sh,bash}]
+indent_size = 2

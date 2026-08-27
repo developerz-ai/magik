@@ -1,0 +1,12 @@
+#!/usr/bin/env bash
+# bin/test — this app's test suite.
+#
+# A SHIM: it delegates to `magik test`, so improvements arrive with
+# `gem update magik` rather than being frozen into this app. Flags pass
+# straight through — see `bin/test --help`.
+#
+# `magik test` is PLANNED and not implemented; this exits non-zero with
+# MAGIK_COMMAND_NOT_IMPLEMENTED until the phase that builds it lands.
+set -euo pipefail
+cd "$(dirname "$0")/.."
+exec ./bin/magik test "$@"

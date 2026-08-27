@@ -1,0 +1,17 @@
+{
+  "recommendations": [
+    "Shopify.ruby-lsp",
+    "rubocop.vscode-rubocop",
+    "EditorConfig.EditorConfig",
+    "redhat.vscode-yaml",
+    "DavidAnson.vscode-markdownlint",
+    "GitHub.vscode-github-actions",
+    "ms-azuretools.vscode-docker",
+    "ms-vscode-remote.remote-containers"
+  ],
+  "unwantedRecommendations": [
+    "castwide.solargraph",
+    "rebornix.ruby",
+    "wingrunr21.vscode-ruby"
+  ]
+}

@@ -1,0 +1,42 @@
+# frozen_string_literal: true
+
+source "https://rubygems.org"
+
+ruby ">= <%= ruby_version %>"
+
+# magik:framework-block BEGIN version=<%= magik_version %> generated=<%= generated_on %>
+#
+# FRAMEWORK-OWNED. `magik generate agents --update` rewrites everything between
+# these two markers. Add YOUR gems in the project block at the bottom — an entry
+# added here is lost on the next update.
+
+# The framework. `<%= magik_version %>` is a name-reservation release: the gem
+# installs and its CLI runs `version`, `help` and `docs`. Nothing else in it is
+# implemented yet, so this app cannot boot. See README.md.
+gem "magik", "~> <%= magik_version %>"
+
+group :development, :test do
+  # Task runner — `rake -T` lists this app's tasks.
+  gem "rake", "~> 13.0"
+
+  # Minitest, never RSpec. A framework-level decision, not a preference.
+  gem "minitest", "~> 5.0"
+  gem "minitest-reporters", "~> 1.6"
+  gem "simplecov", "~> 0.22", require: false
+
+  # Lint. The rules are inherited from the magik gem — see .rubocop.yml.
+  gem "rubocop", "~> 1.0", require: false
+  gem "rubocop-minitest", "~> 0.35", require: false
+  gem "rubocop-performance", "~> 1.0", require: false
+  gem "rubocop-rake", "~> 0.6", require: false
+end
+# magik:framework-block END
+
+# magik:project-block BEGIN
+#
+# PROJECT-OWNED. Yours. No magik command writes here.
+#
+# Pin what you add, and say in a comment what needs it — a Gemfile entry with no
+# reason is a dependency nobody dares remove.
+
+# magik:project-block END

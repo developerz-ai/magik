@@ -1,0 +1,76 @@
+# lefthook — the git hooks. https://lefthook.dev
+#
+# Install them with `bin/setup` (or `lefthook install` directly). bin/setup
+# writes a plain .git/hooks/pre-push fallback when lefthook is not installed, so
+# the gate still runs either way.
+#
+# The split is deliberate:
+#
+#   pre-commit  must be FAST — hundreds of milliseconds, on changed files only.
+#               A slow pre-commit is a pre-commit people disable.
+#   pre-push    is the real gate: `bin/check`, the same script CI runs. Slow is
+#               fine here; you push far less often than you commit.
+#
+# Skipping. Both hooks honour lefthook's own switch:
+#
+#   LEFTHOOK=0 git commit -m "wip"
+#   LEFTHOOK=0 git push
+#
+# Skip when you mean to (a WIP commit on a branch nobody else reads), not when
+# the hook is telling you something true. CI runs `bin/check` regardless, so a
+# skipped hook buys you minutes, never a merge.
+
+pre-commit:
+  parallel: true
+  commands:
+    rubocop:
+      # Changed Ruby files only. `dummy/` is excluded in .rubocop.yml — it is
+      # aspirational DSL for a framework that cannot execute it, so linting it
+      # would be linting a language that does not exist yet.
+      glob: "*.{rb,rake,gemspec}"
+      exclude:
+        - "dummy/**/*"
+      run: bundle exec rubocop --force-exclusion --autocorrect {staged_files}
+      stage_fixed: true
+      skip:
+        - merge
+        - rebase
+
+    whitespace:
+      # Trailing whitespace, missing final newline, blank lines at EOF. .md is
+      # exempt from the trailing-whitespace rule only: two trailing spaces are
+      # Markdown's hard line break, and stripping them rewrites the document.
+      glob: "*.{rb,rake,gemspec,yml,yaml,json,md,sh,erb,txt}"
+      run: >-
+        ruby -e 'bad=[];ARGV.each{|f| next unless File.file?(f); b=File.read(f);
+        unless f.end_with?(".md"); b.each_line.with_index(1){|l,i| bad << "#{f}:#{i} trailing whitespace" if l.match?(/[ \t]+\r?\n\z/)}; end;
+        bad << "#{f}: missing final newline" unless b.empty? || b.end_with?("\n");
+        bad << "#{f}: blank line(s) at end of file" if b.match?(/\n\n+\z/)};
+        abort("MAGIK_WHITESPACE: " + bad.size.to_s + " problem(s)\n  " + bad.join("\n  ") +
+        "\n  fix: strip the trailing whitespace and end the file with exactly one newline (see .editorconfig)") unless bad.empty?'
+        {staged_files}
+      skip:
+        - merge
+        - rebase
+
+    workflows:
+      # A workflow file that does not parse is a workflow that never runs, and
+      # GitHub only tells you after the push. One YAML parse costs nothing.
+      glob: ".github/workflows/*.{yml,yaml}"
+      run: >-
+        ruby -ryaml -e 'ARGV.each{|f| begin; YAML.load_file(f, aliases: true);
+        rescue Psych::Exception => e; abort("MAGIK_BAD_WORKFLOW: #{f} is not valid YAML\n  #{e.message}\n  fix: fix the YAML, then re-commit"); end};
+        puts "#{ARGV.size} workflow file(s) parse"'
+        {staged_files}
+      skip:
+        - merge
+        - rebase
+
+pre-push:
+  commands:
+    check:
+      # THE gate. Identical to CI. If this passes, the pull request is green.
+      run: ./bin/check
+      skip:
+        - merge
+        - rebase

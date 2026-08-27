@@ -1,0 +1,41 @@
+# https://editorconfig.org — the settings RuboCop and the repo's own
+# trailing-whitespace hook already enforce, applied by the editor before either
+# has to complain. `bin/check` is the authority; this file just keeps you out of
+# its way.
+root = true
+
+[*]
+charset = utf-8
+end_of_line = lf
+insert_final_newline = true
+trim_trailing_whitespace = true
+indent_style = space
+indent_size = 2
+
+[*.{rb,rake,gemspec,ru}]
+indent_size = 2
+
+[{Gemfile,Rakefile}]
+indent_size = 2
+
+[*.{yml,yaml}]
+indent_size = 2
+
+[*.json]
+indent_size = 2
+
+[*.md]
+indent_size = 2
+# Markdown gives two trailing spaces the meaning "hard line break". Stripping
+# them silently rewrites the rendered document, so this is the one exception.
+trim_trailing_whitespace = false
+
+[*.sh]
+indent_size = 2
+
+[Makefile]
+indent_style = tab
+
+[*.{diff,patch}]
+trim_trailing_whitespace = false
+insert_final_newline = false

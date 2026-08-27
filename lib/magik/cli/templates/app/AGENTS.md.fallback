@@ -1,0 +1,12 @@
+# AGENTS.md
+
+**Read `CLAUDE.md` in this directory — it is the whole contract, and this file has no content of
+its own.**
+
+This file exists as a copy rather than a symlink because `magik new` could not create one on the
+platform that generated this app (Windows without Developer Mode is the usual reason). That is a
+degraded mode: two files can drift, one file cannot. If your platform supports symlinks, replace it:
+
+```bash
+rm AGENTS.md && ln -s CLAUDE.md AGENTS.md
+```

@@ -1,0 +1,69 @@
+name: 📚 Docs
+description: Something is wrong, missing, or misleading in the docs, a YARD comment, or an error message.
+labels: [docs]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        ### Read this first
+
+        **Magik is pre-alpha and spec-only.** As of 2026-08-26 the framework is unimplemented, so
+        the documentation describes what Magik **will** do. That is deliberate, and it is not a
+        docs bug — the vocabulary for it is `planned`, `not implemented`, `spec only`, and every
+        page is supposed to use it.
+
+        What **is** a docs bug, and the most valuable thing you can report here: **prose that reads
+        as though something already works.** A sentence in the present tense about an unimplemented
+        feature, a benchmark number, a passing-test count, a "Magik does X" where X does not exist
+        yet. Those are the errors this project cares most about, because they are the ones that
+        waste somebody's afternoon.
+
+        Also here: a broken link, a wrong code sample, a YARD comment that contradicts its method,
+        a `fix:` line that does not run.
+
+  - type: dropdown
+    id: kind
+    attributes:
+      label: What kind
+      options:
+        - Claims something works that does not exist yet
+        - Wrong or misleading explanation
+        - Missing — something needed is not documented anywhere
+        - Broken link or a path that does not resolve
+        - Code sample that does not run
+        - A `MAGIK_*` error's cause or `fix:` text is wrong
+    validations:
+      required: true
+
+  - type: input
+    id: where
+    attributes:
+      label: Where
+      description: >-
+        A file path with a line number if you have one, a docs URL, or the `MAGIK_*` code whose
+        text is wrong. `https://developerz-ai.github.io/magik/api/` is the generated YARD reference
+        — a problem there is a problem in the comment in `lib/`, so name that file if you can.
+      placeholder: docs/idea/00-build-spec.md:41, README.md "Status", or MAGIK_UNKNOWN_COMMAND
+    validations:
+      required: true
+
+  - type: textarea
+    id: says
+    attributes:
+      label: What it says now
+      description: Quote it. A paraphrase moves the problem.
+      render: markdown
+    validations:
+      required: true
+
+  - type: textarea
+    id: should
+    attributes:
+      label: What it should say
+      description: >-
+        House style: declarative and honest, limits stated loudly, and every factual claim paired
+        with the command that re-derives it — prefer "run `bin/check`" to a number that goes stale.
+        Anything not yet built is `planned`, `not implemented` or `spec only`.
+      render: markdown
+    validations:
+      required: true

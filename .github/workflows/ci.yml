@@ -1,0 +1,421 @@
+name: ci
+
+# The gate.
+#
+# Every Ruby job below runs `bin/check`, one step at a time. That is the whole design: `bin/check`
+# is THE gate (read its header), it already knows what each step runs, what it expects, and the
+# `fix:` line to print when it fails — and a workflow that re-spelled `bundle exec rubocop` here
+# would be a second definition of the same check, free to drift from the one a contributor runs.
+# When the two disagree, the loop for finding out becomes "push and wait", which is the slowest
+# loop there is.
+#
+# So CI adds exactly two things `bin/check` cannot do on a laptop, and nothing else:
+#   * the ENGINE MATRIX — 3.2, 3.3, 3.4 and TruffleRuby, which no dev machine has all of
+#   * the INSTALLED GEM — building the artifact and running the binary out of an empty GEM_HOME,
+#     which is a different question from running `exe/magik` off the load path
+#
+# `bin/check --only <step>` is what splits it across jobs rather than running it once: a red step
+# then names itself in the job list instead of hiding inside one log. `bin/check --list` prints the
+# step names; if a name here is not in that list, the job fails loudly rather than silently
+# checking nothing.
+#
+# HONESTY NOTE, because it governs what may be added: as of 2026-08-26 Magik is spec-only —
+# docs/idea/00-build-spec.md is the product and lib/ is documented stubs. No job in this file
+# proves framework behaviour, because there is none. What it proves is that the repository is
+# well-formed and that the gem installs, which is worth proving from the first commit.
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+# A newer push to a pull request supersedes the in-flight run for that branch: CI is a signal, not
+# an archive. A push to `main` never supersedes anything and is keyed by SHA so that it cannot —
+# merge two PRs a minute apart and a ref-keyed group would cancel the first commit's run, leaving
+# a commit on main whose gate never ran and a log that reads like a failure.
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.event_name == 'pull_request' && github.ref || github.sha }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+permissions:
+  contents: read
+
+jobs:
+  # ── which parts of the tree did this diff touch ────────────────────────────────────────────
+  #
+  # Selection is a PULL-REQUEST-ONLY economy, and the shell step below is what makes that true.
+  # dorny/paths-filter needs two commits to compare; a `workflow_dispatch` has no base at all and a
+  # first push to a branch reports an all-zero `before`. In both cases the filter would find no
+  # changed files, every downstream `if` would evaluate false, every job would skip — and the `ci`
+  # job would report green over a run that checked nothing. Nothing errors, which is the dangerous
+  # shape. So anything that is not a pull request FAILS OPEN and runs the whole gate; `main` is
+  # also the history a release is cut from, so it stays fully verified whatever a commit touched.
+  changes:
+    name: changes
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      # paths-filter reads the PR's changed-file list from the API rather than cloning history.
+      pull-requests: read
+    outputs:
+      ruby: ${{ steps.gate.outputs.ruby }}
+      docs: ${{ steps.gate.outputs.docs }}
+      ci: ${{ steps.gate.outputs.ci }}
+      dummy: ${{ steps.gate.outputs.dummy }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      # Third-party actions in this repository are pinned to a MAJOR TAG, and Dependabot's
+      # `github-actions` ecosystem (.github/dependabot.yml) opens one grouped PR a week that moves
+      # them — so the pins do not rot and every bump is a reviewable diff. The rule, and the one
+      # documented exception to it, are written out in .github/actions/setup/action.yml.
+      - id: filter
+        if: github.event_name == 'pull_request'
+        uses: dorny/paths-filter@v4
+        with:
+          filters: |
+            # Anything RuboCop lints, Minitest loads, or the gemspec packages. `.rubocop.yml` is in
+            # here rather than under `ci` because a rule change can turn a green tree red without
+            # touching a single .rb file, and the job that would catch it is `lint`.
+            ruby:
+              - 'lib/**'
+              - 'exe/**'
+              - 'test/**'
+              - 'bin/**'
+              - '*.gemspec'
+              - 'Gemfile'
+              - 'Gemfile.lock'
+              - 'Rakefile'
+              - '.rubocop.yml'
+              - '.ruby-version'
+            # `.yardopts` decides what `yard doc` reads and where it writes, so it belongs to the
+            # docs half even though the objects it documents live in lib/.
+            docs:
+              - 'docs/**'
+              - 'wiki/**'
+              - '**/*.md'
+              - 'llms.txt'
+              - '.yardopts'
+            # A change to the gate re-runs the whole gate. The alternative is a workflow edit whose
+            # only proof is the run of the workflow it edited, on the diff shape it happened to have.
+            ci:
+              - '.github/**'
+            # The reference app. Ruby that RuboCop lints and that the gemspec deliberately excludes
+            # from `spec.files`, so it gates `lint` and nothing else.
+            dummy:
+              - 'dummy/**'
+
+      - id: gate
+        shell: bash
+        env:
+          EVENT: ${{ github.event_name }}
+          F_RUBY: ${{ steps.filter.outputs.ruby }}
+          F_DOCS: ${{ steps.filter.outputs.docs }}
+          F_CI: ${{ steps.filter.outputs.ci }}
+          F_DUMMY: ${{ steps.filter.outputs.dummy }}
+        run: |
+          set -euo pipefail
+          if [ "$EVENT" != "pull_request" ]; then
+            echo "event=${EVENT}: no base commit to diff against, so the whole gate runs."
+            for name in ruby docs ci dummy; do echo "${name}=true" >> "$GITHUB_OUTPUT"; done
+          else
+            # `${VAR:-false}` and not a bare expansion: a filter that produced no output is a filter
+            # that must not silently skip a job.
+            {
+              echo "ruby=${F_RUBY:-false}"
+              echo "docs=${F_DOCS:-false}"
+              echo "ci=${F_CI:-false}"
+              echo "dummy=${F_DUMMY:-false}"
+            } >> "$GITHUB_OUTPUT"
+          fi
+          {
+            echo "### changed areas"
+            echo ""
+            echo "| area | changed |"
+            echo "|---|---|"
+          } >> "$GITHUB_STEP_SUMMARY"
+          while IFS='=' read -r name value; do
+            echo "| \`${name}\` | ${value} |" >> "$GITHUB_STEP_SUMMARY"
+          done < "$GITHUB_OUTPUT"
+
+  # ── RuboCop ───────────────────────────────────────────────────────────────────────────────
+  #
+  # Whole tree, never a changed-files subset. Cops such as `Style/Documentation` and the
+  # rubocop-minitest set read files a diff did not touch, and a lint restricted to the diff reports
+  # green on a `.rubocop.yml` change that broke fifty other files. The economy is skipping the JOB,
+  # not narrowing it — which is also why `dummy` gates this job and nothing else: dummy/ is Ruby
+  # RuboCop lints but the gem does not package.
+  lint:
+    name: lint
+    needs: changes
+    if: needs.changes.outputs.ruby == 'true' || needs.changes.outputs.dummy == 'true' || needs.changes.outputs.ci == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: ./.github/actions/setup
+      # No `--autocorrect`: CI reports, a human corrects. A workflow that pushes corrections turns
+      # review into a diff nobody wrote.
+      - name: bin/check --only rubocop
+        run: bin/check --only rubocop
+
+  # ── Minitest, on every engine the gem claims ──────────────────────────────────────────────
+  #
+  # The one thing in this file that a laptop cannot do. `fail-fast: false` because a matrix that
+  # stops at the first red turns a four-engine answer into a one-engine answer, and "3.4 broke too"
+  # is exactly what separates a version guard from a real regression.
+  test:
+    name: test (${{ matrix.ruby }})
+    needs: changes
+    if: needs.changes.outputs.ruby == 'true' || needs.changes.outputs.ci == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        # An `include` list rather than a bare array, so the one experimental entry carries its flag
+        # next to itself instead of in an `exclude` block somewhere else in the file.
+        include:
+          # 3.2 is `required_ruby_version` in magik.gemspec — the floor the gem claims.
+          - ruby: '3.2'
+          - ruby: '3.3'
+          - ruby: '3.4'
+          # TruffleRuby is Magik's PRODUCTION runtime target (docs/idea/00-build-spec.md, decision
+          # 1: Ractors and Fibers, not threads-per-request) and it is ADVISORY here. That pairing is
+          # uncomfortable and deliberate. Why it cannot block today: the target is a decision about
+          # a framework that is not implemented, so nothing in test/ exercises a TruffleRuby-specific
+          # path — a red leg would be reporting on the nightly engine build, not on Magik. Blocking
+          # on that makes red the resting state, which is how a gate stops being read.
+          #
+          # `-head` rather than a release, because the useful failures are upstream ones worth seeing
+          # early. `.github/actions/setup` prints the build it resolved to, so a red leg names the
+          # version it was red against — otherwise nobody can answer "against which build".
+          #
+          # THIS FLAG COMES OFF the day runtime work starts. The change is one line here, plus
+          # adding `test (truffleruby-head)` to the required checks for this repository.
+          - ruby: truffleruby-head
+            experimental: true
+    continue-on-error: ${{ matrix.experimental == true }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: ./.github/actions/setup
+        with:
+          ruby-version: ${{ matrix.ruby }}
+      - name: bin/check --only test
+        run: bin/check --only test
+
+  # ── YARD builds, and the public surface is documented ─────────────────────────────────────
+  #
+  # `bin/check --only yard` builds the docs AND enforces the coverage floor, which is
+  # `MAGIK_YARD_MIN_COVERAGE` (default 100) inside that script. The floor is NOT restated here on
+  # purpose: two places that both name a number are two places that disagree eventually, and the
+  # one a contributor hits first has to be the one that decides.
+  docs:
+    name: docs
+    needs: changes
+    if: needs.changes.outputs.ruby == 'true' || needs.changes.outputs.docs == 'true' || needs.changes.outputs.ci == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: ./.github/actions/setup
+      - name: bin/check --only yard
+        run: bin/check --only yard
+
+  # ── the artifact a stranger installs ──────────────────────────────────────────────────────
+  #
+  # This is the second thing a laptop cannot usefully do, and the reason it is a separate job from
+  # `bin/check --only build --only cli`.
+  #
+  # Those two steps build the gem into a temp directory and run `ruby -Ilib exe/magik` — the source
+  # tree, on the load path. That combination cannot see the classic packaging bugs, because every
+  # one of them is invisible until the gem is INSTALLED: a file missing from `spec.files`, an
+  # executable absent from `spec.bindir`, a runtime dependency that only ever resolved because the
+  # Gemfile had it in a development group. So this job installs the built artifact into an empty
+  # GEM_HOME the way a user would, and runs the binary out of THAT.
+  gem-build:
+    name: gem-build
+    needs: changes
+    if: needs.changes.outputs.ruby == 'true' || needs.changes.outputs.ci == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: ./.github/actions/setup
+
+      - name: gem build
+        id: build
+        run: |
+          set -euo pipefail
+          version="$(ruby -Ilib -e 'require "magik/version"; print Magik::VERSION')"
+          mkdir -p pkg
+          gem build magik.gemspec --output "pkg/magik-${version}.gem"
+          echo "version=${version}" >> "$GITHUB_OUTPUT"
+          echo "gem=pkg/magik-${version}.gem" >> "$GITHUB_OUTPUT"
+          # What actually went into the artifact, in the log. A file missing from `spec.files` is
+          # the packaging bug that reads as "works on my machine" forever, and the cheapest place
+          # to notice it is a diff of this list between two runs.
+          echo "::group::packaged files"
+          gem specification "pkg/magik-${version}.gem" files
+          echo "::endgroup::"
+
+      # An EMPTY GEM_HOME, and dependencies resolved for real rather than `--ignore-dependencies`.
+      # `gem install magik` is the exact command a first-time user runs, and a runtime dependency
+      # that cannot resolve is a gemspec bug only this shape of install can see. As of 2026-08-26
+      # magik.gemspec declares no runtime dependencies at all, so today this is fast and proves the
+      # packaging half; it keeps working unchanged when Phase 1 adds sequel and falcon.
+      - name: gem install, into an empty GEM_HOME, and run the installed binary
+        env:
+          GEM: ${{ steps.build.outputs.gem }}
+          EXPECTED: ${{ steps.build.outputs.version }}
+        run: |
+          set -euo pipefail
+          export GEM_HOME="${RUNNER_TEMP}/smoke-gems"
+          export GEM_PATH="$GEM_HOME"
+          export PATH="$GEM_HOME/bin:$PATH"
+          gem install --no-document "$GEM"
+
+          command -v magik > /dev/null || {
+            echo "::error title=magik binary not installed::gem install placed no 'magik' executable on PATH. fix: check that magik.gemspec sets spec.bindir = 'exe' and spec.executables = ['magik'], and that exe/magik is committed with its executable bit (git ls-files -s exe/magik should show mode 100755)."
+            exit 1
+          }
+
+          out="$(magik version --json)"
+          echo "$out"
+          # Same three keys bin/check's `cli` step asserts against the source tree — here they are
+          # asserted against the packaged, installed gem, which is the difference this job exists for.
+          ruby -rjson -e '
+            expected = ARGV[0]
+            begin
+              data = JSON.parse(ARGV[1])
+            rescue JSON::ParserError => e
+              abort("the installed `magik version --json` did not emit JSON: #{e.message}")
+            end
+            missing = %w[name version status] - data.keys
+            abort("missing keys in the installed CLIs JSON: #{missing.join(", ")}") unless missing.empty?
+            abort("installed gem reports name #{data["name"].inspect}, expected \"magik\"") unless data["name"] == "magik"
+            abort("installed gem reports version #{data["version"].inspect}, built #{expected.inspect}") unless data["version"] == expected
+            puts "ok: installed magik #{data["version"]} (#{data["status"]})"
+          ' "$EXPECTED" "$out"
+
+      # Kept so a reviewer can install the exact artifact a PR would produce without building it,
+      # and so release.yml is not the first place anyone sees what `gem build` emits here.
+      - uses: actions/upload-artifact@v7
+        with:
+          name: magik-gem-${{ steps.build.outputs.version }}
+          path: pkg/*.gem
+          if-no-files-found: error
+          retention-days: 14
+
+  # ── the links in the docs ─────────────────────────────────────────────────────────────────
+  #
+  # Split in two, and the split is the point.
+  #
+  # A RELATIVE link is a fact about this checkout: it is either right or a file was renamed, and
+  # nothing about the network changes the answer. `bin/check --only docs` already answers that,
+  # in-process, on a laptop, with the broken `source -> target` pairs printed — so this job runs
+  # THAT rather than a second implementation of it. It BLOCKS.
+  #
+  # An EXTERNAL link is a fact about somebody else's server on the day the runner asked. `bin/check`
+  # deliberately skips those (a gate must not depend on the network), which leaves a real gap: a
+  # dead https:// link in the README rots silently forever. lychee fills exactly that gap and only
+  # that gap, and it REPORTS rather than blocks — a gate that goes red because a third party
+  # rate-limited a CI IP is a gate people learn to re-run instead of read.
+  markdown:
+    name: markdown
+    needs: changes
+    if: needs.changes.outputs.docs == 'true' || needs.changes.outputs.ci == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: ./.github/actions/setup
+
+      - name: bin/check --only docs
+        run: bin/check --only docs
+
+      # `--scheme https --scheme http` is what keeps this from duplicating the step above: lychee
+      # only ever resolves URLs here, and the relative half stays owned by `bin/check`.
+      - name: external links (advisory)
+        uses: lycheeverse/lychee-action@v2
+        env:
+          # github.com rate-limits unauthenticated requests from runner IPs hard enough that an
+          # unauthenticated pass is mostly noise about 429s.
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          args: >-
+            --no-progress --max-retries 2 --timeout 20 --exclude-all-private
+            --scheme https --scheme http
+            --exclude-path doc --exclude-path vendor --exclude-path node_modules
+            '**/*.md'
+          fail: false
+          output: lychee/external.md
+          jobSummary: true
+
+  # NO SPELLCHECK JOB, and this is a decision rather than an omission.
+  #
+  # A spellchecker over this repository's prose would be reading a spec whose vocabulary is mostly
+  # identifiers — TruffleRuby, htmx, Rodauth, Sequel, Que, Shrine, pgvector, Falcon, Ractor, Oj,
+  # Prawn, idempotent_by, tenant_id, UUIDv7 — and every one of them is a finding until somebody adds
+  # it to a wordlist. That wordlist then needs a PR for each new dependency the docs mention, and the
+  # failure mode is not a missed typo, it is a red gate on a correct sentence. A check that is wrong
+  # more often than it is right gets ignored, and then so does everything beside it. If this comes
+  # back, it comes back as a step of `bin/check` (so it runs before the push) with a wordlist
+  # derived from the dependency list rather than maintained by hand.
+
+  # ── the one name branch protection points at ──────────────────────────────────────────────
+  #
+  # Change detection and required status checks are in direct conflict, and this job is the
+  # resolution. Branch protection requires a check by NAME; a job that was skipped never reports
+  # that name at all, so requiring `test` directly would leave every docs-only PR waiting forever on
+  # a check that is never going to arrive. Requiring nothing instead lets a PR merge with no gate.
+  # So exactly one job is required — this one — and it runs unconditionally.
+  #
+  # `if: always()` plus an EXPLICIT grade, never a bare `needs:`. A skipped dependency does not fail
+  # a job, but neither does a cancelled one, and `cancelled` must not read as a pass. The rule:
+  # `skipped` is a pass (change detection decided the area was untouched), `failure` and `cancelled`
+  # are not.
+  #
+  # Repository setting, not YAML: Settings → Branches → main → "Require status checks to pass", with
+  # `ci` as the only entry.
+  ci:
+    name: ci
+    needs: [changes, lint, test, docs, gem-build, markdown]
+    if: always()
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: grade the run
+        env:
+          NEEDS: ${{ toJSON(needs) }}
+        run: |
+          set -euo pipefail
+          echo "$NEEDS"
+          {
+            echo "### gate"
+            echo ""
+            echo "| job | result |"
+            echo "|---|---|"
+            jq -r 'to_entries[] | "| `\(.key)` | \(.value.result) |"' <<< "$NEEDS"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+          bad="$(jq -r 'to_entries[] | select(.value.result == "failure" or .value.result == "cancelled") | "\(.key)=\(.value.result)"' <<< "$NEEDS")"
+          if [ -n "$bad" ]; then
+            echo "::error title=The gate is red::$(echo "$bad" | tr '\n' ' ')"
+            exit 1
+          fi
+          echo "all green (a skipped job is an area this diff did not touch)"

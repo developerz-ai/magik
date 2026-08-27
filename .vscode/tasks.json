@@ -1,0 +1,88 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "check",
+      "detail": "bin/check — the gate. Same steps CI runs, cheapest first.",
+      "type": "shell",
+      "command": "./bin/check",
+      "group": { "kind": "build", "isDefault": true },
+      "presentation": { "reveal": "always", "panel": "dedicated", "clear": true },
+      "problemMatcher": []
+    },
+    {
+      "label": "test",
+      "detail": "bin/check --only test — the Minitest suite on its own.",
+      "type": "shell",
+      "command": "./bin/check --only test",
+      "group": { "kind": "test", "isDefault": true },
+      "presentation": { "reveal": "always", "panel": "dedicated", "clear": true },
+      "problemMatcher": []
+    },
+    {
+      "label": "rubocop",
+      "detail": "bin/check --only rubocop — style and lint.",
+      "type": "shell",
+      "command": "./bin/check --only rubocop",
+      "presentation": { "reveal": "always", "panel": "dedicated", "clear": true },
+      "problemMatcher": []
+    },
+    {
+      "label": "yard",
+      "detail": "bin/rake yard — build the API docs into doc/, then open doc/index.html.",
+      "type": "shell",
+      "command": "./bin/rake yard",
+      "presentation": { "reveal": "always", "panel": "dedicated", "clear": true },
+      "problemMatcher": []
+    },
+    {
+      "label": "dev",
+      "detail": "bin/dev — rerun the tests on every save. Needs a file watcher; it says which.",
+      "type": "shell",
+      "command": "./bin/dev",
+      "isBackground": true,
+      "presentation": { "reveal": "always", "panel": "dedicated", "clear": false },
+      "problemMatcher": []
+    },
+    {
+      "label": "console",
+      "detail": "bin/console — IRB with -Ilib and magik required.",
+      "type": "shell",
+      "command": "./bin/console",
+      "presentation": { "reveal": "always", "panel": "dedicated", "focus": true, "clear": true },
+      "problemMatcher": []
+    },
+    {
+      "label": "setup",
+      "detail": "bin/setup — fresh clone to ready. Idempotent.",
+      "type": "shell",
+      "command": "./bin/setup",
+      "presentation": { "reveal": "always", "panel": "dedicated", "clear": true },
+      "problemMatcher": []
+    },
+    {
+      "label": "services: up",
+      "detail": "Start the local Postgres (docker/compose.yml). Nothing connects to it yet.",
+      "type": "shell",
+      "command": "docker compose -f docker/compose.yml up -d && docker compose -f docker/compose.yml ps",
+      "presentation": { "reveal": "always", "panel": "dedicated", "clear": true },
+      "problemMatcher": []
+    },
+    {
+      "label": "services: down",
+      "detail": "Stop the local services, keeping their data.",
+      "type": "shell",
+      "command": "docker compose -f docker/compose.yml down",
+      "presentation": { "reveal": "always", "panel": "dedicated", "clear": true },
+      "problemMatcher": []
+    },
+    {
+      "label": "release: pre-flight",
+      "detail": "bin/release — checks version/tag/CHANGELOG agreement and prints the commands. Runs none of them.",
+      "type": "shell",
+      "command": "./bin/release",
+      "presentation": { "reveal": "always", "panel": "dedicated", "clear": true },
+      "problemMatcher": []
+    }
+  ]
+}

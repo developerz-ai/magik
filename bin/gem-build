@@ -1,0 +1,44 @@
+#!/usr/bin/env bash
+# bin/gem-build — package the gem into pkg/. No network, no push, no tag.
+# Safe to run at any time; `bin/check` runs the same `gem build` as a smoke test.
+#
+#   bin/gem-build
+#
+# Exit status:
+#   0   pkg/magik-<version>.gem was written
+#   1   gem build failed, or wrote nothing
+#   64  bad usage
+set -euo pipefail
+cd "$(dirname "$0")/.."
+
+if [ "${1:-}" = "-h" ] || [ "${1:-}" = "--help" ]; then
+  # Print the leading comment block and stop at the first line of code, so the
+  # help text can never drift out of sync with the range of a sed expression.
+  sed -n '2,${/^#/!q;s/^# \{0,1\}//p;}' "$0"
+  exit 0
+fi
+if [ $# -gt 0 ]; then
+  echo "bin/gem-build: takes no arguments (got '$1')" >&2
+  exit 64
+fi
+
+version="$(ruby -Ilib -e 'require "magik/version"; print Magik::VERSION')"
+gemfile="pkg/magik-${version}.gem"
+
+echo "==> Building magik ${version}"
+echo "    gem build magik.gemspec --output ${gemfile}"
+mkdir -p pkg
+gem build magik.gemspec --output "$gemfile"
+
+if [ ! -f "$gemfile" ]; then
+  echo "✗ gem build exited 0 but wrote no ${gemfile}" >&2
+  echo "  fix: check the files list in magik.gemspec" >&2
+  exit 1
+fi
+
+echo "==> done: ${gemfile} ($(wc -c < "$gemfile") bytes)"
+echo "    contents:"
+gem contents --spec-file "$gemfile" 2>/dev/null | sed 's/^/      /' | head -30 || \
+  tar -tf "$gemfile" | sed 's/^/      /'
+echo
+echo "    next: bin/gem-login  (once per machine), then bin/gem-push"

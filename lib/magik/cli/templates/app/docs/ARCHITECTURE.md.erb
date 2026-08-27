@@ -1,0 +1,83 @@
+# <%= app_title %> — architecture
+
+<!-- magik:stage2-pending -->
+> **Not written yet.** This is an empty frame from `magik new`. **Run `/setup-project`** — it
+> interviews you about the product and writes this file from your answers.
+>
+> **Do not fill it in by guessing.** A confidently wrong architecture document is more expensive
+> than an empty one: it looks authoritative, other work gets built on it, and it is discovered wrong
+> several features later. An unanswered heading is an honest "unknown".
+
+**Project-owned.** No magik command writes this file. `As of <%= generated_on %>` it is a frame;
+`/setup-project` fills it and later runs propose diffs you approve.
+
+## What <%= app_title %> is
+
+_One paragraph: what the product does, who uses it, who pays._
+
+## Tenancy — the one structural decision
+
+_What is a tenant here: an organisation, a workspace, a person? Can a user belong to more than one?_
+
+Every model in a Magik app is auto-scoped by `tenant_id` and every primary key is UUIDv7. This
+decision therefore shapes every table, every scope and every screen, and it is the most expensive
+one to change later. Write the answer down even if it seems obvious.
+
+## Entities
+
+_Five to ten nouns, one line each. Who creates it, who owns it, what it is for._
+
+| Entity | Is | Owned by | Declared in |
+|---|---|---|---|
+| _—_ | | | `app/models/…` |
+
+## Domains and their boundaries
+
+<% if layout == :domains -%>
+_This app was generated with `--domains`. For each domain: what it owns, what it `exposes`, what it
+`depends_on`, what it `publishes_events`, and — the part only prose can carry — **why the boundary
+is where it is**._
+
+The enforceable version of this section lives in `domains/<name>/domain.rb` and is printed by
+`magik domains --json`. If the two disagree, the code is right and this file is stale.
+<% else -%>
+_This app is **flat**: everything in `app/<kind>/`, no `domains/` directory._
+
+That is the right shape until more than one team owns parts of `app/`, or `app/models/` passes ~25
+models, or two features have started reaching into each other's data. Record here which of those
+signals you are watching for, so the move happens on evidence rather than on a feeling.
+
+The move itself is mechanical — `git mv` into `domains/<name>/app/…` plus one `domain.rb` per
+domain. Nothing inside a moved file changes.
+<% end -%>
+
+## Money
+
+_Does money change hands? If so, whose?_
+
+Two flows are easy to conflate and must never share a file:
+
+| Flow | Lives in | Is |
+|---|---|---|
+| <%= app_title %> charging its own customers | `billing` in `config/app.rb` | subscriptions, plans, trials |
+| <%= app_title %>'s customers charging theirs | `app/ledgers/` | double-entry, append-only, balanced at boot |
+
+_If neither applies, write "no money" here and delete the table. An unused ledger is a liability._
+
+## The edges
+
+_Every outside system: what it is, whether it can retry (and therefore needs `idempotent_by`), and
+which env var in `.env.example` configures it._
+
+| System | Direction | Retries? | Env var |
+|---|---|---|---|
+| _—_ | | | |
+
+## Decisions and their reasons
+
+_The part no command can re-derive: what was considered, what was chosen, and what would have to
+become true to revisit it. Date each one._
+
+| Date | Decision | Because | Revisit if |
+|---|---|---|---|
+| _—_ | | | |

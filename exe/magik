@@ -1,0 +1,13 @@
+#!/usr/bin/env ruby
+# frozen_string_literal: true
+
+# Executable shim for the `magik` command.
+#
+# It does exactly two things: load the library and hand ARGV to
+# Magik::CLI.start, which returns the process exit status. All behaviour —
+# including error rendering and `--json` output — lives in lib/magik/cli.rb so
+# that it is testable without shelling out.
+
+require "magik"
+
+exit Magik::CLI.start(ARGV)

@@ -1,0 +1,107 @@
+# <%= app_title %> — how a feature gets built here
+
+The loop, start to finish, for every unit of work in this app. `/feature` follows it.
+
+*What* to build next is [`PLAN.md`](PLAN.md); what the app is made of is
+[`ARCHITECTURE.md`](ARCHITECTURE.md).
+
+<!-- magik:project-block BEGIN -->
+<!--
+  PROJECT-OWNED. `/setup-project` fills this in from the interview and you edit it freely
+  afterwards. No magik command rewrites anything between these markers.
+-->
+
+## This app's answers
+
+_Not written yet — `/setup-project` fills these in. Until then the generic loop below applies._
+
+| Question | This app's answer |
+|---|---|
+| Which domain owns what | _—_ |
+| What "done" means here | _—_ beyond the generic gate: a demo? a screenshot? a second pair of eyes? |
+| What always needs a human look | _—_ money paths, auth, anything touching an outside system? |
+| The tenancy rule in one sentence | _—_ |
+| The money rule in one sentence | _—_ or "no money in this app" |
+| Naming conventions an agent cannot infer | _—_ |
+| Where this app deviates from Magik's defaults, and why | _—_ |
+
+<!-- magik:project-block END -->
+
+<!-- magik:framework-block BEGIN version=<%= magik_version %> generated=<%= generated_on %> -->
+<!--
+  FRAMEWORK-OWNED. Rewritten by `magik generate agents --update`. Edits here are lost —
+  put this app's specifics in the project block above.
+-->
+
+## Step 0 — read the docs for what you are about to write
+
+**The Magik DSL is not in your training data.** Before writing a `model`, `screen`, `action`,
+`ledger`, `job` or `component`, read its page. The docs ship with the gem, on disk, for the exact
+version this app runs:
+
+```bash
+magik docs path        # the directory — point your normal grep/glob/read tools at it
+magik docs list        # every page and its slug
+magik docs search <term>
+```
+
+One command, and it prevents the most expensive failure in this framework: confident Rails-shaped
+code for a DSL that does not work that way. Do not web-search it — slow, and it answers for `main`
+rather than for your gem.
+
+## The loop
+
+| # | Step | Where it lands | Agent |
+|---|---|---|---|
+| 1 | **Name the change.** The screen or action a user touches, and what is true afterwards that was not before | — | you |
+| 2 | **Data.** Fields, scopes, the append-only migration | `app/models/`, `db/migrations/` | `data-modeler` |
+| 3 | **The write.** Typed params, `authorize`, guards, `idempotent_by` where a retry can reach | `app/actions/` | `action-author` |
+| 4 | **Money**, if any. A ledger entry — never a balance column | `app/ledgers/` | `ledger-author` |
+| 5 | **The UI.** A screen naming declared `state`; controls naming the action from step 3 | `app/screens/`, `app/components/` | `screen-builder` |
+| 6 | **Tests.** One file per declaration, mirroring `app/` | `test/` | `test-writer` |
+| 7 | **The gate.** `bin/check` — lint, tests, `magik check`, and every rule in `scripts/checks/` | — | `guardrail-reviewer` |
+| 8 | **The paperwork.** Tick `PLAN.md`; add any new env var to `.env.example`; if this slice taught you a rule, write it as a check | — | you |
+
+**Data before writes before UI.** A screen written first invents the state it wishes existed, and
+that invention is what gets built. Steps 2–6 touch disjoint directories, so they parallelise once
+the names in step 1 are fixed — and not before.
+
+## Done means
+
+1. **`bin/check` exits `0`** — lint, the suite, `magik check`, and every rule in `scripts/checks/`.
+   `69` is not a pass: it means a step could not run.
+2. A test that would fail if the feature were removed.
+3. One declaration per file, each in its kind's directory.
+4. No `Float` near money. Every scope narrows by `tenant_id`. UUIDv7 keys.
+5. Every user-visible string through `t("…")`.
+6. `PLAN.md` ticked, `.env.example` current.
+7. Whatever the project block above adds to this list.
+
+**`As of <%= generated_on %>` `magik check` and `magik test` are `planned`.** `bin/check` reports
+them `MISSING` and exits `69` rather than pretending. The lint, test and `scripts/checks/` steps are
+real today and must be green; for the rest, `guardrail-reviewer` reading the diff is the gate — and
+a report that does not say so has overstated itself.
+
+## When the loop teaches you a rule, make it executable
+
+The most valuable thing a slice produces after the feature itself is a rule nobody had written down.
+Write it into `scripts/checks/` in the same run, not into a document.
+
+**When the developer is an agent, a convention that is not executable does not exist.** A sentence
+in `CLAUDE.md` gets followed on feature #3 and quietly not on feature #40; a file in
+`scripts/checks/` is a gate failure with a runnable `fix:`, for as long as the app lives. That is the
+argument Magik makes for its own boot guardrails, handed to you for the rules it has no opinion
+about. `scripts/README.md` has the shape — a check is a short file.
+
+## Where it goes wrong
+
+| Symptom | Cause | Fix |
+|---|---|---|
+| A screen builds its own query | the scope you needed does not exist, so the screen improvised | add the scope to the model. `MAGIK_SCREEN_DIRECT_QUERY` |
+| A `balance` column that an action increments | double-entry felt like overkill for one number | it is not. `app/ledgers/`, and the number is derived |
+| A second copy of a mutation in `app/api/` | the API resource reimplemented instead of calling the action | call the action. Two copies drift, and the API's copy drifts silently |
+| A test that passes against a declaration that does nothing | the framework is unimplemented and the assertion was too loose | assert something only the real behaviour satisfies |
+| A file in a path no generator would produce | someone placed it by hand | `magik generate`. `MAGIK_DECLARATION_MISPLACED` |
+| DSL that reads like Rails | written from memory instead of from `magik docs` | step 0 |
+
+<!-- magik:framework-block END -->

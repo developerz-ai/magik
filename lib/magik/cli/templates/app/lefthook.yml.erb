@@ -1,0 +1,69 @@
+# lefthook — the git hooks for <%= app_title %>. https://lefthook.dev
+#
+# Installed by `bin/setup` (or `lefthook install`). When lefthook is not
+# installed, `bin/setup` writes a plain `.git/hooks/pre-push` running
+# `bin/check`, so the gate holds either way.
+#
+# The split is deliberate:
+#
+#   pre-commit  must be FAST — on changed files only. A slow pre-commit is a
+#               pre-commit people disable, and a disabled hook gates nothing.
+#   pre-push    is the real gate: `bin/check`, the same script CI runs. Slow is
+#               fine; you push far less often than you commit.
+#
+# Skipping, when you mean to — a WIP commit on a branch nobody reads:
+#
+#   LEFTHOOK=0 git commit -m "wip"
+#   LEFTHOOK=0 git push
+#
+# Skip when the hook is in your way, never when it is telling you something
+# true. CI runs `bin/check` regardless, so a skipped hook buys minutes, never a
+# merge.
+#
+# PROJECT-OWNED: no magik command rewrites this file. Add or remove hooks freely.
+
+pre-commit:
+  parallel: true
+  commands:
+    rubocop:
+      glob: "*.{rb,rake,gemspec}"
+      run: bundle exec rubocop --force-exclusion --autocorrect {staged_files}
+      stage_fixed: true
+      skip:
+        - merge
+        - rebase
+
+    checks:
+      # Your own rules, from scripts/checks/. Cheap, and they are the reason
+      # a convention this team agreed on holds on feature #40 — see
+      # scripts/README.md.
+      glob: "{app,domains,db,locales,config}/**/*"
+      run: ./bin/check --only domain-boundaries --only i18n-coverage --only migration-safety
+      skip:
+        - merge
+        - rebase
+
+    whitespace:
+      # Trailing whitespace, missing final newline, blank lines at EOF. `.md` is
+      # exempt from the trailing-whitespace rule only: two trailing spaces are
+      # Markdown's hard line break, and stripping them rewrites the document.
+      glob: "*.{rb,rake,gemspec,yml,yaml,json,md,sh,erb,txt}"
+      run: >-
+        ruby -e 'bad=[];ARGV.each{|f| next unless File.file?(f); b=File.read(f);
+        unless f.end_with?(".md"); b.each_line.with_index(1){|l,i| bad << "#{f}:#{i} trailing whitespace" if l.match?(/[ \t]+\r?\n\z/)}; end;
+        bad << "#{f}: missing final newline" unless b.empty? || b.end_with?("\n")};
+        abort("WHITESPACE: " + bad.size.to_s + " problem(s)\n  " + bad.join("\n  ") +
+        "\n  fix: strip the trailing whitespace and end the file with exactly one newline (see .editorconfig)") unless bad.empty?'
+        {staged_files}
+      skip:
+        - merge
+        - rebase
+
+pre-push:
+  commands:
+    check:
+      # THE gate. Identical to CI. If this passes, the pull request is green.
+      run: ./bin/check
+      skip:
+        - merge
+        - rebase

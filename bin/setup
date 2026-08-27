@@ -1,0 +1,241 @@
+#!/usr/bin/env bash
+# bin/setup — fresh clone to ready. Idempotent: safe to re-run after every pull.
+#
+# It announces each step before it runs it, and it finishes with a ledger of
+# what it actually DID versus what it SKIPPED, so a half-completed setup is
+# visible rather than silent. Docker and lefthook are conveniences: the gem, its
+# tests and `bin/check` all work without either, and this script says so and
+# carries on instead of stopping.
+#
+#   bin/setup                prepare the checkout
+#   bin/setup --services     also start the local Postgres
+#   bin/setup --no-hooks     leave .git/hooks alone
+#
+# Exit status:
+#   0   ready — every required step succeeded (optional steps may be skipped)
+#   1   a required step failed; the failure and its fix are printed above
+#   64  bad usage
+set -euo pipefail
+
+cd "$(dirname "$0")/.."
+ROOT="$PWD"
+
+WITH_SERVICES=0
+SKIP_HOOKS=0
+
+usage() {
+  cat <<'TXT'
+Usage: bin/setup [--services] [--no-hooks] [--help]
+
+Prepares this checkout for development:
+
+  1. checks the Ruby version against the gemspec's floor (>= 3.2)
+  2. bundle install
+  3. installs the git pre-commit / pre-push hooks (lefthook, or a plain
+     .git/hooks fallback when lefthook is not installed)
+  4. optionally starts the local Postgres via docker/compose.yml
+  5. copies .env.example to .env if you have no .env, and lists the variables
+     still to fill in — by NAME only; it never prints a value
+
+Options:
+  --services   Also run `docker compose -f docker/compose.yml up -d` (Postgres).
+               Skipped, with a note, if docker is not available.
+  --no-hooks   Do not touch .git/hooks.
+  -h, --help   Show this message.
+
+Exit status:
+  0   ready — every required step succeeded
+  1   a required step failed; read the fix: line it printed
+  64  bad usage
+
+Everything here is idempotent. Re-run it whenever the Gemfile changes.
+TXT
+}
+
+while [ $# -gt 0 ]; do
+  case "$1" in
+    --services) WITH_SERVICES=1 ;;
+    --no-hooks) SKIP_HOOKS=1 ;;
+    -h|--help) usage; exit 0 ;;
+    *) echo "bin/setup: unknown argument '$1'" >&2; echo >&2; usage >&2; exit 64 ;;
+  esac
+  shift
+done
+
+# The ledger. Every step lands in exactly one of these, and all three are
+# printed at the end — "skipped" is information, not silence.
+DID=()
+SKIPPED=()
+FAILED=()
+
+say()  { printf '\n\033[1;36m==> %s\033[0m\n' "$*"; }
+note() { printf '    %s\n' "$*"; }
+warn() { printf '    \033[33m! %s\033[0m\n' "$*"; }
+bad()  { printf '    \033[1;31m✗ %s\033[0m\n' "$*"; }
+did()  { DID+=("$1"); printf '    \033[32m✓ %s\033[0m\n' "$1"; }
+skip() { SKIPPED+=("$1: $2"); warn "skipped — $2"; }
+died() { FAILED+=("$1: $2"); bad "$2"; }
+
+# --- 1. Ruby (required) ----------------------------------------------------
+say "Checking Ruby"
+if ! command -v ruby >/dev/null 2>&1; then
+  echo "MAGIK_NO_RUBY: ruby is not on PATH" >&2
+  echo "  fix: install Ruby >= 3.2 (see .ruby-version), then re-run bin/setup" >&2
+  exit 1
+fi
+note "$(ruby -v)"
+if ! ruby -e 'exit(Gem::Version.new(RUBY_VERSION) >= Gem::Version.new("3.2"))'; then
+  echo "MAGIK_RUBY_TOO_OLD: magik requires Ruby >= 3.2, found $(ruby -e 'print RUBY_VERSION')" >&2
+  echo "  fix: install the version named in .ruby-version, then re-run bin/setup" >&2
+  exit 1
+fi
+did "ruby $(ruby -e 'print RUBY_VERSION') on $(ruby -e 'print RUBY_ENGINE')"
+if [ "$(ruby -e 'print RUBY_ENGINE')" != "truffleruby" ]; then
+  note "TruffleRuby is Magik's production runtime target. CRuby is fully supported for"
+  note "development; the TruffleRuby matrix runs in CI, not here."
+fi
+
+# --- 2. Bundle (required if bundler exists) --------------------------------
+say "Installing gems"
+if ! command -v bundle >/dev/null 2>&1; then
+  skip "bundle install" "bundler is not on PATH — fix: gem install bundler, then bin/setup"
+elif bundle check >/dev/null 2>&1; then
+  did "bundle already satisfied (bundle check passed) — nothing to install"
+else
+  note "bundle install"
+  if bundle install; then
+    # Verify the result rather than trusting the exit status: a partially
+    # installed bundle passes `bundle install` and fails everything after it.
+    if bundle check >/dev/null 2>&1; then
+      did "bundle install"
+    else
+      died "bundle install" "bundle install exited 0 but \`bundle check\` still fails — fix: bundle install --verbose"
+    fi
+  else
+    died "bundle install" "bundle install failed — fix: bundle install --verbose, and read the first error"
+  fi
+fi
+
+# --- 3. Git hooks (optional) -----------------------------------------------
+say "Installing git hooks"
+if [ "$SKIP_HOOKS" -eq 1 ]; then
+  skip "git hooks" "--no-hooks was passed"
+elif [ ! -d "$ROOT/.git" ]; then
+  skip "git hooks" "there is no .git directory here"
+elif command -v lefthook >/dev/null 2>&1; then
+  note "lefthook install"
+  if lefthook install; then
+    did "lefthook hooks (pre-commit + pre-push)"
+  else
+    died "git hooks" "lefthook install failed — fix: lefthook install, and read what it reports"
+  fi
+elif command -v bundle >/dev/null 2>&1 && bundle exec lefthook version >/dev/null 2>&1; then
+  note "bundle exec lefthook install"
+  if bundle exec lefthook install; then
+    did "lefthook hooks, from the bundle (pre-commit + pre-push)"
+  else
+    died "git hooks" "lefthook install failed — fix: bundle exec lefthook install, and read what it reports"
+  fi
+else
+  warn "lefthook is not installed — writing a plain .git/hooks/pre-push instead."
+  warn "The fallback runs the same gate, without lefthook's changed-files filtering."
+  warn "To get the full pre-commit hooks: see the install note at the top of lefthook.yml."
+  mkdir -p "$ROOT/.git/hooks"
+  # A generated file, not a symlink into bin/: git refuses to run a hook that is
+  # not executable, and a symlink would need a second copy of this logic to
+  # point at. Four lines, rewritten on every bin/setup, so it cannot drift.
+  cat > "$ROOT/.git/hooks/pre-push" <<'HOOK'
+#!/usr/bin/env bash
+# Generated by bin/setup (lefthook fallback). Skip once with: LEFTHOOK=0 git push
+set -euo pipefail
+[ "${LEFTHOOK:-}" = "0" ] && exit 0
+exec "$(git rev-parse --show-toplevel)/bin/check"
+HOOK
+  chmod +x "$ROOT/.git/hooks/pre-push"
+  if [ -x "$ROOT/.git/hooks/pre-push" ]; then
+    did ".git/hooks/pre-push -> bin/check (lefthook fallback)"
+  else
+    died "git hooks" "could not make .git/hooks/pre-push executable — fix: chmod +x .git/hooks/pre-push"
+  fi
+fi
+
+# --- 4. Services (opt-in) --------------------------------------------------
+say "Local services"
+if [ "$WITH_SERVICES" -eq 0 ]; then
+  skip "docker services" "not requested — pass --services to start Postgres"
+  note "Magik is spec only as of 2026-08-26: no code connects to a database yet."
+elif ! command -v docker >/dev/null 2>&1; then
+  skip "docker services" "docker is not on PATH — fix: install Docker, or point DATABASE_URL at a Postgres you already run"
+elif ! docker compose version >/dev/null 2>&1; then
+  skip "docker services" "the docker compose plugin is not available — fix: install docker-compose-plugin"
+else
+  note "docker compose -f docker/compose.yml up -d"
+  if docker compose -f docker/compose.yml up -d; then
+    did "docker compose up -d (postgres)"
+    note "connection string and troubleshooting: docker/README.md"
+  else
+    died "docker services" "docker compose failed — fix: see the 'When Postgres will not come up' section of docker/README.md"
+  fi
+fi
+
+# --- 5. Environment file (required, and never destructive) -----------------
+say "Environment file"
+if [ -f "$ROOT/.env" ]; then
+  note ".env already exists — left exactly as it was. This script never overwrites it."
+  did ".env (pre-existing, untouched)"
+else
+  cp "$ROOT/.env.example" "$ROOT/.env"
+  did "copied .env.example -> .env"
+fi
+
+# Report which variables still need a value. NAMES ONLY — this prints no value
+# from .env, ever, and it is the reason this is a script and not a `diff`.
+ruby - "$ROOT/.env.example" "$ROOT/.env" <<'RUBY'
+def vars(path)
+  return {} unless File.exist?(path)
+
+  File.readlines(path).each_with_object({}) do |line, acc|
+    # chomp first: \z is absolute end-of-string, and every line but the last
+    # one carries a trailing newline that would defeat the match.
+    next unless (m = line.chomp.match(/\A\s*([A-Z][A-Z0-9_]*)\s*=(.*)\z/))
+
+    acc[m[1]] = m[2].strip
+  end
+end
+
+example = vars(ARGV[0])
+actual  = vars(ARGV[1])
+
+missing = example.keys - actual.keys
+blank   = actual.select { |k, v| v.empty? && example.key?(k) }.keys
+
+puts "    #{actual.size} variable(s) set in .env, #{example.size} documented in .env.example"
+puts "    ! not present in .env: #{missing.join(", ")}" unless missing.empty?
+puts "    ! still blank in .env, needs a value: #{blank.join(", ")}" unless blank.empty?
+puts "    ! generate a SECRET_KEY_BASE with: ruby -rsecurerandom -e 'puts SecureRandom.hex(64)'" if blank.include?("SECRET_KEY_BASE")
+puts "    (names only — this script never prints a value out of .env)"
+RUBY
+note "Nothing reads .env yet. See the banner at the top of .env.example."
+note ".env is development-only and gitignored. Production reads real environment"
+note "variables and config/credentials.yml.enc. Never commit .env or config/master.key."
+
+# --- ledger ----------------------------------------------------------------
+printf '\n\033[1m==> what bin/setup did\033[0m\n'
+for item in "${DID[@]}"; do printf '    \033[32m✓\033[0m %s\n' "$item"; done
+if [ ${#SKIPPED[@]} -gt 0 ]; then
+  printf '\n\033[1m==> what bin/setup skipped\033[0m\n'
+  for item in "${SKIPPED[@]}"; do printf '    \033[33m–\033[0m %s\n' "$item"; done
+fi
+
+if [ ${#FAILED[@]} -gt 0 ]; then
+  printf '\n\033[1;31m==> bin/setup did NOT finish\033[0m\n'
+  for item in "${FAILED[@]}"; do printf '    \033[31m✗\033[0m %s\n' "$item"; done
+  printf '\n    Fix the above and re-run bin/setup. It is idempotent.\n\n'
+  exit 1
+fi
+
+printf '\n\033[1;32m==> You are ready.\033[0m\n'
+printf '    next: \033[1mbin/check\033[0m      run the same gate CI runs\n'
+printf '    then: \033[1mbin/console\033[0m    an IRB with magik loaded\n'
+printf '          \033[1mbin/dev\033[0m        rerun the tests on save\n'
+printf '          \033[1mbin/rake -T\033[0m    every rake task\n\n'

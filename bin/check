@@ -1,0 +1,563 @@
+#!/usr/bin/env ruby
+# frozen_string_literal: true
+
+# bin/check — THE GATE.
+#
+# One list of steps, run in cost order, cheapest first, so the fastest possible
+# failure is the one you get. CI runs this same script: a check that lives only
+# in a workflow file cannot be run here, and one that lives only here does not
+# gate.
+#
+# This script is also a diagnostic surface. It is the first thing anyone — a
+# person or an agent — runs, and the first thing that fails, so a failure here
+# has to be actionable WITHOUT reading this file. Every failing step prints:
+#
+#     what it ran        the exact command, announced BEFORE it runs, so a hang
+#                        is attributable to one step
+#     what it expected   in one sentence
+#     what it got        the relevant excerpt, head and tail, never a 500-line dump
+#     fix:               a runnable command, on its own line
+#
+# A step that fails without a fix: line is an incomplete step.
+#
+# It also distinguishes BROKEN from NOT INSTALLED. `yard is not installed` and
+# `the docs are broken` are different problems with different fixes, and
+# conflating them costs a whole debugging loop.
+#
+#   bin/check                  run every step
+#   bin/check --only test      run one step (repeatable: --only rubocop --only test)
+#   bin/check --json           machine-readable summary on stdout, always valid JSON
+#   bin/check --list           print the step names and exit
+#   bin/check --help
+#
+# Exit status (sysexits-style, so "broken" and "not installed" are machine-
+# distinguishable without parsing a word of the output):
+#   0   every selected step passed
+#   1   at least one step FAILED — something in this repo is wrong
+#   64  bad usage (unknown flag, unknown step name)
+#   69  a step could not run because a tool is not installed — the environment
+#       is not set up. Nothing here is broken; run the install command it prints.
+
+require "json"
+require "open3"
+require "time"
+
+ROOT = File.expand_path("..", __dir__)
+Dir.chdir(ROOT)
+
+EXIT_OK = 0
+EXIT_FAILED = 1
+EXIT_USAGE = 64          # EX_USAGE
+EXIT_NOT_INSTALLED = 69  # EX_UNAVAILABLE
+
+# How much of a failing command's output to keep. Enough to diagnose, not enough
+# to bury the fix: line under a wall of text.
+EXCERPT_HEAD = 25
+EXCERPT_TAIL = 15
+
+# --- primitives ------------------------------------------------------------
+
+# True when this checkout has an installed bundle, so `bundle exec` will work.
+# Memoised: `bundle check` shells out and the answer cannot change mid-run.
+def bundled?
+  return @bundled unless @bundled.nil?
+
+  @bundled = File.exist?(File.join(ROOT, "Gemfile")) &&
+             system("bundle", "check", out: File::NULL, err: File::NULL)
+end
+
+# Prefix a command with `bundle exec` when the bundle is installed, so the
+# version of a tool the gemspec asks for is the version that runs.
+def bundled(*cmd)
+  bundled? ? ["bundle", "exec", *cmd] : cmd
+end
+
+def sh(*cmd)
+  out, status = Open3.capture2e(*cmd)
+  [status.success?, out, status.exitstatus]
+rescue Errno::ENOENT => e
+  [false, "#{e.class}: #{e.message}", nil]
+end
+
+# Is a tool runnable here? Asked by actually running it, because "on PATH" and
+# "installed in the bundle" are two different questions and this is the union.
+def tool?(name)
+  system(*bundled(name, "--version"), out: File::NULL, err: File::NULL) ||
+    system("which", name, out: File::NULL, err: File::NULL)
+end
+
+# Trim a long output to a head-and-tail excerpt.
+def excerpt(text)
+  lines = text.to_s.lines
+  return text.to_s.rstrip if lines.size <= EXCERPT_HEAD + EXCERPT_TAIL + 1
+
+  elided = lines.size - EXCERPT_HEAD - EXCERPT_TAIL
+  (lines.first(EXCERPT_HEAD) +
+    ["\n... #{elided} lines elided — rerun this one step to see all of it ...\n\n"] +
+    lines.last(EXCERPT_TAIL)).join.rstrip
+end
+
+# --- results ---------------------------------------------------------------
+#
+# Three statuses, not two. `missing` is an environment that has not been set up;
+# `fail` is code that is wrong. Both exit non-zero — a gate you cannot run is not
+# a gate you passed — but they read differently and they have different fixes.
+
+def pass(got, command: nil)
+  { status: "pass", reason: nil, expected: nil, got: got.to_s, command: command, exit_code: 0, fix: nil }
+end
+
+def fail_with(reason:, expected:, got:, fix:, command: nil, exit_code: nil)
+  { status: "fail", reason: reason, expected: expected, got: excerpt(got), command: command,
+    exit_code: exit_code, fix: fix }
+end
+
+# A tool that is not installed. `install:` is the command that gets it, and it is
+# the fix — never "fix your code".
+def missing_tool(name, install:, command: nil)
+  { status: "missing", reason: "tool_not_installed:#{name}",
+    expected: "`#{name}` runnable, either on PATH or in this checkout's bundle",
+    got: "`#{name}` is not installed. The bundle is #{bundled? ? "installed" : "NOT installed"} " \
+         "for this checkout (checked with `bundle check`).",
+    command: command, exit_code: nil, fix: install }
+end
+
+# The standard "ran a command, it exited non-zero" failure.
+def from_shell(success, out, code, reason:, expected:, fix:, command:)
+  return pass(out.to_s.lines.last(3).join.strip, command: command) if success
+
+  fail_with(reason: reason, expected: expected, got: out, fix: fix, command: command, exit_code: code)
+end
+
+Step = Struct.new(:name, :title, :command, :body, keyword_init: true)
+
+# `command` is a lambda so it can consult bundled? at announce time — the
+# announcement has to be the command that will actually run.
+STEPS = [
+  Step.new(
+    name: "rubocop",
+    title: "RuboCop — style and lint",
+    command: -> { bundled("rake", "rubocop").join(" ") },
+    body: lambda {
+      cmd = bundled("rake", "rubocop")
+      unless tool?("rubocop")
+        next missing_tool("rubocop", command: cmd.join(" "),
+                                     install: "bin/setup      # rubocop is a development dependency in the Gemfile")
+      end
+
+      from_shell(*sh(*cmd), command: cmd.join(" "),
+                            reason: "rubocop_offenses",
+                            expected: "no RuboCop offenses",
+                            fix: "bundle exec rubocop -a   # then read what it could not autocorrect")
+    }
+  ),
+
+  Step.new(
+    name: "test",
+    title: "Minitest — the unit suite",
+    command: -> { bundled("rake", "test").join(" ") },
+    body: lambda {
+      cmd = bundled("rake", "test")
+      from_shell(*sh(*cmd), command: cmd.join(" "),
+                            reason: "test_failures",
+                            expected: "every Minitest assertion passes, 0 failures and 0 errors",
+                            fix: "bundle exec rake test   # or one file: ruby -Ilib -Itest test/path/to/one_test.rb")
+    }
+  ),
+
+  Step.new(
+    name: "yard",
+    title: "YARD — docs build and documentation coverage",
+    command: -> { "#{bundled("rake", "yard").join(" ")} && #{bundled("yard", "stats", "--list-undoc").join(" ")}" },
+    body: lambda {
+      build_cmd = bundled("rake", "yard")
+      stats_cmd = bundled("yard", "stats", "--list-undoc")
+      unless tool?("yard")
+        next missing_tool("yard", command: build_cmd.join(" "),
+                                  install: "bin/setup      # yard is a development dependency in the Gemfile")
+      end
+
+      ok, out, code = sh(*build_cmd)
+      unless ok
+        next fail_with(reason: "yard_build_failed", command: build_cmd.join(" "), exit_code: code,
+                       expected: "`rake yard` renders the documentation without error",
+                       got: out, fix: "bundle exec rake yard   # read the YARD parse errors it prints")
+      end
+
+      stats_ok, stats, stats_code = sh(*stats_cmd)
+      unless stats_ok
+        next fail_with(reason: "yard_stats_failed", command: stats_cmd.join(" "), exit_code: stats_code,
+                       expected: "`yard stats` reports a coverage percentage",
+                       got: stats, fix: "bundle exec yard stats --list-undoc")
+      end
+
+      minimum = Float(ENV.fetch("MAGIK_YARD_MIN_COVERAGE", "100"))
+      measured = stats[/([\d.]+)% documented/, 1]
+      if measured.nil?
+        next fail_with(reason: "yard_coverage_unreadable", command: stats_cmd.join(" "), exit_code: 0,
+                       expected: "a line matching `NN% documented` in the output of `yard stats`",
+                       got: stats, fix: "bundle exec yard stats --list-undoc   # and check the YARD version")
+      end
+      if Float(measured) + 1e-9 < minimum
+        next fail_with(reason: "yard_coverage_below_floor", command: stats_cmd.join(" "), exit_code: 0,
+                       expected: "documentation coverage >= #{minimum}%",
+                       got: "measured #{measured}%\n\n#{stats}",
+                       fix: "bundle exec yard stats --list-undoc   # document what it lists, " \
+                            "or lower the floor with MAGIK_YARD_MIN_COVERAGE")
+      end
+
+      pass("#{measured}% documented (floor #{minimum}%)", command: stats_cmd.join(" "))
+    }
+  ),
+
+  Step.new(
+    name: "build",
+    title: "gem build — packaging smoke test",
+    command: -> { "gem build magik.gemspec" },
+    body: lambda {
+      unless File.exist?("magik.gemspec")
+        next fail_with(reason: "gemspec_missing", command: "gem build magik.gemspec", exit_code: nil,
+                       expected: "magik.gemspec at the repo root",
+                       got: "there is no magik.gemspec here (cwd: #{ROOT})",
+                       fix: "restore magik.gemspec — the gem cannot be packaged without it")
+      end
+
+      require "tmpdir"
+      Dir.mktmpdir("magik-gem-build") do |dir|
+        target = File.join(dir, "magik.gem")
+        cmd = bundled("gem", "build", "magik.gemspec", "--output", target)
+        ok, out, code = sh(*cmd)
+        unless ok
+          next fail_with(reason: "gem_build_failed", command: cmd.join(" "), exit_code: code,
+                         expected: "`gem build` packages magik.gemspec without error",
+                         got: out, fix: "gem build magik.gemspec   # read the errors and warnings it prints")
+        end
+        unless File.exist?(target)
+          next fail_with(reason: "gem_build_wrote_nothing", command: cmd.join(" "), exit_code: 0,
+                         expected: "a .gem file at #{target}",
+                         got: "gem build exited 0 but wrote no file.\n\n#{out}",
+                         fix: "gem build magik.gemspec   # check the gemspec's files list")
+        end
+
+        pass("packaged #{File.size(target)} bytes", command: cmd.join(" "))
+      end
+    }
+  ),
+
+  Step.new(
+    name: "cli",
+    title: "CLI smoke test — `magik version --json` from source",
+    command: -> { "ruby -Ilib exe/magik version --json" },
+    body: lambda {
+      cmd = ["ruby", "-Ilib", "exe/magik", "version", "--json"]
+      printed = cmd.join(" ")
+      ok, out, code = sh(*cmd)
+      unless ok
+        next fail_with(reason: "cli_nonzero_exit", command: printed, exit_code: code,
+                       expected: "exit status 0",
+                       got: out, fix: "ruby -Ilib exe/magik version --json   # then read lib/magik/cli.rb")
+      end
+
+      begin
+        data = JSON.parse(out)
+      rescue JSON::ParserError => e
+        next fail_with(reason: "cli_json_unparseable", command: printed, exit_code: 0,
+                       expected: "a single JSON object on stdout",
+                       got: "#{e.message}\n\nstdout was:\n#{out}",
+                       fix: "ruby -Ilib exe/magik version --json   # something is writing to stdout " \
+                            "that is not JSON")
+      end
+
+      missing = %w[name version status] - data.keys
+      unless missing.empty?
+        next fail_with(reason: "cli_json_missing_keys", command: printed, exit_code: 0,
+                       expected: "keys name, version, status in the JSON object",
+                       got: "missing: #{missing.join(", ")}\n\n#{out}",
+                       fix: "add the missing keys in Magik::CLI.version (lib/magik/cli.rb)")
+      end
+      unless data["name"] == "magik"
+        next fail_with(reason: "cli_json_wrong_name", command: printed, exit_code: 0,
+                       expected: %(name == "magik"),
+                       got: "name is #{data["name"].inspect}\n\n#{out}",
+                       fix: "fix the name field in Magik::CLI.version (lib/magik/cli.rb)")
+      end
+
+      pass("magik #{data["version"]} (#{data["status"]}) on #{data["ruby_engine"]} #{data["ruby"]}",
+           command: printed)
+    }
+  ),
+
+  Step.new(
+    name: "docs",
+    title: "docs — relative links in Markdown resolve to real files",
+    command: -> { "bin/check --only docs   # in-process Markdown link scan" },
+    body: lambda {
+      files = Dir.glob("**/*.md").reject { |f| f.start_with?("vendor/", "doc/", "node_modules/", "tmp/") }
+      broken = []
+      files.sort.each do |file|
+        body = File.read(file)
+        # Strip fenced code blocks: a link inside an example is illustration, not
+        # a promise that the path exists.
+        body = body.gsub(/^```.*?^```/m, "")
+        body.scan(/\[[^\]\n]*\]\(([^)\s]+)(?:\s+"[^"]*")?\)/).each do |(target)|
+          next if target.start_with?("http://", "https://", "mailto:", "#", "<")
+          next if target.include?("{") || target.include?("$")
+
+          path = target.split("#").first.to_s.split("?").first.to_s
+          next if path.empty?
+
+          resolved = path.start_with?("/") ? File.join(ROOT, path) : File.expand_path(path, File.dirname(file))
+          broken << "#{file}  ->  #{target}" unless File.exist?(resolved)
+        end
+      end
+
+      unless broken.empty?
+        next fail_with(reason: "broken_markdown_links", command: "bin/check --only docs", exit_code: nil,
+                       expected: "every relative Markdown link points at a file that exists",
+                       got: "#{broken.size} broken link(s):\n  #{broken.join("\n  ")}",
+                       fix: "fix the link target, or create the file it points at " \
+                            "(each line above is `source -> target`)")
+      end
+
+      pass("#{files.size} Markdown files scanned, every relative link resolves",
+           command: "bin/check --only docs")
+    }
+  )
+].freeze
+
+# --- argument parsing ------------------------------------------------------
+
+def usage
+  <<~TEXT
+    Usage: bin/check [--only STEP]... [--json] [--list] [--help]
+
+    The gate. Runs every step below, cheapest first, and exits non-zero if any fails.
+    Every failure prints the command it ran, what it expected, what it got, and a
+    runnable fix: line.
+
+    Steps:
+    #{STEPS.map { |s| "  #{s.name.ljust(8)}  #{s.title}" }.join("\n")}
+
+    Options:
+      --only STEP   Run only this step. Repeatable.
+      --json        Print a machine-readable summary to stdout. Always valid JSON,
+                    including when a step fails or crashes; the human narration
+                    goes to stderr so stdout stays one parseable document.
+      --list        Print the step names, one per line, and exit 0.
+      -h, --help    Show this message.
+
+    Exit status:
+      0   every selected step passed
+      1   at least one step FAILED — something in this repo is wrong
+      64  bad usage: unknown flag, or --only naming a step that does not exist
+      69  a step could not run because a tool is not installed. Nothing here is
+          broken — the environment is not set up. Run the install command printed.
+          (69 is only returned when nothing actually failed; a real failure wins.)
+
+    Step status values (in --json, and in the summary table):
+      pass      the step ran and was satisfied
+      FAIL      the step ran and was not satisfied — something here is wrong
+      MISSING   a tool the step needs is not installed — the environment is not
+                set up. Different problem, different fix; the fix: line is the
+                install command, not a code change.
+
+    Environment:
+      MAGIK_YARD_MIN_COVERAGE   Documentation-coverage floor for the yard step (default 100).
+      NO_COLOR                  Set to disable colour.
+
+    CI runs this same script. If it passes here it passes there.
+  TEXT
+end
+
+json = false
+only = []
+argv = ARGV.dup
+until argv.empty?
+  arg = argv.shift
+  case arg
+  when "--json" then json = true
+  when "--list" then puts(STEPS.map(&:name))
+                     exit 0
+  when "-h", "--help" then puts usage
+                           exit 0
+  when "--only"
+    value = argv.shift
+    if value.nil?
+      warn "bin/check: --only needs a step name (one of: #{STEPS.map(&:name).join(", ")})"
+      exit EXIT_USAGE
+    end
+    only << value
+  when /\A--only=(.+)\z/ then only << Regexp.last_match(1)
+  else
+    warn "bin/check: unknown argument #{arg.inspect}"
+    warn usage
+    exit EXIT_USAGE
+  end
+end
+
+unknown = only - STEPS.map(&:name)
+unless unknown.empty?
+  warn "bin/check: no such step: #{unknown.join(", ")}"
+  warn "  known steps: #{STEPS.map(&:name).join(", ")}"
+  warn "  fix: bin/check --list"
+  exit EXIT_USAGE
+end
+
+selected = only.empty? ? STEPS : STEPS.select { |s| only.include?(s.name) }
+
+# --- run -------------------------------------------------------------------
+
+LOG = json ? $stderr : $stdout
+COLOR = $stdout.tty? && $stderr.tty? && ENV["NO_COLOR"].nil?
+
+def paint(text, code)
+  COLOR ? "\e[#{code}m#{text}\e[0m" : text
+end
+
+def indent(text, prefix)
+  text.to_s.lines.map { |l| "#{prefix}#{l}" }.join.rstrip
+end
+
+# One step's verdict. A failure has to be readable without opening this file:
+# what it expected, what it got, and the fix on a line of its own.
+def report_outcome(outcome, elapsed)
+  case outcome[:status]
+  when "pass" then report_pass(outcome, elapsed)
+  when "missing" then report_missing(outcome, elapsed)
+  else report_failure(outcome, elapsed)
+  end
+  LOG.puts
+end
+
+def report_pass(outcome, elapsed)
+  LOG.puts paint("      pass", "32") + format(" (%.2fs) ", elapsed) + outcome[:got].to_s.lines.first.to_s.strip
+end
+
+# A tool that is not installed. The fix is an install command, never a change to
+# the repo — saying "FAIL" here sends the reader looking for a bug there is not.
+def report_missing(outcome, elapsed)
+  LOG.puts paint("      MISSING", "1;33") + format(" (%.2fs)", elapsed)
+  LOG.puts indent(outcome[:got], "        ")
+  LOG.puts
+  LOG.puts paint("        fix: #{outcome[:fix]}", "33")
+end
+
+def report_failure(outcome, elapsed)
+  exit_note = outcome[:exit_code] ? " exit #{outcome[:exit_code]}" : ""
+  LOG.puts paint("      FAIL", "1;31") + format(" (%.2fs)", elapsed) + exit_note
+  LOG.puts "        expected: #{outcome[:expected]}"
+  LOG.puts "        got:"
+  LOG.puts indent(outcome[:got], "          ")
+  LOG.puts
+  LOG.puts paint("        fix: #{outcome[:fix]}", "1;33")
+end
+
+results = []
+started = Time.now
+
+LOG.puts paint("== bin/check — #{selected.size} step#{"s" unless selected.size == 1}", "1")
+LOG.puts
+
+selected.each_with_index do |step, index|
+  # Announce BEFORE running. If the run hangs, the last line printed names the
+  # step and the command that is hanging.
+  LOG.puts paint("[#{index + 1}/#{selected.size}] #{step.name}: #{step.title}", "1;36")
+  LOG.puts paint("      $ #{step.command.call}", "2")
+  LOG.flush
+
+  step_started = Time.now
+  begin
+    outcome = step.body.call
+  rescue StandardError => e
+    # A step that crashes is still a step with a verdict. It must not take the
+    # report down with it — --json has to stay parseable through this path too.
+    outcome = {
+      status: "fail", reason: "step_crashed:#{e.class}", exit_code: nil, command: step.command.call,
+      expected: "the step to run to completion",
+      got: "#{e.class}: #{e.message}\n#{Array(e.backtrace).first(8).join("\n")}",
+      fix: "bin/check --only #{step.name}   # this is a bug in bin/check itself, not in your change"
+    }
+  end
+  elapsed = Time.now - step_started
+
+  report_outcome(outcome, elapsed)
+
+  results << {
+    name: step.name,
+    title: step.title,
+    status: outcome[:status],
+    duration_ms: (elapsed * 1000).round,
+    command: outcome[:command],
+    exit_code: outcome[:exit_code],
+    reason: outcome[:reason],
+    expected: outcome[:expected],
+    got: outcome[:got].to_s,
+    fix: outcome[:fix]
+  }
+end
+
+total = Time.now - started
+not_passed = results.reject { |r| r[:status] == "pass" }
+failed = results.select { |r| r[:status] == "fail" }
+missing = results.select { |r| r[:status] == "missing" }
+
+# --- summary ---------------------------------------------------------------
+
+width = [results.map { |r| r[:name].length }.max || 4, 4].max
+LOG.puts paint("== summary", "1")
+LOG.puts format("   %-7s  %-#{width}s  %-6s  %s", "result", "step", "time", "reason")
+LOG.puts "   #{"-" * 7}  #{"-" * width}  ------  ------"
+results.each do |r|
+  # Pad first, paint second: an escape sequence counts toward ljust's width and
+  # would knock the column out of line by exactly its own length.
+  label = { "pass" => paint("pass".ljust(7), "32"),
+            "missing" => paint("MISSING".ljust(7), "1;33") }.fetch(r[:status], paint("FAIL".ljust(7), "1;31"))
+  LOG.puts format("   %s  %-#{width}s  %5.2fs  %s", label, r[:name], r[:duration_ms] / 1000.0, r[:reason] || "")
+end
+LOG.puts
+
+if not_passed.empty?
+  LOG.puts paint("   ALL #{results.size} STEPS PASSED", "1;32") + format(" in %.2fs", total)
+else
+  parts = []
+  parts << "#{failed.size} failed" unless failed.empty?
+  parts << "#{missing.size} missing a tool" unless missing.empty?
+  LOG.puts paint("   NOT GREEN: #{parts.join(", ")}, of #{results.size} steps", "1;31") +
+           format(" in %.2fs", total)
+  LOG.puts
+  LOG.puts "   start here:"
+  LOG.puts "     #{not_passed.first[:name]}: #{not_passed.first[:fix]}"
+  LOG.puts "   then rerun just that step: bin/check --only #{not_passed.first[:name]}"
+end
+
+status_code =
+  if !failed.empty?
+    EXIT_FAILED
+  elsif !missing.empty?
+    EXIT_NOT_INSTALLED
+  else
+    EXIT_OK
+  end
+
+if json
+  first = not_passed.first
+  puts JSON.pretty_generate(
+    ok: not_passed.empty?,
+    exit_code: status_code,
+    ran_at: started.utc.iso8601,
+    duration_ms: (total * 1000).round,
+    ruby: RUBY_VERSION,
+    ruby_engine: RUBY_ENGINE,
+    bundle_installed: bundled?,
+    selected: selected.map(&:name),
+    failed: failed.map { |r| r[:name] },
+    missing_tools: missing.map { |r| r[:name] },
+    first_failure: first && { name: first[:name], status: first[:status], reason: first[:reason],
+                              fix: first[:fix], command: first[:command] },
+    steps: results
+  )
+end
+
+# A real failure outranks a missing tool: if both happened, the thing that is
+# broken is the more important answer.
+exit status_code

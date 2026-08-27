@@ -1,0 +1,111 @@
+# Magik app scaffold — template manifest
+#
+# The authoritative list of what `magik new` (planned, Phase 1) copies into a
+# generated application, and what `magik generate agents --update` (planned) is
+# allowed to do to each file afterwards. Four whitespace-separated columns:
+#
+#   <source>   <mode>   <destination>   <on-update>
+#
+# source        path relative to lib/magik/cli/templates/app/
+#
+# mode          erb                 render with ERB, write to <destination>
+#               copy                byte-for-byte copy to <destination>
+#               copy-exec           the same, written mode 0755 (bin/*)
+#               symlink:<target>    create <destination> as a relative symlink
+#                                   to <target>; if the platform refuses, write
+#                                   <source>'s contents there instead
+#               none                developer-facing. NEVER emitted into an app
+#
+# destination   path relative to the generated application root, or `-`
+#
+# on-update     what `magik generate agents --update` may do to an existing file
+#
+#               replace        framework-owned, no project content by
+#                              construction. Overwritten whole. Safe because a
+#                              user has no reason to edit it, and if they did,
+#                              the right home for that edit is CLAUDE.md
+#               merge-blocks   jointly owned. Only the bytes between
+#                              `magik:framework-block BEGIN/END` are rewritten;
+#                              `magik:project-block` is never touched. Missing
+#                              markers is a refusal, not a guess
+#               never          project-owned the moment it is written. The
+#                              updater does not read it, let alone write it
+#               -              not emitted, so not updatable
+#
+# A file present in this directory and absent from this table fails
+# test/magik/app_templates_test.rb. That is the point: the manifest is the
+# contract, not the directory listing.
+#
+# This set is the AI harness, the starter docs and the PROJECT TOOLING. The
+# tooling is static configuration that is correct today, so a Magik user never
+# configures a linter, a formatter, a task runner, a git hook or a CI workflow.
+#
+# Still deferred to Phase 1, because they need a DSL that does not exist yet:
+# config/app.rb, config/database.yml, config/environments/*, app/**, db/**,
+# locales/**, public/**. See README.md in this directory.
+#
+# A note on scripts/: the updater only ever touches files IT NAMES BELOW. A
+# helper you add at scripts/lib/<yours>.rb is not in this table and is therefore
+# never read, let alone written — which is how you extend the library without
+# giving up updates to the part the framework owns.
+
+README.md                              none               -                                     -
+MANIFEST                               none               -                                     -
+
+CLAUDE.md.erb                          erb                CLAUDE.md                             merge-blocks
+llms.txt.erb                           erb                llms.txt                              merge-blocks
+AGENTS.md.fallback                     symlink:CLAUDE.md  AGENTS.md                             replace
+README.md.erb                          erb                README.md                             never
+.env.example.erb                       erb                .env.example                          never
+
+.claude/README.md                      copy               .claude/README.md                     replace
+.claude/settings.json                  copy               .claude/settings.json                 replace
+
+.claude/agents/action-author.md        copy               .claude/agents/action-author.md       replace
+.claude/agents/data-modeler.md         copy               .claude/agents/data-modeler.md        replace
+.claude/agents/guardrail-reviewer.md   copy               .claude/agents/guardrail-reviewer.md  replace
+.claude/agents/ledger-author.md        copy               .claude/agents/ledger-author.md       replace
+.claude/agents/screen-builder.md       copy               .claude/agents/screen-builder.md      replace
+.claude/agents/test-writer.md          copy               .claude/agents/test-writer.md         replace
+
+.claude/commands/check.md              copy               .claude/commands/check.md             replace
+.claude/commands/feature.md            copy               .claude/commands/feature.md           replace
+.claude/commands/next.md               copy               .claude/commands/next.md              replace
+.claude/commands/screen.md             copy               .claude/commands/screen.md            replace
+.claude/commands/setup-project.md      copy               .claude/commands/setup-project.md     replace
+
+# --- project tooling --------------------------------------------------------
+
+.editorconfig                          copy               .editorconfig                         replace
+.gitattributes                         copy               .gitattributes                        replace
+.gitignore.erb                         erb                .gitignore                            merge-blocks
+.rubocop.yml.erb                       erb                .rubocop.yml                          never
+Gemfile.erb                            erb                Gemfile                               merge-blocks
+Rakefile.erb                           erb                Rakefile                              merge-blocks
+lefthook.yml.erb                       erb                lefthook.yml                          never
+.github/workflows/ci.yml.erb           erb                .github/workflows/ci.yml              never
+docker/compose.yml.erb                 erb                docker/compose.yml                    never
+
+# --- bin/ — the verbs a human or agent runs ---------------------------------
+
+bin/check                              copy-exec          bin/check                             replace
+bin/console                            copy-exec          bin/console                           replace
+bin/dev                                copy-exec          bin/dev                               replace
+bin/magik                              copy-exec          bin/magik                             replace
+bin/setup                              copy-exec          bin/setup                             replace
+bin/test                               copy-exec          bin/test                              replace
+
+# --- scripts/ — this team's own rules, as executable checks ------------------
+
+scripts/README.md                      copy               scripts/README.md                     replace
+scripts/lib/scripts.rb                 copy               scripts/lib/scripts.rb                replace
+scripts/checks/domain_boundaries.rb    copy               scripts/checks/domain_boundaries.rb   never
+scripts/checks/i18n_coverage.rb        copy               scripts/checks/i18n_coverage.rb       never
+scripts/checks/migration_safety.rb     copy               scripts/checks/migration_safety.rb    never
+
+# --- docs -------------------------------------------------------------------
+
+docs/ARCHITECTURE.md.erb               erb                docs/ARCHITECTURE.md                  never
+docs/FEATURE.md.erb                    erb                docs/FEATURE.md                       merge-blocks
+docs/PLAN.md.erb                       erb                docs/PLAN.md                          never
+docs/README.md.erb                     erb                docs/README.md                        never

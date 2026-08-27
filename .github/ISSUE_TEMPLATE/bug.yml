@@ -1,0 +1,123 @@
+name: 🐛 Bug
+description: Something the repository does today behaves differently from what it said it would.
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        ### Read this first — it will save you the report
+
+        **Magik is pre-alpha and spec-only.** As of 2026-08-26 the framework in
+        [`docs/idea/00-build-spec.md`](https://github.com/developerz-ai/magik/blob/main/docs/idea/00-build-spec.md)
+        is **entirely unimplemented**. `model`, `screen`, `action`, `channel`, `job`, `ledger`,
+        `api`, `auth`, `billing`, `admin_panel`, the router, the renderer — none of them exist.
+        Every subsystem under `lib/magik/` is a documented stub that raises `NotImplementedError`.
+
+        So **"feature X does not work" is not a bug here — it is the current state.** Those belong
+        in [Discussions](https://github.com/developerz-ai/magik/discussions) or against
+        [`ROADMAP.md`](https://github.com/developerz-ai/magik/blob/main/ROADMAP.md), and an issue
+        filed for one will be moved there.
+
+        What **is** a bug, and what this form is for:
+
+        - `magik version`, `magik help` or the gem itself misbehaving
+        - `gem install magik` failing, or the installed gem missing a file
+        - a stub raising something other than the documented `NotImplementedError`, or an error
+          carrying no `MAGIK_*` code
+        - a `MAGIK_*` error whose message, cause or `fix:` line is wrong or unrunnable
+        - the docs, the README or a YARD comment describing behaviour that does not match the code
+        - `bin/check`, `bin/setup` or CI failing on a clean checkout
+
+  - type: checkboxes
+    id: not-unimplemented
+    attributes:
+      label: Confirm
+      options:
+        - label: >-
+            This is not "an unimplemented feature does not work". I have read the note above and
+            checked ROADMAP.md.
+          required: true
+
+  - type: input
+    id: code
+    attributes:
+      label: Stable error code
+      description: >-
+        The `MAGIK_*` code from the failure, if one was raised. `none` if nothing was raised or the
+        failure carried no code (a missing code is itself worth reporting — say so).
+      placeholder: MAGIK_UNKNOWN_COMMAND
+    validations:
+      required: true
+
+  - type: textarea
+    id: output
+    attributes:
+      label: The failure, verbatim
+      description: >-
+        Paste the whole thing — the error, the backtrace, the command that produced it. Do not
+        summarise it; a paraphrased error message is a different error message.
+      render: shell
+    validations:
+      required: true
+
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: Minimal reproduction
+      description: >-
+        The shortest sequence that shows it, starting from a state anyone can get to. If it needs a
+        file, inline the file. "It happens in my app" is not reproducible; the smallest snippet
+        that still fails is.
+      value: |
+        1. gem install magik
+        2. magik ...
+        3. observe:
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: What you expected instead, and what told you to expect it
+      description: >-
+        Name the source — a README line, a YARD comment, a `fix:` line, a spec section. A bug is a
+        gap between a promise and the code, so the promise is half the report.
+    validations:
+      required: true
+
+  - type: dropdown
+    id: engine
+    attributes:
+      label: Ruby engine
+      description: >-
+        TruffleRuby is Magik's production runtime target; CRuby >= 3.2 is supported for tooling and
+        development. Which one you are on decides where the bug can even live, so it is asked
+        separately from the version.
+      options:
+        - CRuby (MRI)
+        - TruffleRuby
+        - JRuby or something else (say which below)
+    validations:
+      required: true
+
+  - type: textarea
+    id: version
+    attributes:
+      label: Output of `magik version --json`
+      description: >-
+        Paste it unedited — it carries the gem version, the engine and the interpreter version, and
+        the `status` field says which release you are on. If the gem will not install or will not
+        run, say that here instead and paste `ruby -v` and `gem --version`.
+      render: json
+      placeholder: |
+        {"name":"magik","version":"0.0.1","status":"spec only","ruby":"3.2.3","ruby_engine":"ruby"}
+    validations:
+      required: true
+
+  - type: input
+    id: os
+    attributes:
+      label: Operating system
+      placeholder: Ubuntu 24.04, macOS 15.3 (arm64), Windows 11 + WSL2
+    validations:
+      required: true

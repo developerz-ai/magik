@@ -1,0 +1,153 @@
+# RuboCop configuration for the magik gem.
+#
+# Run: `bundle exec rubocop` (or `rake rubocop`). `rake check` runs it as part
+# of the full gate. Autocorrect with `bundle exec rubocop -a`.
+
+plugins:
+  - rubocop-minitest
+  - rubocop-performance
+  - rubocop-rake
+
+AllCops:
+  TargetRubyVersion: 3.2
+  NewCops: enable
+  DisplayCopNames: true
+  DisplayStyleGuide: true
+  SuggestExtensions: false
+  Exclude:
+    - "vendor/**/*"
+    - "doc/**/*"
+    - "pkg/**/*"
+    - "tmp/**/*"
+    - "node_modules/**/*"
+    # ERB source rendered into a *generated app*, not code in this repo: app-shaped
+    # bin/ scripts, .erb templates with interpolation holes, and a rubocop.yml that
+    # apps inherit. Holding another repository's source to this repo's style is wrong.
+    - "lib/magik/cli/templates/**/*"
+    # The reference application. Aspirational DSL for a framework that does not
+    # exist yet (see dummy/README.md): it parses, and that is the only property
+    # it has. Linting it means holding an unimplemented language to a style
+    # guide written for Ruby — every `model :Invoice do ... end` is a design
+    # document to a reader and a Metrics/BlockLength offence to a cop. Delete
+    # this line the day the framework can execute the directory.
+    - "dummy/**/*"
+
+# --- Style -------------------------------------------------------------------
+
+# Every public module, class and constant carries a YARD doc block. That is the
+# entire point of the spec-only stubs, so this cop stays on for library code.
+# The generated dummy app and the tests are example/verification code and are
+# documented by the prose around them.
+Style/Documentation:
+  Enabled: true
+  Exclude:
+    - "dummy/**/*"
+    - "test/**/*"
+
+Style/StringLiterals:
+  EnforcedStyle: double_quotes
+
+Style/StringLiteralsInInterpolation:
+  EnforcedStyle: double_quotes
+
+Style/TrailingCommaInArguments:
+  EnforcedStyleForMultiline: no_comma
+
+Style/TrailingCommaInArrayLiteral:
+  EnforcedStyleForMultiline: no_comma
+
+Style/TrailingCommaInHashLiteral:
+  EnforcedStyleForMultiline: no_comma
+
+Style/FrozenStringLiteralComment:
+  Enabled: true
+  EnforcedStyle: always
+
+# --- Layout ------------------------------------------------------------------
+
+Layout/LineLength:
+  Max: 120
+  AllowedPatterns:
+    - "^\\s*#" # spec quotes in doc comments stay verbatim
+
+Layout/EmptyLineAfterGuardClause:
+  Enabled: true
+
+# --- Metrics -----------------------------------------------------------------
+#
+# Magik is DSL-heavy: declaration blocks and dispatch tables are wide by nature.
+# These limits are generous but finite — they exist to catch a method that has
+# quietly become a program, not to police a DSL.
+
+# bin/* are developer CLI scripts, not library code: their reporting methods are
+# long because they format a summary table, and splitting them for a metric would
+# make them harder to read, not easier. Library code under lib/ keeps the limits.
+Metrics/AbcSize:
+  Max: 25
+  Exclude:
+    - "test/**/*"
+    - "bin/**/*"
+
+Metrics/ClassLength:
+  Max: 200
+  Exclude:
+    - "test/**/*"
+    - "bin/**/*"
+
+Metrics/CyclomaticComplexity:
+  Max: 12
+
+Metrics/MethodLength:
+  Max: 30
+  Exclude:
+    - "test/**/*"
+    - "bin/**/*"
+
+Metrics/ModuleLength:
+  Max: 250
+  Exclude:
+    - "test/**/*"
+    - "bin/**/*"
+
+Metrics/ParameterLists:
+  Max: 6
+  CountKeywordArgs: false
+
+Metrics/PerceivedComplexity:
+  Max: 12
+
+# Test files and gemspec/Rakefile blocks are declarative; block length is not a
+# useful signal there.
+Metrics/BlockLength:
+  CountAsOne:
+    - array
+    - hash
+    - heredoc
+  Exclude:
+    - "*.gemspec"
+    - "Rakefile"
+    - "test/**/*"
+    - "dummy/**/*"
+    - "bin/**/*"
+
+# --- Naming ------------------------------------------------------------------
+
+Naming/FileName:
+  Exclude:
+    - "exe/magik"
+
+# --- Minitest ----------------------------------------------------------------
+
+Minitest/MultipleAssertions:
+  Max: 12
+
+# Test code is read far more often than it is run, and both of these trade
+# readability for a micro-optimisation that cannot matter in a suite that
+# finishes in under a second. Library code under lib/ keeps both cops.
+Performance/CollectionLiteralInLoop:
+  Exclude:
+    - "test/**/*"
+
+Style/SpecialGlobalVars:
+  Exclude:
+    - "test/**/*"

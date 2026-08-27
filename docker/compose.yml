@@ -1,0 +1,97 @@
+# Magik — local development services.
+#
+#   docker compose -f docker/compose.yml up -d                 Postgres only (the default)
+#   docker compose -f docker/compose.yml --profile swap up -d  Postgres + Redis
+#
+# NOTHING IN MAGIK CONNECTS TO THESE YET. As of 2026-08-26 the framework is spec
+# only: there is no boot process and no database code. This file exists so that
+# the local topology the spec assumes is written down, runnable and reviewable
+# from the start — and so `bin/setup --services` has something to start.
+#
+# Why Postgres is the only service in the default profile: per the build spec it
+# is three things at once, not one. It is the database (Sequel, UUIDv7 primary
+# keys), the realtime transport (LISTEN/NOTIFY, spec Phase 3) and the job queue
+# (a transactional Que-style queue, spec Phase 4). A single-container local
+# stack is therefore the whole default stack, not a cut-down one.
+#
+# Redis sits behind the `swap` profile because it is the documented ALTERNATIVE
+# for the cache, realtime and job backends (MAGIK_*_BACKEND in .env.example),
+# never the default. It costs nothing until you ask for it.
+
+name: magik
+
+services:
+  postgres:
+    image: postgres:17-alpine
+    container_name: magik-postgres
+    restart: unless-stopped
+    environment:
+      # These match the DATABASE_URL default in .env.example:
+      #   postgres://magik:magik@localhost:5432/magik_development
+      POSTGRES_USER: ${POSTGRES_USER:-magik}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-magik}
+      POSTGRES_DB: ${POSTGRES_DB:-magik_development}
+      # Deterministic collation, so an ORDER BY here sorts the same as one in
+      # CI and in production. The default locale is whatever the image's host
+      # happened to have.
+      POSTGRES_INITDB_ARGS: "--encoding=UTF8 --locale=C"
+    ports:
+      # Bound to loopback on purpose. `5432:5432` publishes the database on
+      # every interface, which on a laptop on a shared network means a Postgres
+      # with the password `magik` is reachable from that network.
+      - "127.0.0.1:${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      # `pg_isready` answers "is the socket accepting connections", which is
+      # true several seconds before the first-boot initdb has finished. Naming
+      # the user and database makes it answer the question we actually have.
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-magik} -d ${POSTGRES_DB:-magik_development}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+    command:
+      # LISTEN/NOTIFY is the default realtime transport and the queue is
+      # transactional, so both live on ordinary connections. 200 is generous for
+      # a laptop and cheap; the point is that a fiber-per-request server opens
+      # more connections than the default 100 long before it is under load.
+      - postgres
+      - -c
+      - max_connections=200
+
+  redis:
+    # SWAP POINT, not a default. Started only with:
+    #   docker compose -f docker/compose.yml --profile swap up -d
+    # and read only when MAGIK_CACHE_BACKEND / MAGIK_JOBS_BACKEND /
+    # MAGIK_REALTIME_BACKEND are switched to redis in .env.
+    profiles: ["swap"]
+    image: redis:7-alpine
+    container_name: magik-redis
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:${REDIS_PORT:-6379}:6379"
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+      start_period: 5s
+    command:
+      # appendonly so a `docker compose restart` does not silently empty a queue
+      # you were mid-way through debugging.
+      - redis-server
+      - --appendonly
+      - "yes"
+
+volumes:
+  # Named, not bind-mounted: a bind mount into the repo puts Postgres's data
+  # directory inside the working tree, where a `git clean -xdf` deletes it and
+  # SELinux/macOS file sharing make it slow. Remove it deliberately with
+  # `docker compose -f docker/compose.yml down -v`.
+  postgres-data:
+    name: magik-postgres-data
+  redis-data:
+    name: magik-redis-data

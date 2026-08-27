@@ -1,0 +1,233 @@
+#!/usr/bin/env ruby
+# frozen_string_literal: true
+
+# bin/release — the release pre-flight.
+#
+# It PRINTS. That is the whole job. It does not tag, it does not push, it does
+# not run `gem push`, and it never will: a release is a deliberate human act,
+# and a script that performs one on your behalf is a script that performs one by
+# accident. What it does is check the three things that are always out of sync
+# — lib/magik/version.rb, the git tag, and CHANGELOG.md — and then hand you the
+# exact commands to paste, in order.
+#
+# The authoritative procedure is PUBLISHING.md. This script is the fast check
+# that you are ready to follow it.
+#
+#   bin/release            check, then print the commands
+#   bin/release --json     the same verdicts as data
+#   bin/release --help
+#
+# Exit status: 0 when every check passed, 1 otherwise.
+
+require "json"
+
+ROOT = File.expand_path("..", __dir__)
+Dir.chdir(ROOT)
+
+if ARGV.include?("-h") || ARGV.include?("--help")
+  puts <<~TEXT
+    Usage: bin/release [--json] [--help]
+
+    Release pre-flight. Verifies that:
+
+      * the working tree is clean (nothing uncommitted, nothing untracked)
+      * you are on the default branch and in sync with the remote
+      * Magik::VERSION is a well-formed semantic version
+      * CHANGELOG.md has an entry for that exact version
+      * no git tag for that version exists yet (a released version is never re-cut)
+      * bin/check passes
+
+    Then it prints the commands to cut the release. It runs none of them.
+    It never tags, never pushes and never publishes. The work is done by three
+    single-purpose scripts, so that each irreversible step is a separate,
+    deliberate keystroke:
+
+      bin/gem-build    package pkg/magik-<version>.gem   (offline, repeatable)
+      bin/gem-login    cache a rubygems.org key          (once per machine)
+      bin/gem-push     publish                           (irreversible)
+
+    See PUBLISHING.md for the authoritative procedure and for who is allowed to
+    run the last one.
+
+    Options:
+      --json      Print the verdicts as JSON instead of prose.
+      -h, --help  Show this message.
+
+    Exit status:
+      0   every check passed — you are clear to follow the printed commands
+      1   at least one check failed; nothing was done
+      64  bad usage
+  TEXT
+  exit 0
+end
+
+json_mode = ARGV.include?("--json")
+unknown = ARGV - ["--json"]
+unless unknown.empty?
+  warn "bin/release: unknown argument #{unknown.first.inspect} (try --help)"
+  exit 64
+end
+
+def capture(*cmd)
+  require "open3"
+  out, status = Open3.capture2e(*cmd)
+  [status.success?, out.strip]
+end
+
+CHECKS = [] # rubocop:disable Style/MutableConstant -- appended to by check() below.freeze
+
+# `ok:` nil means "could not determine" — reported as a warning, not a pass.
+def check(name, passed, detail, fix: nil)
+  CHECKS << { name: name, status: passed ? "pass" : "fail", detail: detail, fix: fix }
+  passed
+end
+
+# --- version ---------------------------------------------------------------
+
+version_file = "lib/magik/version.rb"
+version =
+  (File.read(version_file)[/VERSION\s*=\s*["']([^"']+)["']/, 1] if File.exist?(version_file))
+
+check(
+  "version",
+  !version.nil? && version.match?(/\A\d+\.\d+\.\d+(?:\.[A-Za-z0-9.]+)?\z/),
+  version ? "Magik::VERSION is #{version}" : "could not read VERSION out of #{version_file}",
+  fix: "set VERSION to a MAJOR.MINOR.PATCH string in #{version_file}"
+)
+
+# Every later check needs a version to talk about. Without one there is nothing
+# coherent left to say.
+if version.nil?
+  puts JSON.pretty_generate(ok: false, version: nil, checks: CHECKS) if json_mode
+  unless json_mode
+    warn "MAGIK_NO_VERSION: #{version_file} does not define Magik::VERSION"
+    warn "  fix: set VERSION to a MAJOR.MINOR.PATCH string in #{version_file}"
+  end
+  exit 1
+end
+
+tag = "v#{version}"
+
+# --- working tree ----------------------------------------------------------
+
+in_git, = capture("git", "rev-parse", "--git-dir")
+if in_git
+  _, dirty = capture("git", "status", "--porcelain")
+  listing = dirty.lines.map(&:rstrip).join("\n    ")
+  check(
+    "clean-tree",
+    dirty.empty?,
+    dirty.empty? ? "working tree is clean" : "uncommitted or untracked files:\n    #{listing}",
+    fix: "commit them, or `git stash -u`, then re-run bin/release"
+  )
+
+  # `--show-current` rather than `rev-parse --abbrev-ref HEAD`: the latter dies
+  # with "ambiguous argument 'HEAD'" on a branch with no commits yet, and prints
+  # that fatal onto the branch name.
+  _, branch = capture("git", "branch", "--show-current")
+  check(
+    "branch",
+    branch == "main",
+    "on branch #{branch}",
+    fix: "git switch main   # releases are cut from main"
+  )
+
+  has_upstream, upstream = capture("git", "rev-parse", "--abbrev-ref", "--symbolic-full-name", "@{u}")
+  if has_upstream
+    _, counts = capture("git", "rev-list", "--left-right", "--count", "HEAD...@{u}")
+    ahead, behind = counts.split(/\s+/).map(&:to_i)
+    check(
+      "in-sync",
+      behind.to_i.zero?,
+      "#{ahead} ahead / #{behind} behind #{upstream}",
+      fix: "git pull --ff-only"
+    )
+  else
+    check("in-sync", false, "the current branch has no upstream", fix: "git push -u origin #{branch}")
+  end
+
+  _, tags = capture("git", "tag", "--list", tag)
+  check(
+    "tag-free",
+    tags.empty?,
+    tags.empty? ? "no #{tag} tag yet — this version has not been cut" : "#{tag} already exists",
+    fix: "bump VERSION in #{version_file}: a published version is never re-cut"
+  )
+else
+  check("clean-tree", false, "not a git repository", fix: "run this from a checkout of developerz-ai/magik")
+end
+
+# --- changelog -------------------------------------------------------------
+
+changelog = "CHANGELOG.md"
+if File.exist?(changelog)
+  body = File.read(changelog)
+  # Keep a Changelog style: `## [0.0.1] - 2026-08-26`, or a bare `## 0.0.1`.
+  found = body.match?(/^##\s*\[?#{Regexp.escape(version)}\]?\b/)
+  check(
+    "changelog",
+    found,
+    found ? "#{changelog} has a section for #{version}" : "#{changelog} has no `## #{version}` section",
+    fix: "add a `## [#{version}] - #{Time.now.strftime("%Y-%m-%d")}` section to #{changelog}"
+  )
+else
+  check("changelog", false, "#{changelog} does not exist", fix: "create #{changelog}")
+end
+
+# --- the gate --------------------------------------------------------------
+
+gate_ok, gate_out = capture("./bin/check")
+check(
+  "gate",
+  gate_ok,
+  gate_ok ? "bin/check passed" : "bin/check failed:\n    #{gate_out.lines.last(12).map(&:rstrip).join("\n    ")}",
+  fix: "bin/check   # fix what it reports, then re-run bin/release"
+)
+
+failed = CHECKS.reject { |c| c[:status] == "pass" }
+
+# --- report ----------------------------------------------------------------
+
+if json_mode
+  puts JSON.pretty_generate(ok: failed.empty?, version: version, tag: tag, checks: CHECKS)
+  exit(failed.empty? ? 0 : 1)
+end
+
+puts "== bin/release — pre-flight for magik #{version} (#{tag})"
+puts
+width = CHECKS.map { |c| c[:name].length }.max
+CHECKS.each do |c|
+  puts format("   %-6s  %-#{width}s  %s", c[:status] == "pass" ? "pass" : "FAIL", c[:name],
+              c[:detail].lines.first.to_s.rstrip)
+  c[:detail].lines.drop(1).each { |l| puts "                #{l.rstrip}" }
+  puts "           fix: #{c[:fix]}" if c[:status] != "pass" && c[:fix]
+end
+puts
+
+unless failed.empty?
+  puts "NOT READY: #{failed.size} check#{"s" unless failed.size == 1} failed. Fix them, then re-run bin/release."
+  puts "The full procedure — including who may publish — is in PUBLISHING.md."
+  exit 1
+end
+
+puts "READY. bin/release runs none of these. Read PUBLISHING.md, then paste them yourself:"
+puts <<~COMMANDS
+
+  # 1. package the artifact — offline, repeatable, safe to redo
+  bin/gem-build
+
+  # 2. cache a rubygems.org API key, if this machine has never published
+  bin/gem-login
+
+  # 3. publish. IRREVERSIBLE: #{version} can be yanked but never replaced.
+  #    Pass an OTP as the argument if you do not want the prompt.
+  bin/gem-push
+
+  # 4. tag the commit that was published, and push the tag
+  git tag -a #{tag} -m "magik #{version}"
+  git push origin #{tag}
+
+COMMANDS
+puts "PUBLISHING.md is the authority on the order of 3 and 4, and on whether CI"
+puts "publishes for you. Do not run a command because a script printed it."
+exit 0
