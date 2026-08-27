@@ -53,10 +53,11 @@ block that configures four subsystems — see
 
 ## Layout and commands
 
-Tests mirror the source: `lib/magik/<subsystem>/x.rb` → `test/magik/<subsystem>/x_test.rb`.
+Tests mirror the source, one file to one file — `lib/magik/ledger/entry.rb` →
+`test/magik/ledger/entry_test.rb`.
 
 ```bash
-rake test TEST=test/magik/<subsystem>/x_test.rb   # yours, while iterating
+rake test TEST=test/magik/ledger/entry_test.rb   # yours, while iterating
 bin/check                                          # the gate, before you report
 ```
 
