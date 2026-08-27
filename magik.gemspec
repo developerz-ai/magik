@@ -98,8 +98,23 @@ Gem::Specification.new do |spec|
   # Editing wiki/ without cutting a version leaves every installed gem reading
   # the old page, which is the trade for never reading a page that does not
   # match the code.
+  #
+  # `defined?` rather than a bare constant, and this is not defensive noise:
+  # Dependabot evaluates this gemspec with every `require` REWRITTEN AWAY. Its
+  # Bundler sanitizer replaces `require` and `require_relative` calls with `nil`
+  # before it evals the file, so `require "magik/docs"` above never runs there
+  # and the reference below raised `uninitialized constant Magik` — which is
+  # what turned every Dependabot update on this repo into
+  # `dependency_file_not_evaluatable`. Guarded rather than inlined: the glob
+  # list has exactly one home, lib/magik/docs.rb, and a second copy here is a
+  # second thing to keep in sync. The fallback packages no documentation, which
+  # is only ever reached by a dependency resolver reading spec.files it will
+  # never install — and a real build that somehow took this branch goes red in
+  # test/magik/docs_test.rb, which loads THIS file and asserts every catalogued
+  # page is in spec.files.
   gemspec_dir = __dir__
-  packaged_globs = %w[exe/** lib/**/* sig/**/* README.md LICENSE CHANGELOG.md] + Magik::Docs::PACKAGED_GLOBS
+  doc_globs = defined?(Magik::Docs) ? Magik::Docs::PACKAGED_GLOBS : []
+  packaged_globs = %w[exe/** lib/**/* sig/**/* README.md LICENSE CHANGELOG.md] + doc_globs
   candidates = Dir.glob(packaged_globs, File::FNM_DOTMATCH, base: gemspec_dir)
 
   # `git ls-files` is authoritative when the gem is built from a checkout: it

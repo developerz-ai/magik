@@ -27,11 +27,19 @@ failing gate and never a lint you claim to have run.
 
 | Path | Is | Triggered by |
 |---|---|---|
-| `settings.json` | permissions + a silent post-edit `rubocop -a` hook | the harness |
 | `agents/*.md` | role specialists | delegation from the main agent |
 | `commands/*.md` | canned workflows | `/name` typed by the user |
 
-`settings.local.json` is per-developer and gitignored. Never commit one.
+**There is no committed `settings.json` here, on purpose.** Permission allowlists and post-edit
+hooks are one operator's tolerance and one machine's tooling, so they stay untracked
+(`.gitignore`). Nothing in this repo may depend on one existing: the lint runs because
+`bin/check` runs `rake rubocop`, not because a hook auto-fixed the file, and publishing is guarded
+by [`PUBLISHING.md`](../PUBLISHING.md) and `bin/release`, not by a deny rule. Write your own
+`settings.json` or `settings.local.json` if you want one; never commit either.
+
+Not to be confused with [`lib/magik/cli/templates/app/.claude/settings.json`](../lib/magik/cli/templates/app/.claude/README.md),
+which **is** committed — it is a template `magik new` will render into somebody else's app, and it
+is a product artifact, not this repo's configuration.
 
 ## Two audiences — do not conflate them
 
@@ -71,6 +79,8 @@ invoicing/billing SaaS.
 | Command | Does |
 |---|---|
 | [`/next-task`](commands/next-task.md) | one task, with the reason and the first command |
+| [`/planx`](commands/planx.md) | a multi-file execution plan another agent runs cold |
+| [`/feature`](commands/feature.md) | one request, idea → merged: explore, slice, hive, gate, PR |
 | [`/implement-phase`](commands/implement-phase.md) | a whole delivery phase: plan, fan out, land it green |
 | [`/new-dsl`](commands/new-dsl.md) | one construct, all nine steps, design → CHANGELOG |
 | [`/check`](commands/check.md) | `bin/check`, and triage each failure to a file and a fix |
@@ -80,8 +90,12 @@ invoicing/billing SaaS.
 
 ## The workflow
 
-`/next-task` → `/implement-phase N` (or `/new-dsl <construct>` for a single construct) → `/check`
-until green → `/dummy-app` to prove it in an app → `/spec-audit` before anyone believes a doc.
+`/next-task` → `/implement-phase N` (or `/new-dsl <construct>` for one construct, `/feature` for
+work that arrives as a request rather than as a phase) → `/check` until green → `/dummy-app` to prove
+it in an app → `/spec-audit` before anyone believes a doc. `/planx` writes the plan when the work is
+big enough that an executor should start from a map instead of from this conversation; it writes to
+`.claude/plans/`, never `docs/` — `Magik::Docs::PACKAGED_GLOBS` packages `docs/**/*.md` into the gem,
+so a plan written there would ship to every app builder and appear in `magik docs list`.
 
 ## Rules every agent here inherits
 
@@ -101,5 +115,8 @@ until green → `/dummy-app` to prove it in an app → `/spec-audit` before anyo
 
 ## Budgets
 
-Agent ≤ 90 lines · command ≤ 60 (`/implement-phase` is the justified exception) · this file ≤ 110.
+Agent ≤ 90 lines · command ≤ 60 · this file ≤ 130. Three commands are over budget and each says why
+it earns it: `/implement-phase` (87) spans a whole phase, `/planx` (106) carries the file shapes it
+tells you to write, `/feature` (203) carries the hive rules — the four-agent cap, the file lock, the
+brief contents — which exist nowhere else and are the part a run goes wrong without.
 Compress prose; never compress a path, a command or an error code.

@@ -9,8 +9,9 @@ allowed-tools: Read, Bash, Glob, Grep
 ## Version
 $ARGUMENTS
 
-**You never publish.** No `gem push`, no `gem signin`, no `git push --tags`, no `bin/release`. Those
-are denied in [`.claude/settings.json`](../settings.json) on purpose. You verify, you stage, you
+**You never publish.** No `gem push`, no `gem signin`, no `git push --tags`, no `bin/release`. That
+is a rule of this command, not a permission setting you can look up — this repo commits no
+`.claude/settings.json`, so nothing external will stop you. You verify, you stage, you
 report — the owner runs the publishing step from
 [`PUBLISHING.md`](../../PUBLISHING.md), which is the authority. If this file and `PUBLISHING.md`
 disagree, `PUBLISHING.md` wins and you say so.

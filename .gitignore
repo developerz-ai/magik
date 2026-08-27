@@ -106,8 +106,23 @@ dummy/node_modules/
 .DS_Store
 Thumbs.db
 
-# Claude Code local state
+# Claude Code local state. What IS committed under .claude/ is the harness — the
+# README, the agents and the commands, which are the repo's workflow and belong
+# in review like any other instruction file. Everything below is per-operator or
+# per-session and belongs to nobody but the machine it was written on.
+#
+# settings.json is ignored deliberately, not by oversight: it is a permission
+# allowlist and a post-edit hook, so it encodes one operator's tolerance for
+# what runs without a prompt and one machine's tooling. Committing it hands
+# every contributor those choices silently, and the file is edited by the
+# harness itself — it arrives in `git status` as noise nobody asked for. The
+# things it used to assert that the repo actually depends on are asserted where
+# they cannot be skipped instead: `rake rubocop` in bin/check rather than an
+# auto-fix hook, and PUBLISHING.md's guarded bin/release rather than a deny
+# rule. Operators who want their own keep it here, untracked.
+.claude/settings.json
 .claude/settings.local.json
+.claude/scheduled_tasks.lock
 .claude/.local/
 .claude/worktrees/
 

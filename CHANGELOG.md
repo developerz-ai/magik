@@ -46,7 +46,24 @@ the repository being brought back into agreement with it.
   generated signup form throttling without revealing whether an account exists. It exists because the
   three criteria above it can all be true of an application that is insecure and unusable.
 
+- **`/planx` and `/feature`, two agent commands** ([`.claude/commands/`](.claude/README.md)).
+  `/planx` writes a multi-file execution plan another agent runs cold — `overview.md`, one file per
+  separable slice, and a `status.yml` tracker — into `.claude/plans/`, not `docs/`, because
+  `Magik::Docs::PACKAGED_GLOBS` packages `docs/**/*.md` into the gem and a plan there would ship to
+  every app builder. `/feature` takes one request from plain language to merged, and carries the
+  rules a parallel run goes wrong without: at most four live agents, one checkout and never a
+  worktree, the file set as the only lock, and `bin/check` run by the coordinator alone. Both are
+  adapted from the TypeScript sibling's harness; neither claims any framework behaviour.
+
 ### Changed
+
+- **`.claude/settings.json` is no longer committed**, and is now ignored. It is a permission
+  allowlist and a post-edit hook — one operator's tolerance for what runs unprompted and one
+  machine's tooling — so committing it handed every contributor those choices silently. Nothing in
+  the repo depended on it: the lint runs because `bin/check` runs `rake rubocop`, and publishing is
+  guarded by [`PUBLISHING.md`](PUBLISHING.md) and `bin/release`, not by a deny rule. The template
+  `magik new` will render into a generated app, `lib/magik/cli/templates/app/.claude/settings.json`,
+  is unaffected — that one is a product artifact and stays.
 
 - **The server is Rack + Puma, thread-per-request — not Falcon.** TruffleRuby's threads are genuinely
   parallel and it implements no fiber scheduler and no `fork`, which makes thread-per-request the
@@ -152,6 +169,19 @@ the repository being brought back into agreement with it.
   [`wiki/Error-Codes.md`](wiki/Error-Codes.md) or `docs/idea/03-guardrails.md`, which an app author
   reads and can never reach.
 
+### Fixed
+
+- **`magik.gemspec` evaluates when its `require` lines are stripped.** Dependabot's Bundler
+  sanitizer rewrites `require` calls to `nil` before evaluating a gemspec, so `Magik::Docs` was
+  undefined and every dependency update failed with `dependency_file_not_evaluatable`. The
+  documentation globs are now read through `defined?(Magik::Docs)`, keeping their single home in
+  [`lib/magik/docs.rb`](lib/magik/docs.rb); a real build still packages them, and
+  [`test/magik/docs_test.rb`](test/magik/docs_test.rb) fails if it ever stops.
+- **GitHub Pages is enabled**, so [`.github/workflows/docs.yml`](.github/workflows/docs.yml) no
+  longer fails at `actions/configure-pages` with a 404. That was the one-time human setup step the
+  workflow's own comment names, and the URL it serves is the `documentation_uri` the gemspec has
+  advertised since `0.0.1`.
+
 ### Notes
 
 - **Nothing in this release is a measurement of Magik.** The only numbers anywhere in the repository
@@ -163,6 +193,7 @@ the repository being brought back into agreement with it.
   `ruby scripts/checks/error_codes.rb`. **Do not** grep `lib/` for the pattern: it returns eleven,
   because it also matches the `MAGIK_DOCS_ROOT` environment variable and two code names that appear
   only inside YARD examples. That over-count is the reason the manifest exists.
+
 
 ## [0.0.1] - 2026-08-26
 
