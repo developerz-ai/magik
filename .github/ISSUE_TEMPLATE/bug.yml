@@ -20,7 +20,7 @@ body:
 
         What **is** a bug, and what this form is for:
 
-        - `magik version`, `magik help` or the gem itself misbehaving
+        - `magik version`, `magik help`, `magik docs` or the gem itself misbehaving
         - `gem install magik` failing, or the installed gem missing a file
         - a stub raising something other than the documented `NotImplementedError`, or an error
           carrying no `MAGIK_*` code

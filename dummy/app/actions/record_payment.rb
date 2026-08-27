@@ -9,13 +9,26 @@
 #
 # The money path. Called from two places that must behave identically: the
 # modal in app/screens/invoices.rb, and the Stripe webhook in
-# app/api/webhooks.rb. One action, one set of invariants, two callers — which is
+# app/webhooks/stripe_incoming.rb. One action, one set of invariants, two callers — which is
 # why the invariants are here and not in either caller.
 #
-# Demonstrates: idempotent_by against an external key, a double-entry ledger
-# post (Phase 5), a state transition, and a broadcast.
+# Demonstrates: policy (Phase 2), idempotent_by against an external key, a
+# double-entry ledger post (Phase 5), a state transition, and a broadcast.
 
-action :record_payment do
+action :record_payment, policy: %i[Invoice record_payment] do
+  # The verb is on :Invoice, not on :Payment, because the invoice is what the
+  # actor is being authorized against — a payment does not exist yet when the
+  # decision is made. app/policies/invoice.rb spells the rule out: an admin or
+  # owner, against an invoice that is issued or overdue.
+  #
+  # Both callers named at the top of this file reach that one verb, which is the
+  # point: a second, hand-written check in either of them is how a card payment
+  # and a hand-entered one end up authorized differently.
+  #
+  # It also surfaces a question the spec has not answered. The Stripe webhook
+  # has no actor to evaluate a predicate against, and `webhook :incoming` is not
+  # one of the surfaces MAGIK_POLICY_UNDECLARED names. See dummy/README.md,
+  # "What writing this taught us", and app/webhooks/stripe_incoming.rb.
   params do
     field :invoice_id,      :uuid,  required: true
     field :amount,          :money, required: true
@@ -27,8 +40,6 @@ action :record_payment do
   end
 
   idempotent_by ->(params) { params[:idempotency_key] }
-
-  authorize { |user, _| user.can?(:record_payment) }
 
   perform do |params|
     invoice = Invoice.find(params[:invoice_id])

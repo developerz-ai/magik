@@ -1,6 +1,6 @@
 # Error codes
 
-**Status:** `Format contract real, catalogue almost entirely planned`. **Four codes exist today.**
+**Status:** `Format contract real, catalogue almost entirely planned`. **Eight codes exist today.**
 Every other code on this page is seeded from the guardrails in
 [`docs/idea/00-build-spec.md`](../docs/idea/00-build-spec.md) and is raised by nothing.
 `As of 2026-08-26`.
@@ -68,21 +68,27 @@ subsystem that owns them; the intent is that `magik check` reads those declarati
 is generated from them, with drift between the code and this page failing the gate — the same
 mechanism used for the module map.
 
-Until then, a code on this page is a code somebody wrote down. Treat the four in
+Until then, a code on this page is a code somebody wrote down. Treat the eight in
 [Live today](#live-today) as real and everything else as a design artefact.
 
 ---
 
 ## Live today
 
-Four codes, all in the CLI, all raised by code you can run.
+Eight codes, all in the CLI, all raised by code you can run. Re-derive the list rather than trusting
+it: `ruby scripts/checks/error_codes.rb` fails the build if this table and `lib/` disagree, in either
+direction.
 
 | Code | Means | Typical cause | Fix |
 |---|---|---|---|
 | `MAGIK_ERROR` | the base code | a one-off `Magik::Error` raised with no more specific class | read the cause; it names the condition |
 | `MAGIK_UNKNOWN_COMMAND` | not a Magik command | a typo, or a command from another tool | `magik help` lists every command |
-| `MAGIK_COMMAND_NOT_IMPLEMENTED` | a specified command that is not built | every command except `version` and `help` | `magik help` for what runs today; [`ROADMAP.md`](../ROADMAP.md) for when the rest lands |
+| `MAGIK_COMMAND_NOT_IMPLEMENTED` | a specified command that is not built | every command except `version`, `help` and `docs` | `magik help` for what runs today; [`ROADMAP.md`](../ROADMAP.md) for when the rest lands |
 | `MAGIK_INVALID_OPTION` | a flag this command does not take | a typo, or a flag from a different command | `magik help <command>` for its flags |
+| `MAGIK_DOCS_UNAVAILABLE` | no shipped documentation tree was found at all | a damaged install, or a `MAGIK_DOCS_ROOT` pointing at nothing | reinstall the gem with `gem install magik`, or set `MAGIK_DOCS_ROOT` to a checkout of <https://github.com/developerz-ai/magik> |
+| `MAGIK_DOCS_PAGE_NOT_FOUND` | a slug or path names no shipped page | a typo, or a page from a different version of the gem | `magik docs list` shows every page that ships with this gem |
+| `MAGIK_DOCS_AMBIGUOUS_PAGE` | a shorthand slug matches more than one page | `magik docs models`, where two trees carry that name | `magik docs list`, then use the full slug — `magik docs wiki/models` |
+| `MAGIK_DOCS_MISSING_TERM` | a search with nothing to search for | `magik docs search` with no argument | `magik docs search <term>`, e.g. `magik docs search ledger` |
 
 `MAGIK_UNKNOWN_COMMAND` and `MAGIK_INVALID_OPTION` exit `2`; `MAGIK_COMMAND_NOT_IMPLEMENTED` exits
 `1`. "Not built yet" and "not a command" are different facts and get different codes and different
@@ -92,9 +98,11 @@ exits.
 
 ## Planned — seeded from the guardrails
 
-The spec names six things that must fail at boot. Those are the seed, and each has a code.
+The spec's [Guardrails to Enforce at Boot](../docs/idea/00-build-spec.md) section is the seed, and
+each rule in it has a code. It names six original rules, and a further table covering authorization,
+the application shell and uploads.
 
-### The six spec guardrails
+### The six original spec guardrails
 
 | Code | Means | Cause | Fix |
 |---|---|---|---|
@@ -104,6 +112,29 @@ The spec names six things that must fail at boot. Those are the seed, and each h
 | `MAGIK_STATEFUL_SCREEN` | a screen holds state across requests | an instance variable assigned outside a render pass | put it in the URL, or in a `state` declaration that recomputes |
 | `MAGIK_TIMEZONE_UNSPECIFIED` | a timestamp renders with no timezone | a `:timestamp` field rendered without `zone:` | add `zone: :tenant`, or an explicit IANA zone name |
 | `MAGIK_TENANT_SCOPE_MISSING` | a query has no `tenant_id` in its `WHERE` | a scope or raw dataset built outside the tenant scope | add `.for_tenant`, or declare it exempt with `global_scope!`. Reported by `magik check --scale` |
+
+### Authorization, layout and uploads
+
+Added to the guardrail set by the same spec section, for the same reason the six above are guardrails:
+each is a rule the frozen registry can decide at boot, each is consequential, and each is fixable by
+an edit the error can name. `policy` and `layout` are phase 2 constructs — see
+[Screens and components](Screens-And-Components.md) and
+[Auth, billing, admin](Auth-Billing-Admin.md).
+
+| Code | Means | Cause | Fix |
+|---|---|---|---|
+| `MAGIK_POLICY_UNDECLARED` | a surface that reaches a model names no verb | a `screen`, `action`, `api resource`, `channel`, `job` or `admin_panel` with no `policy:` and no explicit `policy: :public` / `policy: :system` | name one — `screen :Invoices, policy: %i[Invoice read]`. `magik describe policy --json` prints the grammar |
+| `MAGIK_POLICY_IO` | a policy predicate performs I/O | a `can` block issuing a query. A `live` screen re-evaluates one per subscriber per change, so a query here is a round trip per row per open socket | load the record in the surface's `state` and let the predicate read it. `magik errors explain MAGIK_POLICY_IO` |
+| `MAGIK_POLICY_UNKNOWN_VERB` | `policy:` names a verb nothing declares | `policy: %i[Invoice publish]` where `policy :Invoice` declares no `:publish` | add `can :publish` to `app/policies/invoice.rb`, or correct the verb. `magik registry --kind policy --json` lists every declared verb |
+| `MAGIK_POLICY_NO_DEFAULT` | a policy does not state its default | a `policy` block with no `default :deny` | add `default :deny` as the block's first line. There is no implicit allow |
+| `MAGIK_POLICY_NULL_PASSES` | a row rule would pass on an absent record | a `can` block whose predicate returns truthy when the record is `nil` | deny the `nil` — `can :read do \|actor, invoice\| invoice && … end` |
+| `MAGIK_LAYOUT_MISSING` | a screen has no application shell | a `screen` with no `layout:` and no `layout: :None` | `magik generate layout App`, then declare `layout: :App` on the screen |
+| `MAGIK_LAYOUT_UNKNOWN_SCREEN` | navigation points at nothing | a `nav_item` naming a screen that does not exist | `magik registry --kind screen --json` lists every screen; correct the name, or declare the screen |
+| `MAGIK_MODEL_UNCONSTRAINED_UPLOAD` | an upload field is unbounded | a `:file` field or an `attachment` with no `max_size` and no `content_types` — an unbounded upload is an unbounded storage bill and a trivial DoS | declare both — `attachment :hero, :image, max_size: "10MB", content_types: %w[image/png image/jpeg]`. `magik describe model.attachment --json` prints the options |
+
+`MAGIK_POLICY_UNDECLARED` is the load-bearing one. It makes authorization non-optional the way
+`tenant_id` is non-optional, and it is what makes an unprotected `admin_panel` a boot failure rather
+than a documented risk — one code covering every surface rather than a special case per surface.
 
 ### Core and CLI
 
@@ -184,7 +215,7 @@ The spec names six things that must fail at boot. Those are the seed, and each h
 | `MAGIK_API_INLINE_MUTATION` | an API resource wrote directly instead of calling an action | delegate: `create action: :create_invoice` |
 | `MAGIK_FILTER_UNDECLARED` | a filter named an undeclared column | add it to `filterable`, or drop the parameter |
 | `MAGIK_PAGINATION_UNBOUNDED` | an `index` has no page ceiling | add `per_page:` |
-| `MAGIK_SERIALIZER_UNDECLARED` | a resource does not declare its serialized fields | add `serialize` |
+| `MAGIK_SERIALIZER_UNDECLARED` | a resource does not declare which fields leave the building | add a `fields` declaration to the resource block |
 | `MAGIK_RATE_LIMITED` | over the plan's limit | returns `429` with `Retry-After` |
 
 ### Auth, billing, admin
@@ -192,8 +223,10 @@ The spec names six things that must fail at boot. Those are the seed, and each h
 | Code | Means | Fix |
 |---|---|---|
 | `MAGIK_TENANT_STRATEGY_MISSING` | no `tenant_by` was declared | add one to `App.define` |
-| `MAGIK_ADMIN_UNPROTECTED` | an admin panel declares no access rule | declare who may reach it |
 | `MAGIK_ADMIN_INLINE_MUTATION` | an admin action wrote directly | name a real action |
+
+An `admin_panel` with no `policy:` is `MAGIK_POLICY_UNDECLARED`, not a code of its own — see
+[Authorization, layout and uploads](#authorization-layout-and-uploads).
 
 ### Domains
 

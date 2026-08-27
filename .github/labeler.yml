@@ -68,6 +68,16 @@
           - 'lib/magik/router.rb'
           - 'test/magik/router/**'
 
+# `policy` is a Phase 2 declaration whose evaluator sits at tier 1, below model, render and
+# realtime — see docs/architecture/01-module-map.md. It is filed here because that is the phase
+# that builds it, not the tier it lives at.
+'area:policy':
+  - changed-files:
+      - any-glob-to-any-file:
+          - 'lib/magik/policy/**'
+          - 'lib/magik/policy.rb'
+          - 'test/magik/policy/**'
+
 # ── Phase 3-4: realtime and jobs ──────────────────────────────────────────────────────────────
 'area:realtime':
   - changed-files:
@@ -143,7 +153,7 @@
           - 'lib/magik/notify.rb'
           - 'test/magik/notify/**'
 
-# ── Phase 9 and the boot-time guardrails ──────────────────────────────────────────────────────
+# ── Phase 9, plus domains (spec item 12) and the boot-time guardrails ─────────────────────────
 'area:testing':
   - changed-files:
       - any-glob-to-any-file:

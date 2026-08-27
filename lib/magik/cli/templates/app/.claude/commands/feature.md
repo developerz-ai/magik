@@ -67,15 +67,16 @@ unit before starting the next, and say which one you are on.
 | # | Unit | Lands in | Agent | Command |
 |---|---|---|---|---|
 | 1 | **Data** — fields, scopes, the append-only migration | `app/models/`, `db/migrations/` | `data-modeler` | `magik generate model <Name>` · `magik generate migration <Name>` |
-| 2 | **The write** — typed params, `authorize`, guards, `idempotent_by` where a retry can reach | `app/actions/` | `action-author` | `magik generate action <name>` |
-| 3 | **Money**, if any — a ledger entry, never a balance column | `app/ledgers/` | `ledger-author` | `magik generate ledger <Name>` |
-| 4 | **The UI** — a screen naming declared `state`; controls naming the action from unit 2 | `app/screens/`, `app/components/` | `screen-builder` | `magik generate screen <Name>` |
-| 5 | **Tests** — one file per declaration, mirroring `app/` | `test/` | `test-writer` | `magik test` |
+| 2 | **Who may** — the verbs this slice needs, and the rule behind each | `app/policies/` | `policy-author` | — |
+| 3 | **The write** — typed params, a `policy:` verb, guards, `idempotent_by` where a retry can reach | `app/actions/` | `action-author` | `magik generate action <name>` |
+| 4 | **Money**, if any — a ledger entry, never a balance column | `app/ledgers/` | `ledger-author` | `magik generate ledger <Name>` |
+| 5 | **The UI** — a screen naming declared `state` and a `policy:` verb; controls naming the action from unit 3 | `app/screens/`, `app/layouts/` | `screen-builder` | `magik generate screen <Name>` |
+| 6 | **Tests** — one file per declaration, mirroring `app/` | `test/` | `test-writer` | `magik test` |
 
-**Data before writes before UI.** A screen written first invents the state it wishes existed, and
-that invention is what gets built. Units 1–5 touch disjoint directories, so they parallelise once
-the names are fixed — and not before; two agents guessing the same name differently is the collision
-this ordering prevents.
+**Data before policy before writes before UI.** A screen written first invents the state it wishes
+existed, and that invention is what gets built; a surface written before its verb gets a verb chosen
+to fit it. Units 1–6 touch disjoint directories, so they parallelise once the names are fixed — and
+not before; two agents guessing the same name differently is the collision this ordering prevents.
 
 `magik generate` rather than placing files yourself: it writes the test too, and it cannot invent a
 path. Layout rules: `magik docs Project-Layout`.

@@ -8,7 +8,8 @@ module Magik
   #
   # Planned DSL surface, copied from the spec:
   #
-  #   * `job :Name do retry; schedule :cron/:every; perform do |args| end end`
+  #   * `job :Name do retries times:, backoff:; schedule cron:/every:; idempotent_by;
+  #     perform do |args| end end`
   #   * `magik worker — horizontally scalable worker process`
   #
   # Status: **Not implemented — spec only.** Every entry point below raises
@@ -24,7 +25,7 @@ module Magik
     # The DSL this subsystem will expose, verbatim from the spec.
     # @return [Array<String>]
     DSL_SURFACE = [
-      "job :Name do retry; schedule :cron/:every; perform do |args| end end",
+      "job :Name do retries times:, backoff:; schedule cron:/every:; idempotent_by; perform do |args| end end",
       "magik worker — horizontally scalable worker process"
     ].freeze
 

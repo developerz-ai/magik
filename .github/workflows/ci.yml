@@ -275,7 +275,7 @@ jobs:
       # `gem install magik` is the exact command a first-time user runs, and a runtime dependency
       # that cannot resolve is a gemspec bug only this shape of install can see. As of 2026-08-26
       # magik.gemspec declares no runtime dependencies at all, so today this is fast and proves the
-      # packaging half; it keeps working unchanged when Phase 1 adds sequel and falcon.
+      # packaging half; it keeps working unchanged when Phase 1 adds sequel and puma.
       - name: gem install, into an empty GEM_HOME, and run the installed binary
         env:
           GEM: ${{ steps.build.outputs.gem }}
@@ -366,6 +366,31 @@ jobs:
           output: lychee/external.md
           jobSummary: true
 
+  # ── the repo's own conventions, as assertions ─────────────────────────────────────────────
+  #
+  # `scripts/checks/*.rb` asserts the things this repository promises in prose: every shipped error
+  # code is documented, every documented command exists, dummy/ parses, the manifest is current, the
+  # subsystem tiers agree, the CHANGELOG has an [Unreleased]. They existed for a while WITHOUT being
+  # in the gate, and two of them — error-codes and doc-commands — were red for an unknown number of
+  # commits before anybody ran them by hand. That is the whole argument for this job.
+  #
+  # NO `if:` GUARD, deliberately. Every other job here is gated on change detection because it tests
+  # one area; these checks are cross-cutting by construction — a docs-only diff breaks doc-commands,
+  # a lib-only diff breaks manifest — so narrowing them to a changed path is how they go quiet again.
+  # They take about two seconds.
+  checks:
+    name: checks
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: ./.github/actions/setup
+
+      - name: bin/check --only checks
+        run: bin/check --only checks
+
   # NO SPELLCHECK JOB, and this is a decision rather than an omission.
   #
   # A spellchecker over this repository's prose would be reading a spec whose vocabulary is mostly
@@ -394,7 +419,7 @@ jobs:
   # `ci` as the only entry.
   ci:
     name: ci
-    needs: [changes, lint, test, docs, gem-build, markdown]
+    needs: [changes, lint, test, docs, gem-build, markdown, checks]
     if: always()
     runs-on: ubuntu-latest
     timeout-minutes: 5

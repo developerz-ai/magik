@@ -35,7 +35,8 @@ class MagikCLITest < Minitest::Test
     status, out, = run_cli("help")
 
     assert_equal Magik::CLI::EXIT_SUCCESS, status
-    %w[new generate console server worker test check docs version help].each do |command|
+    %w[new generate console server worker test check db describe routes domains errors docs version
+       help].each do |command|
       assert_includes out, command
     end
 
@@ -47,10 +48,23 @@ class MagikCLITest < Minitest::Test
     commands = JSON.parse(out).fetch("commands")
     by_name = commands.to_h { |c| [c["name"], c["status"]] }
 
-    assert_equal(%w[new generate console server worker test check docs version help], commands.map { |c| c["name"] })
+    assert_equal(%w[new generate console server worker test check db describe routes domains errors
+                    docs version help], commands.map { |c| c["name"] })
     assert_equal "planned", by_name.fetch("server")
+    assert_equal "planned", by_name.fetch("describe")
     assert_equal "ready", by_name.fetch("version")
     assert_equal "ready", by_name.fetch("docs")
+  end
+
+  # `magik describe` is the grammar as data, so it is a command the CLI must
+  # name even while it refuses to run — an option-level error's `fix:` line
+  # points at it, and a `fix:` naming an unregistered command is a dead end.
+  def test_describe_is_registered_as_planned_and_refuses_to_run
+    status, _, err = run_cli("describe", "model")
+
+    assert_equal Magik::CLI::EXIT_ERROR, status
+    assert_includes err, "MAGIK_COMMAND_NOT_IMPLEMENTED"
+    assert_includes err, "magik describe"
   end
 
   # `ready` vs `planned` is the one thing `magik help --json` exists to say

@@ -1,6 +1,6 @@
 {
   "schema": 1,
-  "build_id": "aa2334924551f82ad470403761daa51287386083e0418c07c983074c14877911",
+  "build_id": "56e410bd05643277ae6e140042616b90deaad73cbb9647c37821dccfbf845113",
   "generator": "scripts/checks/manifest.rb",
   "gem": {
     "name": "magik",
@@ -95,7 +95,7 @@
       "name": "check",
       "constant": "Magik::Check",
       "tier": 5,
-      "phase": "Build order step 12 — `magik check` linter",
+      "phase": "Build order step 13 — `magik check` linter",
       "status": "Not implemented — spec only",
       "spec_only": true,
       "file": "lib/magik/check.rb"
@@ -122,7 +122,7 @@
       "name": "domains",
       "constant": "Magik::Domains",
       "tier": 4,
-      "phase": "Build order step 12 — Domain module system",
+      "phase": "Build order step 13 — Domain module system",
       "status": "Not implemented — spec only",
       "spec_only": true,
       "file": "lib/magik/domains.rb"

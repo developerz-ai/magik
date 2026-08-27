@@ -76,11 +76,31 @@ migrate :CreateInvoices do
 end
 ```
 
-### 3. A screen
+### 3. A policy
+
+Every surface that reaches a model names a verb, and the verbs live in one file per model. There is
+no implicit allow, and a surface that names nothing fails at boot.
+
+```ruby
+# app/policies/invoice.rb
+policy :Invoice do
+  default :deny
+
+  can :read do |actor, _invoice|
+    actor.role?(:viewer, :member, :admin, :owner)
+  end
+
+  can :record_payment do |actor, _invoice|
+    actor.role?(:admin, :owner)
+  end
+end
+```
+
+### 4. A screen
 
 ```ruby
 # app/screens/invoices.rb
-screen :Invoices do
+screen :Invoices, policy: %i[Invoice read], layout: :App do
   state :invoices, -> { Invoice.outstanding.order(:due_on) }
 
   body do
@@ -93,13 +113,15 @@ screen :Invoices do
 end
 ```
 
-Auto-routed to `/invoices`. No route file, no template, no CSS.
+Auto-routed to `/invoices`. No route file, no template, no CSS. `layout: :App` names the shell
+`magik new` is specified to generate — so the screen arrives inside a working sidebar rather than on a
+blank page.
 
-### 4. An action
+### 5. An action
 
 ```ruby
 # app/actions/mark_paid.rb
-action :mark_paid do |params|
+action :mark_paid, policy: %i[Invoice record_payment] do |params|
   invoice = Invoice.find!(params[:id])
   invoice.update(status: :paid, paid_at: Time.now)
   refresh :Invoices
@@ -109,7 +131,7 @@ end
 `row_action: :mark_paid` in the screen emits the htmx attributes that POST to this action and swap the
 table in place. You wrote no JavaScript, and there is no client-side router to explain.
 
-### 5. A test
+### 6. A test
 
 ```ruby
 # test/invoices_test.rb

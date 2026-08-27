@@ -58,6 +58,12 @@ Four things you did **not** write, and never write:
 | `:json` | `jsonb` | for genuinely schemaless data. If you find yourself querying into it, it wanted to be columns |
 | `:uuid` | `uuid` | for foreign keys you manage yourself |
 | `:vector` | `pgvector` | embeddings, for search |
+| `:duration` | `text` + a coercion at boot | a unit-suffixed string — `"14d"`, `"10m"`, `"90s"`. One spelling for every duration in the grammar, so `session_ttl`, `trial:` and `schedule every:` all read the same. A typo fails at boot, not at first use |
+| `:file` | an attachment record plus blob metadata | **`max_size:` and `content_types:` are required.** An unbounded upload field is an unbounded storage bill and a trivial DoS — `MAGIK_MODEL_UNCONSTRAINED_UPLOAD`. The rest of media, including derivatives and signed delivery, is spec phase 4b |
+
+`:money`, `:duration` and `:file` are **types rather than conventions**, for the same reason: a
+malformed value fails at boot rather than at first use. A field type added after release is a
+migration for every app that worked around its absence, which is why all three are phase 1.
 
 `field :card_number` — under any type — is **refused at boot**. So is any field whose name matches a
 PAN-shaped pattern. The framework does not let you build the storage that a PCI audit exists to find.
@@ -132,6 +138,7 @@ MAGIK_LAZY_ASSOCIATION: :Invoice#customer was not eagerly loaded
 | A `:timestamp` cannot render without a zone | `MAGIK_TIMEZONE_UNSPECIFIED` | boot |
 | A record past `immutable_after:` cannot be updated | `MAGIK_IMMUTABLE_RECORD` | write |
 | Associations are not lazily loaded | `MAGIK_LAZY_ASSOCIATION` | access |
+| A `:file` field declares `max_size:` and `content_types:` | `MAGIK_MODEL_UNCONSTRAINED_UPLOAD` | boot |
 
 Full catalogue: [Error codes](Error-Codes.md). Why each exists:
 [`docs/idea/03-guardrails.md`](../docs/idea/03-guardrails.md).
@@ -153,6 +160,7 @@ See [`docs/idea/04-swap-points.md`](../docs/idea/04-swap-points.md).
 ## Next
 
 - [Money and ledgers](Money-And-Ledgers.md) — the `:money` type in full.
+- [Screens and components](Screens-And-Components.md#policy) — `policy`, the one place a model's access is decided.
 - [Screens and components](Screens-And-Components.md) — putting a model on a page.
 - [Actions](Actions.md) — changing one.
 - [Testing](Testing.md) — factories inferred from the field types above.

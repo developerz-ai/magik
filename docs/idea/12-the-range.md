@@ -121,7 +121,7 @@ claim was checked against the sources rather than assumed:
 | [`../../wiki/Project-Layout.md`](../../wiki/Project-Layout.md) | `domains/billing/app/{models,screens,actions,jobs}/` plus `domains/billing/test/` | yes |
 | [`../../wiki/Domains.md`](../../wiki/Domains.md) | the same tree, with `components/` visible only inside the domain | yes |
 | [`../../dummy/`](../../dummy/README.md) — the reference app | `domains/billing/app/models/subscription.rb` on disk beside a flat `app/` | yes — this is the only place the shape exists as files rather than prose |
-| [`../architecture/02-boundaries.md`](../architecture/02-boundaries.md) | sketches `domains/billing/models/` — **without the `app/` level** | **no.** One prose sketch disagrees with three sources and with the reference app's actual files |
+| [`../architecture/02-boundaries.md`](../architecture/02-boundaries.md) | **fixed.** It sketched `domains/billing/models/`, without the `app/` level, and disagreed with three sources and with the reference app's own files | **no longer.** Kept as a row because it is the cheapest example of the failure this table exists to catch: one prose sketch, drifting quietly from the layout it illustrates |
 
 **The canonical shape is `domains/<name>/app/<kind>/`.** The disagreement above is a documentation
 defect to fix in the boundaries page, not a design ambiguity — and it is worth naming here because
@@ -185,7 +185,7 @@ and the number that would make it a rule is a debt in [the last table](#what-mus
 | **Postgres `LISTEN`/`NOTIFY` realtime** | `LISTEN` connection count against Postgres, and open sockets per app process ([`../ops/README.md`](../ops/README.md)) | Redis pub/sub or NATS, by `use` | infrastructure, plus a fanout path whose failure modes differ from the database's |
 | **Postgres full-text search + `pgvector`** | index maintenance cost, or ranking and analysis the database cannot express | Elasticsearch, Meilisearch, Typesense | a second datastore to keep in sync, and an index that can be stale |
 | **Local-disk storage (Shrine)** | more than one app server, or a filesystem that does not survive a restart | S3 or a compatible, by configuration | nothing structural — this is the cheapest seam to cross, which is why it is the default |
-| **One app process** | request concurrency, p95 latency, socket count | more app processes behind the load balancer | nothing. This is the seam statelessness bought, and the only one that is a pure win |
+| **One app process** | request concurrency, p95 latency, socket count | more app **containers** behind the load balancer. TruffleRuby has no `fork`, so Puma runs in single mode and a second process means a second container rather than a clustered worker on the same box ([`../ops/README.md`](../ops/README.md)) | nothing. This is the seam statelessness bought, and the only one that is a pure win |
 | **One Postgres** | write throughput, connection count, slow queries | vertical first, then read replicas | real operational work, and the first ceiling that is **not** a `use` line |
 | **One Postgres, still** | you have genuinely outgrown vertical plus replicas | **nothing Magik models.** See below | — |
 

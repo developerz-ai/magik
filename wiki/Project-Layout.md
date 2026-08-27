@@ -29,6 +29,11 @@ myapp/
 │   ├── components/               # component :Name — reusable UI
 │   │   ├── invoice_status_badge.rb
 │   │   └── money_cell.rb
+│   ├── layouts/                  # layout :Name — the application shell a screen renders into
+│   │   └── app.rb
+│   ├── policies/                 # policy :Model — the one place authorization is decided
+│   │   ├── customer.rb
+│   │   └── invoice.rb
 │   ├── actions/                  # action :name — the only thing that mutates
 │   │   ├── create_invoice.rb
 │   │   ├── mark_paid.rb
@@ -42,6 +47,9 @@ myapp/
 │   │   └── receivables.rb
 │   ├── flows/                    # flow   :Name — multi-step wizards
 │   │   └── onboarding.rb
+│   ├── admin/                    # admin_panel :Model — one file per panel
+│   │   ├── customer.rb
+│   │   └── invoice.rb
 │   ├── api/                      # api    :V1 — REST surface
 │   │   └── v1.rb
 │   ├── webhooks/                 # webhook :incoming / :outgoing
@@ -105,11 +113,14 @@ a path, and a reader never has to search for where something lives.
 | `screen :Invoices` | `app/screens/invoices.rb` | screens are plural when they list, singular when they show one |
 | `screen :InvoiceDetail` | `app/screens/invoice_detail.rb` | — |
 | `component :MoneyCell` | `app/components/money_cell.rb` | — |
+| `layout :App` | `app/layouts/app.rb` | one file per shell. `magik new` generates `:App` |
+| `policy :Invoice` | `app/policies/invoice.rb` | one policy per model, named for the model it guards |
 | `action :mark_paid` | `app/actions/mark_paid.rb` | actions are already `snake_case` symbols; the filename is the symbol |
 | `job :SendInvoiceEmail` | `app/jobs/send_invoice_email.rb` | — |
 | `channel :invoice_updates` | `app/channels/invoice_updates.rb` | — |
 | `ledger :Receivables` | `app/ledgers/receivables.rb` | — |
 | `flow :Onboarding` | `app/flows/onboarding.rb` | — |
+| `admin_panel :Invoice` | `app/admin/invoice.rb` | named for the model the panel projects |
 | `migrate :CreateInvoices` | `db/migrations/002_create_invoices.rb` | the numeric prefix orders them; the rest is the constant |
 | `test :Invoices` | `test/screens/invoices_test.rb` | the test tree mirrors `app/`, plus `_test` |
 
@@ -127,11 +138,14 @@ a model, is a convention violation the checker is meant to catch (`MAGIK_FILE_MU
 | `app/models/` | field declarations, validations, associations, scopes | mutations, HTTP concerns, rendering | a model describes data and its shape. It does not act |
 | `app/screens/` | layout, composition, `state` declarations | SQL, `Sequel` calls, mutations | **a screen never queries the database directly** — it names a `state`, and the state is a scope the model owns |
 | `app/components/` | pure UI, driven by `prop`s | data access of any kind | a component that queries is a screen wearing a disguise |
+| `app/layouts/` | the shell: navigation, `topbar`, `content` slot, responsive rules | `state` declarations, business logic | a layout wraps a screen. It does not fetch what the screen shows |
+| `app/policies/` | `default :deny` and one `can` block per verb | queries, I/O, anything not a pure predicate | **authorization is decided in exactly one place.** A `live` screen re-evaluates a predicate per subscriber per change, so a query here is a round trip per row per open socket |
 | `app/actions/` | the mutation, its validation, its guards | rendering markup, long-running work | **an action is the only thing that mutates.** If a screen changed data, mutation would have two homes |
 | `app/jobs/` | async work, retries, schedules | request-scoped assumptions | **a job is the only thing that runs async.** Async work started anywhere else is untracked and unretryable |
 | `app/channels/` | subscriptions, broadcasts | business logic | a channel routes events. It does not decide them |
 | `app/ledgers/` | accounts, entries, balance guards | anything that is not money movement | **a ledger is the only thing that moves money.** A `balance` column updated by an action is exactly the bug double-entry exists to prevent |
 | `app/flows/` | ordered steps and their state | the work each step does | a flow sequences actions; it does not reimplement them |
+| `app/admin/` | `admin_panel` declarations: `list`, `show`, `form` | a second write path | **admin actions are the app's actions.** An inline mutation is refused |
 | `app/api/` | resources, serializers, auth strategy | duplicated business logic | an API resource calls the same action a screen does |
 | `app/webhooks/` | signature verification, event mapping | the handling itself | a webhook hands off to an action or a job |
 | `db/migrations/` | hand-written, append-only migrations | edits to already-applied migrations | a migration that changed after it ran is a schema nobody can reproduce |
@@ -141,7 +155,7 @@ a model, is a convention violation the checker is meant to catch (`MAGIK_FILE_MU
 
 ### Separation of concerns, concretely
 
-The four rules that do the real work. Each one has exactly one directory, and that is not a
+The five rules that do the real work. Each one has exactly one directory, and that is not a
 coincidence — it is the mechanism.
 
 | Rule | Enforced by | Fails with |
@@ -150,6 +164,7 @@ coincidence — it is the mechanism.
 | An action is the only thing that mutates | writes outside an `action` body are refused at boot | `MAGIK_MUTATION_OUTSIDE_ACTION` |
 | A job is the only thing that runs async | spawning a fiber or thread outside a `job` is refused | `MAGIK_ASYNC_OUTSIDE_JOB` |
 | A ledger is the only thing that moves money | a `:money` field written outside a ledger entry is refused | `MAGIK_MONEY_OUTSIDE_LEDGER` |
+| A policy is the only thing that authorizes | every surface reaching a model names a verb; there is no per-surface check to write, and no surface may skip the declaration | `MAGIK_POLICY_UNDECLARED` |
 
 These are **boot-time guardrails**, not lint warnings. The whole point is that the layout and the
 enforcement agree: if the rule can be broken without moving a file, the rule is decoration. See
@@ -283,7 +298,7 @@ MAGIK_DOMAIN_BOUNDARY_VIOLATION: :Reporting reads :Billing::Invoice directly
 ```
 
 You fix them one at a time until boot is green. No declaration inside the moved files changes — a
-`model :Invoice` is a `model :Invoice` whether it sits in `app/models/` or `domains/billing/models/`.
+`model :Invoice` is a `model :Invoice` whether it sits in `app/models/` or `domains/billing/app/models/`.
 That is the property that makes the move mechanical, and keeping it true is a constraint on the
 implementation.
 
@@ -320,7 +335,7 @@ magik/
 │   └── commands/
 ├── .github/                  # CI, release, issue templates
 ├── llms.txt                  # the agent entry point
-├── ROADMAP.md                # nine phases, twelve build steps, version milestones
+├── ROADMAP.md                # ten phases, thirteen build steps, version milestones
 ├── CHANGELOG.md
 └── magik.gemspec
 ```

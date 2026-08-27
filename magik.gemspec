@@ -130,18 +130,24 @@ Gem::Specification.new do |spec|
   # Intended wrap-targets, per docs/idea/00-build-spec.md ("Libraries to Wrap"),
   # to be added one at a time as the phase that needs them lands:
   #
-  #   sequel      — DB layer                     (Phase 1: model, schema)
-  #   falcon/async— Rack server, fiber-based     (Phase 1: core, router)
-  #   que         — Postgres-backed job queue    (Phase 4: jobs)
-  #   rodauth     — authentication               (Phase 7: auth)
-  #   shrine      — uploads, S3                  (Phase 2: render)
-  #   money       — currency support             (Phase 1: :money type)
-  #   stripe/paddle SDKs — billing               (Phase 7: billing)
-  #   pgvector    — vector search                (Phase 6: api)
-  #   oj          — fast JSON                    (Phase 6: api)
-  #   prawn       — PDF generation               (Phase 5: ledger)
-  #   opentelemetry-* — observability            (cross-cutting)
-  #   minitest    — test core                    (Phase 9: testing)
+  #   sequel      — DB layer                      (Phase 1: model, schema)
+  #   puma        — Rack server, thread/request   (Phase 1: core, router)
+  #   money       — currency support              (Phase 1: :money type)
+  #   que         — Postgres-backed job queue     (Phase 4: jobs)
+  #   shrine      — uploads, S3                   (Phase 4b: media)
+  #   mux et al.  — video/audio, behind use :media (Phase 4b: media)
+  #   prawn       — PDF generation                (Phase 8: notify)
+  #   pgvector    — vector search                 (Phase 6: api)
+  #   rodauth     — authentication                (Phase 7: auth)
+  #   stripe/paddle SDKs — billing                (Phase 7: billing)
+  #   anthropic/openai SDKs — AI actions          (no phase assigned yet)
+  #   opentelemetry-* — observability             (cross-cutting)
+  #   minitest    — test core                     (Phase 9: testing)
+  #
+  # JSON is a seam rather than a fixed dependency (`use :json, :auto | :oj |
+  # :stdlib`): the fast path is engine-dependent, and the C-extension
+  # alternatives do not name TruffleRuby as a supported platform. See
+  # docs/architecture/10-performance-defaults.md.
   #
   # htmx (~14kb) is vendored as a static asset, not a gem.
   #

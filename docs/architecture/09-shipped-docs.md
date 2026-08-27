@@ -111,6 +111,19 @@ This is why the generated app harness leans on `magik docs path` rather than on 
 | `MAGIK_DOCS_AMBIGUOUS_PAGE` | a shorthand matches several pages — it refuses rather than guessing |
 | `MAGIK_DOCS_MISSING_TERM` | `magik docs search` was given nothing to search for |
 
+## The prose half of a two-part surface
+
+`magik docs` is one of two lookup surfaces the design calls for, and it is the half that exists. The other is **`magik describe`** — a phase-1 command, **not implemented** — which serializes the option tables the DSL validates against ([`01-module-map.md`](01-module-map.md#the-option-tables-and-magik-describe)). They answer different questions and must not restate each other:
+
+| | `magik docs` (implemented) | `magik describe` (planned) |
+|---|---|---|
+| Answers | why this construct exists, when to reach for it, what it refuses | what options it takes, of what type, with what default and what legal values |
+| Source | markdown packaged in the gem | the option tables the coercer reads — derived, never hand-maintained |
+| Fails when | prose rots relative to code | impossible by construction: it *is* the code |
+| Entry point for | "I do not know which construct this is" | "I know it is a `job`; I do not know the retry option's spelling" |
+
+The join is one field: every `describe` entry carries a `doc:` slug this command resolves, so an agent goes schema → prose in one hop and never has to search. That is also why both ship **inside the gem** rather than being fetched: a schema or a page pulled from `main` describes a version the reader is not running. Design: [`../idea/11-dsl-as-tool-surface.md`](../idea/11-dsl-as-tool-surface.md) §2.
+
 ## Why there is no index
 
 `Magik::Docs.search` reads every shipped file and does a case-insensitive substring match. No index, no inverted list, no dependency.

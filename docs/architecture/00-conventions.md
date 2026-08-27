@@ -2,7 +2,7 @@
 
 The rules every Ruby file in this repo obeys, and the design rules the framework asks its users to obey too.
 
-**Status:** planned. The repo currently contains `lib/magik/version.rb` and nothing else; every check named here is a check somebody still has to write. Reviewed 2026-08-26.
+**Status:** mostly planned. `lib/` holds `Magik::Error`, the CLI's implemented commands and one spec-only stub per subsystem; no DSL construct exists, and most checks named here are checks somebody still has to write. Re-derive what is a stub with `grep -rln NotImplementedError lib/magik`. Reviewed 2026-08-26.
 
 Rationale lives in [`../idea/01-thesis.md`](../idea/01-thesis.md). This file is the rules.
 
@@ -74,9 +74,9 @@ A ceiling is not a budget to spend. Crossing one means the split was due earlier
 | **Interface segregation** | a subsystem depends on the narrow role it uses, not on the whole neighbouring module. `render` needs a channel *name*, not the realtime subsystem — so the channel-name vocabulary lives in `core` and `render` never requires `realtime`. | the tier rules in [`02-boundaries.md`](02-boundaries.md). A `require` that exists to reach one method is a role that belongs lower down. |
 | **Dependency inversion** | subsystems depend on an abstraction the app configures at boot — the DB adapter, the job backend, the realtime backend, the cache. `jobs` knows a queue role; it does not know Postgres. | this is *why* swap points can exist at all. A subsystem naming a concrete product outside its `backends/` directory is a defect. |
 
-### The same rules apply to app code
+### The same rules apply to app code — including code Magik generates
 
-The DSL is designed so that a Magik app falls into SRP by default:
+A generator emits code somebody will read, review and extend, so it obeys this contract exactly as `lib/` does. A generator that emits a 400-line god object, or a second write path, has shipped the smell rather than the shape. The DSL is designed so that a Magik app falls into SRP by default:
 
 | App-level rule | How the framework makes it the default |
 |---|---|
@@ -86,7 +86,39 @@ The DSL is designed so that a Magik app falls into SRP by default:
 | A screen renders and holds nothing | the stateless guardrail refuses the alternative at boot ([`../idea/03-guardrails.md`](../idea/03-guardrails.md)) |
 | A domain owns its models | boundary enforcement refuses the reach-across at boot ([`02-boundaries.md`](02-boundaries.md)) |
 
-The app-side layout and a worked example live in `wiki/Project-Layout.md` and the `dummy/` reference app.
+The app-side layout and a worked example live in [`../../wiki/Project-Layout.md`](../../wiki/Project-Layout.md) and the [`../../dummy/`](../../dummy/) reference app.
+
+## DSL design rules: R1–R10
+
+SOLID governs the objects inside a subsystem. **R1–R10 govern the construct those objects put in front of an app author**, and they are cited by number across the spec, so they are indexed here rather than restated: the rules are stated in full, with their reasoning, in [`../idea/11-dsl-as-tool-surface.md`](../idea/11-dsl-as-tool-surface.md) §4, and that page proposes exactly this pointer.
+
+They exist because **the DSL is a tool surface**: an agent does not recall a grammar, it looks one up, so an option that cannot be looked up may as well not exist. And a DSL option is authored once and read forever — renaming one after release is a breaking change under semver — so the rules apply before the first construct ships, not after.
+
+| # | Rule | The failure it prevents |
+|---|---|---|
+| [R1](../idea/11-dsl-as-tool-surface.md#r1--one-concept-one-spelling-everywhere) | One concept, one spelling, everywhere | an agent generalises from one construct to the next; an idea spelled two ways turns that generalisation into a plausible wrong guess. Sharing a stem while meaning different things is the worst of both |
+| [R2](../idea/11-dsl-as-tool-surface.md#r2--enumerated-beats-free-form) | Enumerated beats free-form | a closed value set is a `Symbol` from that set, checkable at boot and completable. A free-form `String` is permitted only where the space is genuinely open — a URL, a cron expression, a regex — and then it carries a format check and a named error code |
+| [R3](../idea/11-dsl-as-tool-surface.md#r3--every-option-has-a-default-the-minimal-declaration-is-valid) | Every option has a default; the minimal declaration is valid | a construct you cannot write a two-line version of. The exception is stated as a rule, not a loophole: an option with **no defensible default** is required *and* enumerated, so the failure names the choices |
+| [R4](../idea/11-dsl-as-tool-surface.md#r4--verbose-is-acceptable-unreadable-is-not) | Verbose is acceptable; unreadable is not | a terse flag whose meaning must be looked up. Machine authorship makes length free at write time; it does nothing about legibility at review time. Corollary: do not rename what every ORM and SQL itself already uses — novelty has a review-time cost |
+| [R5](../idea/11-dsl-as-tool-surface.md#r5--locality-is-non-negotiable) | Locality is non-negotiable | `config/` archaeology. A declaration's meaning must be visible without opening another file: routes derive from names, `use` seams are named once in `App.define`, everything else is in the block you are reading |
+| [R6](../idea/11-dsl-as-tool-surface.md#r6--every-option-is-discoverable-through-the-schema-surface-or-it-is-a-defect) | Every option is describable by the schema, or it is a defect | an accepted-but-unlisted option, or a lambda in an option — invisible to `magik describe`, so neither the human nor the agent will use it correctly and both will invent something else |
+| [R7](../idea/11-dsl-as-tool-surface.md#r7--errors-name-the-option-and-the-allowed-values) | An error names the specific cause | "invalid value". An option-level failure carries the construct, the declaration, the option, what was given, the `did_you_mean` and the allowed set ([`03-error-codes.md`](03-error-codes.md#option-level-errors-r7)) |
+| [R8](../idea/11-dsl-as-tool-surface.md#r8--the-guardrails-are-the-schema-validation) | The option tables are the one representation | two tables drift; one cannot. The coercer, the guardrails, the docs anchors and `magik describe` all read the same rows — one artifact serialized four ways ([`01-module-map.md`](01-module-map.md#the-option-tables-and-magik-describe)) |
+| [R9](../idea/11-dsl-as-tool-surface.md#r9--keyword-arguments-behaviour-in-blocks-no-positional-booleans) | Behaviour goes in blocks, options go in keyword arguments | a positional argument has no name, so it cannot appear in a schema, so it cannot be described — an R6 violation by construction. No positional booleans, ever |
+| [R10](../idea/11-dsl-as-tool-surface.md#r10--adding-a-construct-is-a-budget-decision-adding-an-option-is-not) | Adding a construct is a budget decision; adding an option is not | the per-name option explosion — `retention_days:` beside `retention_hours:` — and its inverse, an option that changes what the construct *is*. A construct is paid by every agent in every session; an option is paid only where it is used. A new capability arrives as a **factory over an existing construct** |
+
+### The four vocabulary decisions the rules produced
+
+Settled before implementation, because a renamed option is free now and a semver break later. The full reasoning is in [`../idea/00-build-spec.md`](../idea/00-build-spec.md)'s *DSL vocabulary* section; this is the shape you write.
+
+| # | Concept | The one spelling | From |
+|---|---|---|---|
+| **D1** | A duration | a **`:duration` type** everywhere — a unit-suffixed string coerced at boot: `session_ttl "14d"`, `schedule every: "10m"`, `trial: "14d"`, `throttle per: "1h"`. Never `15.minutes`, never a `*_days` integer | R2, R6, R10 |
+| **D2** | A precondition | **`guard "reason" do … end`** on `ledger entry`, `action`, `job` and `flow step`. A flow step that simply does not apply uses **`skip_when do … end`** — *skip* and *abort* are different meanings | R9, R7 |
+| **D3** | A field subset | **`fields`, `filterable`, `sortable`, `searchable`, `writable`** — five declarations, one vocabulary, identical on `api`, `admin_panel`, `data_table` and `screen`. `per_page:` stays an option: a scalar setting is not a field subset | R1, R9 |
+| **D4** | Uniqueness | they stay apart. **`unique:`** on a `field` is a database constraint and nothing else; a job's dedupe key is **`idempotent_by`**, the same word `action` already uses | R1, R10 |
+
+**Enforcement, not prose.** A `scripts/checks/` step over the option tables asserts that every option in [`../idea/02-dsl-surface.md`](../idea/02-dsl-surface.md) appears in `magik describe --json` and vice versa. It does not exist yet, and per this repo's own rule a convention with no check does not exist either.
 
 ## File layout
 
@@ -105,7 +137,7 @@ test/magik/<subsystem>/<concern>_test.rb
 
 | Rule | Detail |
 |---|---|
-| Subsystem names | exactly the twenty in [`01-module-map.md`](01-module-map.md). A new one is an architecture change, not a file. |
+| Subsystem names | exactly the twenty-one in [`01-module-map.md`](01-module-map.md), which are exactly the keys of `Magik::SUBSYSTEMS`. A new one is an architecture change, not a file. |
 | File names | `snake_case.rb`, matching the class or module they define. |
 | One class per file | except a tiny value object used only by its neighbour. |
 | Front door | `lib/magik/<subsystem>.rb` is the only file another subsystem may require. Reaching into `lib/magik/model/dataset.rb` from `lib/magik/api/` is a boundary violation even when the tier allows the subsystem ([`02-boundaries.md`](02-boundaries.md)). |
@@ -142,16 +174,21 @@ Documentation is a shipping requirement, not a later pass. `.yardopts` at the ro
 # Declares a background job.
 #
 # @param name [Symbol] the job's PascalCase name, e.g. +:SettleBatch+
-# @yield the job body — +retry+, +schedule+, +unique_by+ and +perform+ declarations
+# @param policy [Symbol, Array(Symbol, Symbol)] the verb this job runs under;
+#   +:system+ is the declared opt-out
+# @yield the job body — +retries+, +schedule+, +idempotent_by+ and +perform+ declarations
 # @return [Magik::Jobs::Definition] the frozen definition, registered with the app
 # @raise [Magik::Error] +MAGIK_JOBS_NO_PERFORM+ if the block declares no +perform+
+# @raise [Magik::Error] +MAGIK_POLICY_UNDECLARED+ if +policy:+ is absent
 # @example
-#   job :SettleBatch do
+#   job :SettleBatch, policy: :system do
 #     retries times: 5, backoff: :exponential
+#     schedule every: "10m"
+#     idempotent_by :tenant_id
 #     perform { |args| Payments.settle(tenant_id: args[:tenant_id]) }
 #   end
 # @see https://github.com/developerz-ai/magik/blob/main/docs/idea/02-dsl-surface.md
-def job(name, &block)
+def job(name, policy:, &block)
 ```
 
 | Rule | Detail |

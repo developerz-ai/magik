@@ -7,7 +7,12 @@ module Magik
   #
   # Planned DSL surface, copied from the spec:
   #
-  #   * `admin_panel :Model do list_display; filterable; searchable end`
+  #   * `admin_panel :Model, policy: %i[Model administer] do
+  #     list do fields/filterable/searchable end; show; form end`
+  #
+  # `policy:` is **required** here — the admin is by construction the surface
+  # with the broadest data access in an application, so an `admin_panel` without
+  # one does not boot ({Magik::Policy}, `MAGIK_POLICY_UNDECLARED`).
   #
   # Status: **Not implemented — spec only.** Every entry point below raises
   # {NotImplementedError}. Nothing here reads config, touches a database or
@@ -22,7 +27,8 @@ module Magik
     # The DSL this subsystem will expose, verbatim from the spec.
     # @return [Array<String>]
     DSL_SURFACE = [
-      "admin_panel :Model do list_display; filterable; searchable end"
+      "admin_panel :Model, policy: %i[Model administer] do list do fields/filterable/searchable " \
+      "end; show; form end"
     ].freeze
 
     # Implementation status of this subsystem.

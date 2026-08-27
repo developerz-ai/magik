@@ -4,7 +4,7 @@ module Magik
   # The domain module system for large apps, with boot-time boundary enforcement: a
   # domain reaches another domain only through its published interface or events.
   #
-  # Implements: **Build order step 12 — Domain module system** of `docs/idea/00-build-spec.md`.
+  # Implements: **Build order step 13 — Domain module system** of `docs/idea/00-build-spec.md`.
   #
   # Planned DSL surface, copied from the spec:
   #
@@ -19,7 +19,7 @@ module Magik
   module Domains
     # The build-spec phase this subsystem implements.
     # @return [String]
-    SPEC_PHASE = "Build order step 12 — Domain module system"
+    SPEC_PHASE = "Build order step 13 — Domain module system"
 
     # The DSL this subsystem will expose, verbatim from the spec.
     # @return [Array<String>]
@@ -37,7 +37,7 @@ module Magik
     # @param _args [Array] ignored
     # @param _options [Hash] ignored
     # @return [void] never returns
-    # @raise [NotImplementedError] always, until Build order step 12 lands
+    # @raise [NotImplementedError] always, until Build order step 13 lands
     def self.define(*_args, **_options)
       raise NotImplementedError, "Magik::Domains is spec-only; see docs/idea/00-build-spec.md"
     end

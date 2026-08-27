@@ -32,14 +32,15 @@ one, badly, as a side effect.
 ## Agents — what `/feature` dispatches
 
 **Scoped by file set, not by role.** A researcher/coder/reviewer trio has no file set, so it cannot
-be told what it may not touch, and two of them running at once collide. These six tile the app tree
+be told what it may not touch, and two of them running at once collide. These seven tile the app tree
 with no overlap, which is what lets a feature's units run in parallel once the names are fixed.
 
 | Agent | Owns | Never touches |
 |---|---|---|
 | `data-modeler` | `app/models/`, `db/migrations/`, `db/seeds.rb` | anything that acts |
 | `action-author` | `app/actions/`, `jobs/`, `channels/`, `flows/`, `webhooks/`, `api/` | money movement, rendering |
-| `screen-builder` | `app/screens/`, `app/components/`, `config/theme.rb`, `locales/` | the database |
+| `screen-builder` | `app/screens/`, `app/components/`, `app/layouts/`, `config/theme.rb`, `locales/` | the database |
+| `policy-author` | `app/policies/` | the surfaces that name its verbs. A policy guards reads as much as writes, so it is not `action-author`'s |
 | `ledger-author` | `app/ledgers/` | everything else. One directory, deliberately |
 | `test-writer` | `test/` | `app/` — a test that needs a source change is a finding, not a fix |
 | `guardrail-reviewer` | **nothing — read-only, no `Write` or `Edit`** | a reviewer that fixes what it finds stops reporting what it found |

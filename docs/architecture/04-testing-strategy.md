@@ -45,6 +45,30 @@ end
 
 Helpers, all planned: `perform_action`, `render_screen`, `concurrently(n)`, `travel_to`, `assert_enqueued`, `assert_broadcast`, `assert_notified`.
 
+### Four helpers that exist because a claim elsewhere in the spec has to be testable
+
+Each is a phase-9 item the spec names, and each is the executable half of a promise made in another phase. A promise with no assertion behind it is prose.
+
+| Helper | The claim it makes testable |
+|---|---|
+| `assert_queries(n) { … }` | a way to assert the **absence** of an N+1. Nothing else in the design catches one: an N+1 is correct, fast on a fixture and ruinous in production, so it has to be asserted at the count rather than found at the p99 |
+| Email content assertions beyond `assert_notified` | subject, recipient, body text, links, and **that a plain-text part exists**. `assert_notified` proves a notification fired; it says nothing about what landed in the inbox — and an agent has no inbox to check ([`../idea/00-build-spec.md`](../idea/00-build-spec.md) phase 8) |
+| **A generated authorization test per policy verb, including a cross-tenant denial** | decision 13 — every surface names a verb and the framework evaluates it. The test is generated from the `policy` declaration, so a verb that ships without one is not possible; the cross-tenant case is generated too, because that is the denial an app author is least likely to write |
+| `render_screen … at: :mobile` | phase 2's *every kit component is responsive by construction*. That is a claim to be tested, not asserted, and this is what tests it — alongside the phase-2 exit criterion that the generated app renders correctly at 375px |
+
+```ruby
+test :Invoices do
+  it "lists without an N+1" do
+    3.times { create :Invoice }
+    assert_queries(2) { render_screen :Invoices }
+  end
+
+  it "renders on a phone" do
+    render_screen :Invoices, at: :mobile
+  end
+end
+```
+
 ## Prior art, honestly assessed
 
 ### Rails
@@ -73,7 +97,7 @@ The lesson Magik takes: **balance on recorded runtime, and record it by default*
 
 **One worker *thread* per test file group, `workers: :auto` (all CPUs)** — parallelism inside one process rather than N forked processes.
 
-That works because threads on TruffleRuby are genuinely parallel: 2.55–3.54× on 4 threads, measured, `As of 2026-08-26` ([`12-runtime-verification.md`](12-runtime-verification.md)). TruffleRuby has no GVL, so the usual Ruby reason for reaching past threads does not exist.
+That works because threads on TruffleRuby are genuinely parallel — measured, not assumed: `ruby scripts/probes/runtime.rb`, results recorded in [`12-runtime-verification.md`](12-runtime-verification.md) `As of 2026-08-26`. **Cite the probe, never the ratio:** the speedup moves run to run with machine load, and a number copied into prose here is a number a re-run contradicts. TruffleRuby has no GVL, so the usual Ruby reason for reaching past threads does not exist.
 
 | Property | Separate processes (Rails-shaped) | Threads (Magik's design) |
 |---|---|---|
@@ -82,7 +106,7 @@ That works because threads on TruffleRuby are genuinely parallel: 2.55–3.54× 
 | Databases | N copies | one database, one connection per worker thread, transactional isolation |
 | Demands | none on the framework | genuinely shared-nothing tests, and a thread-safe framework: frozen registries, no mutable globals |
 | Crash blast radius | one worker | potentially the process |
-| Actually parallel? | yes, on any engine | **yes on TruffleRuby**, which is the production runtime and the engine that matters. 2.55–3.54× on 4 threads, measured |
+| Actually parallel? | yes, on any engine | **yes on TruffleRuby**, which is the production runtime and the engine that matters — `ruby scripts/probes/runtime.rb` |
 
 This is why [`00-conventions.md`](00-conventions.md) freezes the declaration registry at the end of boot and forbids mutable globals: the test runner's design depends on it, and a subsystem that stashes mutable state breaks parallelism rather than just being untidy.
 
@@ -103,12 +127,12 @@ The runner has **one** parallel backend: worker threads. There is no forked-work
 
 | | |
 |---|---|
-| Threads are genuinely parallel on the production runtime | 2.55–3.54× on 4 threads, measured. The reason forked workers exist in Ruby is the GVL, and TruffleRuby does not have one |
+| Threads are genuinely parallel on the production runtime | measured by `ruby scripts/probes/runtime.rb`. The reason forked workers exist in Ruby is the GVL, and TruffleRuby does not have one |
 | **`fork` is not available on TruffleRuby anyway** | `Process.respond_to?(:fork)` is `false`; calling it raises `NotImplementedError: fork is not available`. Measured on both builds tested, [`12-runtime-verification.md`](12-runtime-verification.md). A forked fallback is not a thing that could be built here |
 
 `magik test --workers=N` sets how many worker threads, and `auto` is all CPUs. It does not select a mechanism, because there is only one.
 
-**What this costs on CRuby, stated plainly.** The local development loop runs on CRuby, where threads do not parallelise CPU-bound Ruby — the same probe measures 0.8×. The suite still runs, correctly, on worker threads; it just does not get the speedup. The 10-second target is a **TruffleRuby target**, and whoever first measures it must say which engine it was measured on. That is a cost of the decision, not a reason for a second mechanism: two runner backends would mean the suite that gates a change is not the suite that runs in CI.
+**What this costs on CRuby, stated plainly.** The local development loop runs on CRuby, where threads do not parallelise CPU-bound Ruby at all — the same probe reports no speedup there, which is the global lock. The suite still runs, correctly, on worker threads; it just does not get the speedup. The 10-second target is a **TruffleRuby target**, and whoever first measures it must say which engine it was measured on. That is a cost of the decision, not a reason for a second mechanism: two runner backends would mean the suite that gates a change is not the suite that runs in CI.
 
 Nothing here is settled by measurement, because there is no suite to measure. Pretending otherwise would be the dishonest version of this document.
 
@@ -189,6 +213,8 @@ The spec generates tests from declarations. What is generated:
 | `immutable_after:` | a write past the point raises `MAGIK_MODEL_IMMUTABLE_VIOLATION` |
 | `belongs_to` / `has_many` | the association resolves and is tenant-scoped |
 | `api resource` | each declared verb answers, paginates, and rejects a cross-tenant read |
+| **`policy` `can :verb`** | **one test per verb**: the rule grants what it should, denies by default, denies on a `nil` record, and **denies an actor from another tenant**. Generated from the declaration, so no surface can ship a verb with no test behind it |
+| `attachment` (phase 4b) | an unbounded declaration fails the boot; a private file's URL is issued only after the record's policy verb passes |
 
 | Rule | Detail |
 |---|---|
@@ -218,4 +244,4 @@ Six kinds, in cost order. The gate runs them in this order so the cheapest failu
 | 5 | `integration` | realtime, worker execution, committed-data paths | database with `isolation: :committed`, a worker, `LISTEN`/`NOTIFY` | `magik test`, CI |
 | 6 | `conformance` | a swap point's backends all satisfy one contract ([`../idea/04-swap-points.md`](../idea/04-swap-points.md)) | each backend, real | CI only |
 
-App-facing usage, helper reference and worked examples live in `wiki/Testing.md`.
+App-facing usage, helper reference and worked examples live in [`../../wiki/Testing.md`](../../wiki/Testing.md).

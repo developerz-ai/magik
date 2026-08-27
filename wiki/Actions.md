@@ -11,7 +11,7 @@ where a write can happen.
 
 ```ruby
 # app/actions/mark_paid.rb
-action :mark_paid do |params|
+action :mark_paid, policy: %i[Invoice record_payment] do |params|
   invoice = Invoice.find!(params[:id])
 
   guard invoice.status == :sent, "only a sent invoice can be marked paid"
@@ -31,6 +31,7 @@ end
 | `guard` | a precondition. Failing one is a `MAGIK_GUARD_FAILED` with your message, rendered to the user — not a 500 |
 | `toast` | transient feedback, swapped into the page by htmx |
 | `refresh :Screen` | re-renders the named screen fragment. This is how the page updates without a reload |
+| `policy:` | the verb the framework evaluates **before** the block runs. Required, like everywhere else — see [`policy`](Screens-And-Components.md#policy). Opting out is `policy: :public` or `policy: :system`, written down |
 
 ## Routing is convention
 
@@ -72,7 +73,7 @@ A retried mutation must not perform twice. Declare what makes a call the same ca
 
 ```ruby
 action :charge_invoice do
-  idempotent_by :invoice_id, window: 24.hours
+  idempotent_by :invoice_id, window: "24h"        # a :duration
 
   perform do |params|
     Billing.charge(Invoice.find!(params[:invoice_id]))
@@ -113,6 +114,7 @@ the row that caused it commit together — see [Jobs](Jobs.md).
 | Guardrail | Fails with | When |
 |---|---|---|
 | An action is the only thing that mutates | `MAGIK_MUTATION_OUTSIDE_ACTION` | boot |
+| An action names a policy verb | `MAGIK_POLICY_UNDECLARED` | boot |
 | An action holds no cross-request state | `MAGIK_STATEFUL_ACTION` | boot |
 | Async work happens in a job | `MAGIK_ASYNC_OUTSIDE_JOB` | boot |
 | A money-moving action declares idempotency | `MAGIK_IDEMPOTENCY_REQUIRED` | boot |

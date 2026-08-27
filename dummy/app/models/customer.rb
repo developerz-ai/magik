@@ -12,8 +12,8 @@
 # one injected and scoped automatically (spec decision 8). Writing it by hand
 # would be the bug, not the safety.
 #
-# Demonstrates: field types, belongs_to, has_many, computed money, scope,
-# translatable fields (Phase 8).
+# Demonstrates: field types including :duration, belongs_to, has_many, computed
+# money, scope, translatable fields (Phase 8).
 
 model :Customer do
   field :name,     :string, required: true
@@ -22,13 +22,22 @@ model :Customer do
   field :notes,    :text,   translatable: true # Phase 8: per-locale content
   field :archived, :boolean, default: false
 
+  # Net-30, as a :duration — a unit-suffixed string coerced at boot, so "30d"
+  # and "45d" are the same type and a typo fails the boot rather than the first
+  # invoice. The alternative, `payment_terms_days: 30`, puts the unit in the
+  # field name and makes "two weeks" a second field (spec D1).
+  field :payment_terms, :duration, default: "30d"
+
   belongs_to :account
   has_many :invoices
 
   # A :money field is integer cents with a currency, never a Float — the type
   # system refuses floats for currency (spec decision 10). Derived rather than
   # stored, so it cannot drift from the invoices it summarises.
-  computed :outstanding, :money do
+  # The parentheses are load-bearing everywhere `computed` appears: a brace
+  # block binds to the last call, so `computed :name, :type { ... }` would bind
+  # the block to the symbol. See dummy/README.md, "What writing this taught us".
+  computed(:outstanding, :money) do
     invoices.unpaid.sum(:total)
   end
 

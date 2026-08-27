@@ -14,10 +14,20 @@
 # Auto-wired to an htmx POST by name; there is no route to declare and no
 # controller to write (Phase 2).
 #
-# Demonstrates: action, params, idempotent_by (Phase 5), authorize, transaction
-# boundary, enqueue, broadcast (Phase 3).
+# Demonstrates: action, policy (Phase 2), params, idempotent_by (Phase 5),
+# transaction boundary, enqueue, broadcast (Phase 3).
 
-action :issue_invoice do
+action :issue_invoice, policy: %i[Invoice issue] do
+  # ONE VERB, NAMED. The rule lives in app/policies/invoice.rb and says that an
+  # admin or owner may issue an invoice that is still a draft. It is evaluated
+  # BEFORE this block runs, by the same evaluator that answers the screen, the
+  # channel, the API and the admin panel.
+  #
+  # An earlier draft of this app wrote the check by hand instead, in three
+  # incompatible spellings across three files. That is the failure `policy`
+  # exists to prevent, and it is why the verb is an ARGUMENT rather than a block
+  # inside the construct: an argument is checkable at boot, so a mutation cannot
+  # ship without one. See dummy/README.md, "What writing this taught us".
   params do
     field :invoice_id, :uuid, required: true
   end
@@ -26,10 +36,6 @@ action :issue_invoice do
   # and a webhook replay are the same request, and issuing an invoice twice
   # means charging someone twice.
   idempotent_by ->(params) { "issue:#{params[:invoice_id]}" }
-
-  authorize do |user, params|
-    user.can?(:issue, Invoice.find(params[:invoice_id]))
-  end
 
   perform do |params|
     invoice = Invoice.find(params[:invoice_id])

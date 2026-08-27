@@ -152,6 +152,8 @@ magik generate action refund_order
 
 Generated files are **live immediately** — the watcher picks them up, the registry rebuilds, and the route exists on the next request. No restart, no registration step, no route file to edit. Each generator also emits a failing test, so the loop's next move is obvious ([`05-adding-a-feature.md`](05-adding-a-feature.md)).
 
+**A generated surface arrives declared, not blank.** A `screen` or an `action` reaches a model, so it names a `policy:` verb and a `layout:`; a generator that emitted either without them would emit a file whose only effect is to fail the next reload with `MAGIK_POLICY_UNDECLARED` or `MAGIK_LAYOUT_MISSING`. The generated authorization test — one per verb, including a cross-tenant denial — comes in the same pass ([`04-testing-strategy.md`](04-testing-strategy.md)). This is what makes the reload loop usable rather than a boot-failure loop: the guardrails run on **every** rebuild, so anything the generator leaves undeclared is felt on the next save rather than at deploy.
+
 ## Configuration in the loop
 
 Config and secrets interact with reloading in exactly one way worth stating: **they do not reload.** Credentials, `.env` files and `config/` are read once, at boot, because the objects they configure are long-lived ([`07-configuration-and-secrets.md`](07-configuration-and-secrets.md)). Changing one prints the restart notice above rather than being partially applied.

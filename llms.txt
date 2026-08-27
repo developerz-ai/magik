@@ -1,10 +1,10 @@
 # Magik
 
-> An opinionated, full-stack Ruby framework on TruffleRuby, and an **AI-first repository**: the primary developer is an AI agent, and every design decision follows from that. One uniform DSL grammar covers models, screens, actions, realtime channels, background jobs, ledgers, APIs and admin panels — a `ledger` is declared the way a `model` is, so there is one grammar to learn and one to hold in context. The server renders HTML and htmx handles interactivity; there is no SPA framework and never will be. Conventions are enforced at boot rather than documented: an unbalanced ledger, a `field :card_number`, a cross-domain reach, a screen holding state, a timestamp with no timezone — each is a boot failure carrying a stable `MAGIK_*` code, a one-sentence cause and a runnable `fix:` line, which is the correction signal an agent can act on without a human in the loop. Multi-tenant by default, UUIDv7 keys, integer-cents money, and a config-level swap behind every opinionated default. The CLI binary is `magik`. Install with `gem install magik`.
+> An opinionated, full-stack Ruby framework on TruffleRuby, and an **AI-first repository**: the primary developer is an AI agent, and every design decision follows from that. One uniform DSL grammar covers models, screens, actions, realtime channels, background jobs, ledgers, APIs and admin panels — a `ledger` is declared the way a `model` is, so there is one grammar to learn and one to hold in context. The server renders HTML and htmx handles interactivity; there is no SPA framework and never will be. Conventions are enforced at boot rather than documented: an unbalanced ledger, a `field :card_number`, a cross-domain reach, a screen holding state, a timestamp with no timezone, a surface reaching a model without naming an authorization verb — each is a boot failure carrying a stable `MAGIK_*` code, a one-sentence cause and a runnable `fix:` line, which is the correction signal an agent can act on without a human in the loop. Multi-tenant by default, UUIDv7 keys, integer-cents money, and a config-level swap behind every opinionated default. The CLI binary is `magik`. Install with `gem install magik`.
 
 This file is a link map, not a status page. **It states no version, count or verdict without the command that resolves it** — a number written here goes stale on the next commit and the command does not. `As of 2026-08-26`.
 
-**The one fact you must not get wrong:** `magik 0.0.1` is a **name reservation on RubyGems**. No framework code exists. Every DSL block in `wiki/` and `docs/` is a design artefact that has never been parsed. Two CLI commands run — `version` and `help` — and everything else exits `1` with `MAGIK_COMMAND_NOT_IMPLEMENTED`. Resolve it with `magik help --json` before you quote anything else on this page.
+**The one fact you must not get wrong:** `magik 0.0.1` is a **name reservation on RubyGems**. No framework code exists. Every DSL block in `wiki/` and `docs/` is a design artefact that has never been parsed. Three CLI commands run — `version`, `help` and `docs` — and everything else exits `1` with `MAGIK_COMMAND_NOT_IMPLEMENTED`. Resolve it with `magik help --json` before you quote anything else on this page.
 
 ## Which reader are you
 
@@ -12,9 +12,9 @@ Two different jobs, two different starting points. Pick one before reading furth
 
 **A — You are implementing Magik.** You are writing framework code in this repository, landing a phase, adding a subsystem.
 
-- [docs/idea/00-build-spec.md](https://raw.githubusercontent.com/developerz-ai/magik/main/docs/idea/00-build-spec.md) — the specification, kept verbatim. The source of truth. Nothing contradicts it.
-- [docs/idea/06-phases.md](https://raw.githubusercontent.com/developerz-ai/magik/main/docs/idea/06-phases.md) — the nine phases in detail, and what "done" means for each.
-- [ROADMAP.md](https://raw.githubusercontent.com/developerz-ai/magik/main/ROADMAP.md) — the twelve-step build order, the version milestones, and today's status.
+- [docs/idea/00-build-spec.md](https://raw.githubusercontent.com/developerz-ai/magik/main/docs/idea/00-build-spec.md) — the specification. The source of truth: amended from measurement, then rewritten as a clean v1. Nothing else contradicts it.
+- [docs/idea/06-phases.md](https://raw.githubusercontent.com/developerz-ai/magik/main/docs/idea/06-phases.md) — the ten phases (1, 2, 3, 4, 4b, 5, 6, 7, 8, 9) and the thirteen-step build order in detail, and what "done" means for each.
+- [ROADMAP.md](https://raw.githubusercontent.com/developerz-ai/magik/main/ROADMAP.md) — the thirteen-step build order, the version milestones, and today's status.
 - [docs/architecture/05-adding-a-feature.md](https://raw.githubusercontent.com/developerz-ai/magik/main/docs/architecture/05-adding-a-feature.md) — the end-to-end loop with the exact command per step. Read this one most.
 - [.claude/commands/implement-phase.md](https://raw.githubusercontent.com/developerz-ai/magik/main/.claude/commands/implement-phase.md) — the slash command that lands a phase. Delivery here is agent-driven and gated by `bin/check`.
 - [.claude/README.md](https://raw.githubusercontent.com/developerz-ai/magik/main/.claude/README.md) — the whole workbench: subagents and commands.
@@ -36,23 +36,23 @@ Both readers: [wiki/Error-Codes.md](https://raw.githubusercontent.com/developerz
 - `gem list magik --remote --all`: what RubyGems actually serves. The published version is a name reservation; do not infer capability from it.
 - `ruby -Ilib -e 'require "magik"; puts Magik::VERSION'`: what this checkout is stamped at.
 - `ruby -Ilib -e 'require "magik"; puts Magik::SUBSYSTEMS.keys.inspect'`: every planned subsystem, from the map that drives autoloading. The authoritative list — not the copy in any document.
-- `magik version --json` / `magik help --json`: the two commands that run, and the registry of every command with its status. **The authoritative answer to "what works".**
+- `magik version --json` / `magik help --json`: the commands that run, and the registry of every command with its status, each marked `ready` or `planned`. **The authoritative answer to "what works".**
 - `rake -T`: every task this checkout defines. What the repo can do, as opposed to what it plans to.
 - `bin/check`: the gate — lint, tests, doc checks. Green means the change is landable.
 - `bundle exec yard stats --list-undoc`: documentation coverage of what exists. Published at <https://developerz-ai.github.io/magik/api/>.
 
 ## Where do I look for X
 
-- **What is Magik supposed to be**: [docs/idea/00-build-spec.md](https://raw.githubusercontent.com/developerz-ai/magik/main/docs/idea/00-build-spec.md). Verbatim spec, nine phases, twelve build steps. Everything else elaborates on it.
+- **What is Magik supposed to be**: [docs/idea/00-build-spec.md](https://raw.githubusercontent.com/developerz-ai/magik/main/docs/idea/00-build-spec.md). The source of truth: ten phases, thirteen build steps. Everything else elaborates on it.
 - **Why the repo is arranged for an agent**: [docs/idea/07-ai-first.md](https://raw.githubusercontent.com/developerz-ai/magik/main/docs/idea/07-ai-first.md), then [.claude/README.md](https://raw.githubusercontent.com/developerz-ai/magik/main/.claude/README.md).
-- **What actually works today**: `magik help --json`, then [wiki/Known-Gaps.md](https://raw.githubusercontent.com/developerz-ai/magik/main/wiki/Known-Gaps.md). The answer is "two commands".
+- **What actually works today**: `magik help --json`, then [wiki/Known-Gaps.md](https://raw.githubusercontent.com/developerz-ai/magik/main/wiki/Known-Gaps.md). The answer is `version`, `help` and `docs`, and nothing else.
 - **Where does this file go**: [wiki/Project-Layout.md](https://raw.githubusercontent.com/developerz-ai/magik/main/wiki/Project-Layout.md) — one predictable mapping from filename to declaration, both directions, plus what each directory must not hold.
 - **What shape does a declaration take**: [docs/idea/02-dsl-surface.md](https://raw.githubusercontent.com/developerz-ai/magik/main/docs/idea/02-dsl-surface.md) for the canonical form; the `wiki/` page for the reference version with a worked example.
-- **Why is this a boot failure**: [docs/idea/03-guardrails.md](https://raw.githubusercontent.com/developerz-ai/magik/main/docs/idea/03-guardrails.md). Six spec guardrails, each a boot failure by design.
+- **Why is this a boot failure**: [docs/idea/03-guardrails.md](https://raw.githubusercontent.com/developerz-ai/magik/main/docs/idea/03-guardrails.md). The catalogue, each entry a boot failure by design — including the authorization, layout and upload refusals that came with architecture decision 13.
 - **Can I replace a default**: [docs/idea/04-swap-points.md](https://raw.githubusercontent.com/developerz-ai/magik/main/docs/idea/04-swap-points.md) — DB, cache, jobs, search, realtime. Every swap needs a passing test on both sides before it is claimed. None exists yet.
 - **Can I use my own components**: [docs/idea/08-component-overrides.md](https://raw.githubusercontent.com/developerz-ai/magik/main/docs/idea/08-component-overrides.md) for the reasoning; [wiki/Screens-And-Components.md](https://raw.githubusercontent.com/developerz-ai/magik/main/wiki/Screens-And-Components.md) for the four-rung ladder, the kit contract and the resolution order.
 - **What will it refuse to do**: [docs/idea/05-limits.md](https://raw.githubusercontent.com/developerz-ai/magik/main/docs/idea/05-limits.md). No offline, no heavy client-side compute, no SPA framework. Permanent, not a gap.
-- **I hit a `MAGIK_*` code**: [wiki/Error-Codes.md](https://raw.githubusercontent.com/developerz-ai/magik/main/wiki/Error-Codes.md). Run the `fix:` line verbatim — it is a command or an edit naming a file. Four codes are real; the rest are seeded from the guardrails and raised by nothing.
+- **I hit a `MAGIK_*` code**: [wiki/Error-Codes.md](https://raw.githubusercontent.com/developerz-ai/magik/main/wiki/Error-Codes.md). Run the `fix:` line verbatim — it is a command or an edit naming a file. Only the CLI's own codes are raised by anything today; the rest are seeded from the guardrails and raised by nothing.
 - **A CLI flag, a `--json` shape, an exit code**: [wiki/CLI-Reference.md](https://raw.githubusercontent.com/developerz-ai/magik/main/wiki/CLI-Reference.md).
 - **Which module owns this**: [docs/architecture/01-module-map.md](https://raw.githubusercontent.com/developerz-ai/magik/main/docs/architecture/01-module-map.md). **What may depend on what**: [docs/architecture/02-boundaries.md](https://raw.githubusercontent.com/developerz-ai/magik/main/docs/architecture/02-boundaries.md).
 - **How the tests are meant to run**: [docs/architecture/04-testing-strategy.md](https://raw.githubusercontent.com/developerz-ai/magik/main/docs/architecture/04-testing-strategy.md) for the mechanism and its risks; [wiki/Testing.md](https://raw.githubusercontent.com/developerz-ai/magik/main/wiki/Testing.md) for what you type.
@@ -66,7 +66,7 @@ Both readers: [wiki/Error-Codes.md](https://raw.githubusercontent.com/developerz
 ## Start here
 
 - [README](https://raw.githubusercontent.com/developerz-ai/magik/main/README.md): the entry point — what it is, what it is not yet, and one hop to everything else.
-- [ROADMAP.md](https://raw.githubusercontent.com/developerz-ai/magik/main/ROADMAP.md): nine phases, twelve build steps, version milestones, and an unambiguous statement of today's status.
+- [ROADMAP.md](https://raw.githubusercontent.com/developerz-ai/magik/main/ROADMAP.md): ten phases, thirteen build steps, version milestones, and an unambiguous statement of today's status.
 - [docs/README.md](https://raw.githubusercontent.com/developerz-ai/magik/main/docs/README.md): the map of idea, architecture and ops docs.
 - [wiki/Home.md](https://raw.githubusercontent.com/developerz-ai/magik/main/wiki/Home.md): the reference manual index, with a reading path per audience.
 - [CLAUDE.md](https://raw.githubusercontent.com/developerz-ai/magik/main/CLAUDE.md) · [AGENTS.md](https://raw.githubusercontent.com/developerz-ai/magik/main/AGENTS.md): the non-negotiables for working inside this repo.
@@ -76,29 +76,30 @@ Both readers: [wiki/Error-Codes.md](https://raw.githubusercontent.com/developerz
 Committed to the tree rather than kept in a local config, because the repo's way of working is part of the repo. A phase is landed by an agent running `/implement-phase` and gated by `bin/check`.
 
 - [.claude/README.md](https://raw.githubusercontent.com/developerz-ai/magik/main/.claude/README.md): what is here and when to reach for it.
-- Subagents: [spec-implementer](https://raw.githubusercontent.com/developerz-ai/magik/main/.claude/agents/spec-implementer.md) · [dsl-designer](https://raw.githubusercontent.com/developerz-ai/magik/main/.claude/agents/dsl-designer.md) · [guardrail-author](https://raw.githubusercontent.com/developerz-ai/magik/main/.claude/agents/guardrail-author.md) · [docs-keeper](https://raw.githubusercontent.com/developerz-ai/magik/main/.claude/agents/docs-keeper.md) · [test-writer](https://raw.githubusercontent.com/developerz-ai/magik/main/.claude/agents/test-writer.md) · [swap-point-prover](https://raw.githubusercontent.com/developerz-ai/magik/main/.claude/agents/swap-point-prover.md)
-- Commands: [/implement-phase](https://raw.githubusercontent.com/developerz-ai/magik/main/.claude/commands/implement-phase.md) · [/next-task](https://raw.githubusercontent.com/developerz-ai/magik/main/.claude/commands/next-task.md) · [/check](https://raw.githubusercontent.com/developerz-ai/magik/main/.claude/commands/check.md) · [/new-dsl](https://raw.githubusercontent.com/developerz-ai/magik/main/.claude/commands/new-dsl.md) · [/spec-audit](https://raw.githubusercontent.com/developerz-ai/magik/main/.claude/commands/spec-audit.md) · [/release](https://raw.githubusercontent.com/developerz-ai/magik/main/.claude/commands/release.md)
+- Subagents: [spec-implementer](https://raw.githubusercontent.com/developerz-ai/magik/main/.claude/agents/spec-implementer.md) · [dsl-designer](https://raw.githubusercontent.com/developerz-ai/magik/main/.claude/agents/dsl-designer.md) · [cli-author](https://raw.githubusercontent.com/developerz-ai/magik/main/.claude/agents/cli-author.md) · [guardrail-author](https://raw.githubusercontent.com/developerz-ai/magik/main/.claude/agents/guardrail-author.md) · [swap-point-prover](https://raw.githubusercontent.com/developerz-ai/magik/main/.claude/agents/swap-point-prover.md) · [test-writer](https://raw.githubusercontent.com/developerz-ai/magik/main/.claude/agents/test-writer.md) · [docs-keeper](https://raw.githubusercontent.com/developerz-ai/magik/main/.claude/agents/docs-keeper.md) · [spec-auditor](https://raw.githubusercontent.com/developerz-ai/magik/main/.claude/agents/spec-auditor.md)
+- Commands: [/implement-phase](https://raw.githubusercontent.com/developerz-ai/magik/main/.claude/commands/implement-phase.md) · [/next-task](https://raw.githubusercontent.com/developerz-ai/magik/main/.claude/commands/next-task.md) · [/check](https://raw.githubusercontent.com/developerz-ai/magik/main/.claude/commands/check.md) · [/new-dsl](https://raw.githubusercontent.com/developerz-ai/magik/main/.claude/commands/new-dsl.md) · [/spec-audit](https://raw.githubusercontent.com/developerz-ai/magik/main/.claude/commands/spec-audit.md) · [/dummy-app](https://raw.githubusercontent.com/developerz-ai/magik/main/.claude/commands/dummy-app.md) · [/release](https://raw.githubusercontent.com/developerz-ai/magik/main/.claude/commands/release.md)
 
 ## The phases
 
-Nine spec phases, delivered in a twelve-step build order that is deliberately **not** the same sequence: testing is spec Phase 9 and build step 5, so everything after it is test-driven; the API phase lands after auth/billing/admin because the admin panel is the first real consumer of the resource DSL. Definitions of "done" and version milestones: [ROADMAP.md](https://raw.githubusercontent.com/developerz-ai/magik/main/ROADMAP.md). **All nine are planned. None is built.**
+Ten spec phases — 1, 2, 3, 4, 4b, 5, 6, 7, 8, 9 — delivered in a thirteen-step build order that is deliberately **not** the same sequence: testing is spec Phase 9 and build step 5, so everything after it is test-driven; the API phase lands after auth/billing/admin because the admin panel is the first real consumer of the resource DSL. **Where the two orderings disagree, build order wins.** The table below is numbered by phase identity and ordered by delivery. Definitions of "done" and version milestones: [ROADMAP.md](https://raw.githubusercontent.com/developerz-ai/magik/main/ROADMAP.md). **All ten are planned. None is built.**
 
-| Phase | Ships | Reference page |
-|---|---|---|
-| 1 Foundation | `App.define`, `model`, `migrate`, `:money`, UUIDv7, tenant injection, CLI | [wiki/Models.md](https://raw.githubusercontent.com/developerz-ai/magik/main/wiki/Models.md) |
-| 2 Rendering & actions | `component`, `screen`, `action`, the kit, theming, router, hot reload | [wiki/Screens-And-Components.md](https://raw.githubusercontent.com/developerz-ai/magik/main/wiki/Screens-And-Components.md) · [wiki/Actions.md](https://raw.githubusercontent.com/developerz-ai/magik/main/wiki/Actions.md) |
-| 3 Realtime | `live`, `channel`, `broadcast`, `presence` — opt-in per screen | [wiki/Realtime.md](https://raw.githubusercontent.com/developerz-ai/magik/main/wiki/Realtime.md) |
-| 4 Jobs | `job`, retries, schedules, the transactional queue, `magik worker` | [wiki/Jobs.md](https://raw.githubusercontent.com/developerz-ai/magik/main/wiki/Jobs.md) |
-| 5 Money & compliance | `ledger`, `audited`, `immutable_after:`, `idempotent_by`, `flow` | [wiki/Money-And-Ledgers.md](https://raw.githubusercontent.com/developerz-ai/magik/main/wiki/Money-And-Ledgers.md) |
-| 6 API & integration | `api`, `resource`, incoming and outgoing `webhook`, API auth, rate limits | [wiki/API-And-Webhooks.md](https://raw.githubusercontent.com/developerz-ai/magik/main/wiki/API-And-Webhooks.md) |
-| 7 Auth, billing, admin | `auth`, `billing`, `admin_panel`, `tenant_by` | [wiki/Auth-Billing-Admin.md](https://raw.githubusercontent.com/developerz-ai/magik/main/wiki/Auth-Billing-Admin.md) |
-| 8 i18n, PWA, notifications | `locales`, `translatable:`, `pwa`, `notification` | [wiki/Home.md](https://raw.githubusercontent.com/developerz-ai/magik/main/wiki/Home.md) |
-| 9 Testing (built 3rd) | the `test` DSL, inferred factories, the helpers, the parallel runner | [wiki/Testing.md](https://raw.githubusercontent.com/developerz-ai/magik/main/wiki/Testing.md) |
-| + Domains | `domain`, boot-time boundary enforcement, `magik check --scale` | [wiki/Domains.md](https://raw.githubusercontent.com/developerz-ai/magik/main/wiki/Domains.md) |
+| Phase | Built at | Ships | Reference page |
+|---|---|---|---|
+| 1 Foundation | steps 1–2 | `App.define`, `model`, `migrate`, `:money`/`:file`/`:duration`, `computed`, UUIDv7, tenant injection, the option tables, `magik new/generate/console/server/describe` | [wiki/Models.md](https://raw.githubusercontent.com/developerz-ai/magik/main/wiki/Models.md) · [wiki/CLI-Reference.md](https://raw.githubusercontent.com/developerz-ai/magik/main/wiki/CLI-Reference.md) |
+| 2 Rendering & actions | steps 3–4 | `component`, `screen`, `action`, **`policy`**, **`layout`**, the kit, theming, router, hot reload | [wiki/Screens-And-Components.md](https://raw.githubusercontent.com/developerz-ai/magik/main/wiki/Screens-And-Components.md) · [wiki/Actions.md](https://raw.githubusercontent.com/developerz-ai/magik/main/wiki/Actions.md) |
+| 9 Testing | step 5 | the `test` DSL, inferred factories, the helpers, the parallel runner — early, so everything after it is TDD'd | [wiki/Testing.md](https://raw.githubusercontent.com/developerz-ai/magik/main/wiki/Testing.md) |
+| 3 Realtime | step 6 | `live`, `channel`, `broadcast`, `presence` — opt-in per screen | [wiki/Realtime.md](https://raw.githubusercontent.com/developerz-ai/magik/main/wiki/Realtime.md) |
+| 4 Jobs | step 7 | `job`, `retries times:`, schedules, the transactional queue, `magik worker` | [wiki/Jobs.md](https://raw.githubusercontent.com/developerz-ai/magik/main/wiki/Jobs.md) |
+| 4b Media | step 8 | `attachment`, direct-to-storage upload, magic-byte sniffing, derivatives, signed delivery, a wrapped video seam. No wiki page yet | [docs/idea/06-phases.md](https://raw.githubusercontent.com/developerz-ai/magik/main/docs/idea/06-phases.md) |
+| 5 Money & compliance | step 9 | `ledger`, `audited`, `immutable_after:`, `idempotent_by`, `flow` | [wiki/Money-And-Ledgers.md](https://raw.githubusercontent.com/developerz-ai/magik/main/wiki/Money-And-Ledgers.md) |
+| 7 Auth, billing, admin | step 10 | `auth`, `billing`, `admin_panel` (a `policy:` is required), `tenant_by`, teams and seats | [wiki/Auth-Billing-Admin.md](https://raw.githubusercontent.com/developerz-ai/magik/main/wiki/Auth-Billing-Admin.md) |
+| 6 API & integration | step 11 | `api`, `resource`, incoming and outgoing `webhook`, API auth, rate limits | [wiki/API-And-Webhooks.md](https://raw.githubusercontent.com/developerz-ai/magik/main/wiki/API-And-Webhooks.md) |
+| 8 i18n, PWA, notifications | step 12 | `locales`, `translatable:`, `pwa`, `notification`, email production | [wiki/Home.md](https://raw.githubusercontent.com/developerz-ai/magik/main/wiki/Home.md) |
+| + Domains (spec item 12, not a phase) | step 13 | `domain`, boot-time boundary enforcement, `magik check --scale` | [wiki/Domains.md](https://raw.githubusercontent.com/developerz-ai/magik/main/wiki/Domains.md) |
 
 ## The guardrails
 
-The product **is** the enforcement. Six things fail at boot, each with a code, a cause and a runnable `fix:` — which is the correction signal an agent acts on. Full reasoning: [docs/idea/03-guardrails.md](https://raw.githubusercontent.com/developerz-ai/magik/main/docs/idea/03-guardrails.md). Full catalogue: [wiki/Error-Codes.md](https://raw.githubusercontent.com/developerz-ai/magik/main/wiki/Error-Codes.md).
+The product **is** the enforcement. Declarations are refused at boot rather than at runtime, each refusal carrying a code, a cause and a runnable `fix:` — which is the correction signal an agent acts on. Full reasoning: [docs/idea/03-guardrails.md](https://raw.githubusercontent.com/developerz-ai/magik/main/docs/idea/03-guardrails.md). Full catalogue: [wiki/Error-Codes.md](https://raw.githubusercontent.com/developerz-ai/magik/main/wiki/Error-Codes.md).
 
 - Ledger entries must balance — `MAGIK_LEDGER_UNBALANCED`
 - No PAN-shaped field may exist — `MAGIK_PAN_FIELD_FORBIDDEN`
@@ -106,6 +107,9 @@ The product **is** the enforcement. Six things fail at boot, each with a code, a
 - No in-process state across requests in a screen or action — `MAGIK_STATEFUL_SCREEN`
 - No timestamp rendered without an explicit timezone — `MAGIK_TIMEZONE_UNSPECIFIED`
 - No query without `tenant_id` in its `WHERE` — `MAGIK_TENANT_SCOPE_MISSING`, via `magik check --scale`
+- **No surface reaches a model without naming a policy verb** — `MAGIK_POLICY_UNDECLARED`, the load-bearing one: it makes authorization non-optional the way `tenant_id` is, and makes an unprotected admin panel a boot failure rather than a documented risk. Its siblings refuse a predicate that does I/O, an unknown verb, a missing `default :deny`, and a rule that passes on a `nil` record
+- **No screen without a layout**, and no `nav_item` naming a screen that does not exist — `MAGIK_LAYOUT_MISSING` · `MAGIK_LAYOUT_UNKNOWN_SCREEN`
+- **No unbounded upload** — a `:file` field or an `attachment` with no `max_size` and no `content_types` — `MAGIK_MODEL_UNCONSTRAINED_UPLOAD`
 
 Rendered shape, identical in the terminal, the development error page and `--json` — it is one object, `Magik::Error#to_h`:
 
@@ -114,7 +118,7 @@ MAGIK_LEDGER_UNBALANCED: entry :invoice_issued debits 14999, credits 14900
   fix: correct the amounts in app/ledgers/receivables.rb — debits must equal credits
 ```
 
-Four codes exist today, all in the CLI: `MAGIK_ERROR`, `MAGIK_UNKNOWN_COMMAND`, `MAGIK_COMMAND_NOT_IMPLEMENTED`, `MAGIK_INVALID_OPTION`. Every other code on the catalogue page is seeded from the guardrails and raised by nothing.
+The codes that exist today are the CLI's own — `MAGIK_ERROR`, `MAGIK_UNKNOWN_COMMAND`, `MAGIK_COMMAND_NOT_IMPLEMENTED`, `MAGIK_INVALID_OPTION`, plus the `MAGIK_DOCS_*` set behind `magik docs`. Resolve the list rather than quoting it: `grep -rhoE '"MAGIK_[A-Z0-9_]+"' lib/ | sort -u`. Every other code on the catalogue page is seeded from the guardrails and raised by nothing.
 
 ## The limits
 
@@ -131,21 +135,24 @@ Permanent exclusions, not gaps. They are refusals with codes rather than silent 
 
 ### Design — docs/idea
 
-- [00-build-spec.md](https://raw.githubusercontent.com/developerz-ai/magik/main/docs/idea/00-build-spec.md): the specification, verbatim. Source of truth.
+- [00-build-spec.md](https://raw.githubusercontent.com/developerz-ai/magik/main/docs/idea/00-build-spec.md): the specification. Source of truth — thirteen non-negotiable decisions, ten phases, thirteen build steps.
 - [01-thesis.md](https://raw.githubusercontent.com/developerz-ai/magik/main/docs/idea/01-thesis.md): why this framework exists, and the axioms everything else follows.
 - [02-dsl-surface.md](https://raw.githubusercontent.com/developerz-ai/magik/main/docs/idea/02-dsl-surface.md): the canonical shape of every declaration. One grammar.
 - [03-guardrails.md](https://raw.githubusercontent.com/developerz-ai/magik/main/docs/idea/03-guardrails.md): what fails at boot, and why boot rather than runtime.
 - [04-swap-points.md](https://raw.githubusercontent.com/developerz-ai/magik/main/docs/idea/04-swap-points.md): every opinionated default and its escape hatch — including the component override ladder.
 - [05-limits.md](https://raw.githubusercontent.com/developerz-ai/magik/main/docs/idea/05-limits.md): what Magik refuses to do, permanently.
-- [06-phases.md](https://raw.githubusercontent.com/developerz-ai/magik/main/docs/idea/06-phases.md): the nine phases in detail, and the definition of done per phase.
+- [06-phases.md](https://raw.githubusercontent.com/developerz-ai/magik/main/docs/idea/06-phases.md): the ten phases in detail, the thirteen-step build order they are delivered in, and the definition of done per phase.
 - [07-ai-first.md](https://raw.githubusercontent.com/developerz-ai/magik/main/docs/idea/07-ai-first.md): the primary developer is an agent, and what follows from that.
 - [08-component-overrides.md](https://raw.githubusercontent.com/developerz-ai/magik/main/docs/idea/08-component-overrides.md): the component kit is a default too — four rungs, a contract, a resolution order.
 - [09-app-scaffold.md](https://raw.githubusercontent.com/developerz-ai/magik/main/docs/idea/09-app-scaffold.md): the app scaffold — three stages, what each emits, and who owns each generated file.
+- [10-saas-coverage.md](https://raw.githubusercontent.com/developerz-ai/magik/main/docs/idea/10-saas-coverage.md): the adversarial audit of the 99% claim, and the command that re-counts the table. It is where `policy`, `layout` and media came from.
+- [11-dsl-as-tool-surface.md](https://raw.githubusercontent.com/developerz-ai/magik/main/docs/idea/11-dsl-as-tool-surface.md): the DSL as a tool surface — the rules new grammar is designed against, why `magik describe` exists, and why `magik mcp` is deferred.
+- [12-the-range.md](https://raw.githubusercontent.com/developerz-ai/magik/main/docs/idea/12-the-range.md): the two axes one framework has to span, from a weekend idea to a large product.
 
 ### Internals — docs/architecture
 
 - [00-conventions.md](https://raw.githubusercontent.com/developerz-ai/magik/main/docs/architecture/00-conventions.md): file layout, naming, export surface — the coding contract.
-- [01-module-map.md](https://raw.githubusercontent.com/developerz-ai/magik/main/docs/architecture/01-module-map.md): twenty subsystems, one reason to change each.
+- [01-module-map.md](https://raw.githubusercontent.com/developerz-ai/magik/main/docs/architecture/01-module-map.md): twenty-one subsystems, one reason to change each. Re-derive with `ruby -Ilib -e 'require "magik"; puts Magik::SUBSYSTEMS.keys.join(" ")'`.
 - [02-boundaries.md](https://raw.githubusercontent.com/developerz-ai/magik/main/docs/architecture/02-boundaries.md): what may depend on what. A violation is a failure, not a review comment.
 - [03-error-codes.md](https://raw.githubusercontent.com/developerz-ai/magik/main/docs/architecture/03-error-codes.md): how a code is declared, owned and kept unique.
 - [04-testing-strategy.md](https://raw.githubusercontent.com/developerz-ai/magik/main/docs/architecture/04-testing-strategy.md): thread-parallel workers, template-database cloning, and the honest risks.
@@ -153,6 +160,10 @@ Permanent exclusions, not gaps. They are refusals with codes rather than silent 
 - [06-observability.md](https://raw.githubusercontent.com/developerz-ai/magik/main/docs/architecture/06-observability.md): what a running app emits, and what it does not.
 - [07-configuration-and-secrets.md](https://raw.githubusercontent.com/developerz-ai/magik/main/docs/architecture/07-configuration-and-secrets.md): where config comes from, and how a secret reaches a process.
 - [08-dev-loop.md](https://raw.githubusercontent.com/developerz-ai/magik/main/docs/architecture/08-dev-loop.md): how hot reload works, and what it cannot reload.
+- [09-shipped-docs.md](https://raw.githubusercontent.com/developerz-ai/magik/main/docs/architecture/09-shipped-docs.md): why the gem carries its own manual, and what `magik docs` serves.
+- [10-performance-defaults.md](https://raw.githubusercontent.com/developerz-ai/magik/main/docs/architecture/10-performance-defaults.md): the defaults that cost something at runtime, and the seams they sit behind.
+- [11-jobs-backend.md](https://raw.githubusercontent.com/developerz-ai/magik/main/docs/architecture/11-jobs-backend.md): which Postgres queue is wrapped, by what locking mechanism, and where it stops being the right answer.
+- [12-runtime-verification.md](https://raw.githubusercontent.com/developerz-ai/magik/main/docs/architecture/12-runtime-verification.md): the runtime measurements decisions 1 and 2 rest on. Re-derive with `ruby scripts/probes/runtime.rb --json`; never quote a number from it.
 
 ### Operations — docs/ops
 

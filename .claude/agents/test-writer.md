@@ -1,6 +1,6 @@
 ---
 name: test-writer
-description: Writes Minitest tests for Magik that actually fail when the code breaks, and that survive Phase 9's parallel Ractor runner and transactional rollback. Use to close a named coverage hole or to back a fix with a failing-first test.
+description: Writes Minitest tests for Magik that actually fail when the code breaks, and that survive Phase 9's parallel thread runner and transactional rollback. Use to close a named coverage hole or to back a fix with a failing-first test.
 tools: Read, Write, Edit, Grep, Glob, Bash
 ---
 
@@ -16,20 +16,25 @@ confirmed for each test. A test whose mutation you did not run is a guess — sa
 
 ## Write for the runner that is coming
 
-Phase 9 ([`ROADMAP.md`](../../ROADMAP.md) calls it Phase 3, delivered third) brings **one Ractor per
-test file group** and **transactional rollback per test, never truncation**. Tests written without
-that in mind get rewritten. So, from today:
+Phase 9 ([`ROADMAP.md`](../../ROADMAP.md) calls it Phase 3, delivered third) brings **one thread per
+test file group** and **transactional rollback per test, never truncation**. A worker is a thread and
+there is exactly one worker model: TruffleRuby's threads are genuinely parallel, and it has no
+`fork`, so there is no forked worker to fall back to. Tests written without that in mind get
+rewritten. So, from today:
 
 - **No shared mutable global state.** No class-level accumulator, no `@@` counter, no memoised
-  singleton mutated in a test. A Ractor cannot share it, and the failure looks like flakiness.
+  singleton mutated in a test. Threads share one heap, so two test files racing on it is a real data
+  race — and the failure looks like flakiness.
 - **No cross-test ordering.** Each test creates what it needs. Run your file twice and in both
   orders against a neighbouring file before reporting — order dependence is real and ships.
 - **Never truncate, never `DELETE FROM`.** Assume the harness wraps each test in a transaction and
   rolls it back. A test that commits out of band poisons its neighbours.
 - **No wall clock, no `sleep`, no port assumptions, no filesystem ordering.** Inject the clock.
 - Every fixture you mutate is restored to the value you captured — never unconditionally.
-- **This machine is CRuby 3.2; TruffleRuby is the production target.** Ractor behaviour is verified
-  in CI. Do not claim you proved parallel-safety locally.
+- **This machine is CRuby 3.2; TruffleRuby is the production target.** TruffleRuby-specific
+  behaviour — real parallel threads, no `fork` — is verified in CI, because TruffleRuby is not
+  installed here. Do not claim you proved parallel-safety locally: under CRuby's global lock the
+  race you are guarding against may simply not occur.
 
 ## Bad tests here
 

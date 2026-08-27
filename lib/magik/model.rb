@@ -8,8 +8,12 @@ module Magik
   #
   # Planned DSL surface, copied from the spec:
   #
-  #   * `model :Name do field/belongs_to/has_many/validate/scope end`
+  #   * `model :Name do field/computed/belongs_to/has_many/validate/scope end`
+  #   * `computed(:name, :type) { ... }` — the parens are load-bearing: a brace
+  #     block binds to the last call, so without them it binds to the symbol
   #   * `:money field type, integer-cents backed (floats forbidden)`
+  #   * `:file field type — an attachment; max_size: and content_types: required`
+  #   * `:duration field type — a unit-suffixed string coerced at boot ("14d")`
   #   * `UUIDv7 primary keys`
   #   * `tenant_id auto-injection`
   #
@@ -26,8 +30,11 @@ module Magik
     # The DSL this subsystem will expose, verbatim from the spec.
     # @return [Array<String>]
     DSL_SURFACE = [
-      "model :Name do field/belongs_to/has_many/validate/scope end",
+      "model :Name do field/computed/belongs_to/has_many/validate/scope end",
+      "computed(:name, :type) { ... } — a derived field",
       ":money field type, integer-cents backed (floats forbidden)",
+      ":file field type — an attachment, max_size: and content_types: required",
+      ":duration field type — a unit-suffixed string coerced at boot",
       "UUIDv7 primary keys",
       "tenant_id auto-injection"
     ].freeze

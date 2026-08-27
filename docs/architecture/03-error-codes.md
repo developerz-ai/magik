@@ -19,7 +19,7 @@ MAGIK_<SUBSYSTEM>_<CONDITION>
 | Rule | Detail |
 |---|---|
 | Prefix | `MAGIK_`, always. |
-| Subsystem | the owning subsystem from [`01-module-map.md`](01-module-map.md), uppercased — `LEDGER`, `MODEL`, `RENDER`, `DOMAIN`, `BOOT`, `CONFIG`, `SCALE`. |
+| Subsystem | the owning subsystem from [`01-module-map.md`](01-module-map.md), uppercased — `LEDGER`, `MODEL`, `RENDER`, `POLICY`, `DOMAIN`, `BOOT`, `CONFIG`, `SCALE`. |
 | Condition | what is wrong, not what to do — `UNBALANCED`, `FORBIDDEN_FIELD`, `PATH_CONFLICT`. |
 | Case | `SCREAMING_SNAKE`. |
 | One code per condition | never one code for a family. `magik errors explain` should answer the specific mistake, not a category. |
@@ -114,18 +114,27 @@ Every code implied by [`../idea/03-guardrails.md`](../idea/03-guardrails.md) and
 | `MAGIK_MODEL_FLOAT_MONEY` | model | boot · runtime | error | a float reaching a `:money` field |
 | `MAGIK_MODEL_NO_TENANT` | model | boot | error | a model with no `tenant_id` and no declared reason |
 | `MAGIK_MODEL_IMMUTABLE_VIOLATION` | model | runtime | error | a write past `immutable_after:` |
+| `MAGIK_MODEL_UNCONSTRAINED_UPLOAD` | model | boot | error | a `:file` field or `attachment` with no `max_size` and no `content_types` — an unbounded upload field is an unbounded storage bill and a trivial DoS |
 | `MAGIK_SCHEMA_IRREVERSIBLE` | schema | boot | error | a `migrate` with no `down` |
 | `MAGIK_SCHEMA_DRIFT` | schema | boot | error | a declared field with no applied migration behind it |
 | `MAGIK_ROUTER_PATH_CONFLICT` | router | boot | error | two declarations compiling to one path |
+| `MAGIK_POLICY_UNDECLARED` | policy | boot | error | a `screen`, `action`, `api resource`, `channel`, `job` or `admin_panel` with no `policy:` and no explicit `policy: :public` / `policy: :system` |
+| `MAGIK_POLICY_IO` | policy | boot | error | a `can` block issuing a query — `live` re-evaluates one per subscriber per change, so a query here is one round trip per row per open socket |
+| `MAGIK_POLICY_UNKNOWN_VERB` | policy | boot | error | `policy: %i[Invoice publish]` where `policy :Invoice` declares no `:publish` |
+| `MAGIK_POLICY_NO_DEFAULT` | policy | boot | error | a `policy` block with no `default :deny` |
+| `MAGIK_POLICY_NULL_PASSES` | policy | boot | error | a row-level rule that would pass on an absent record |
 | `MAGIK_RENDER_SCREEN_STATEFUL` | render | boot | error | a screen holding state across requests |
 | `MAGIK_RENDER_TIMESTAMP_NO_ZONE` | render | boot | error | a timestamp rendered with no explicit zone |
 | `MAGIK_COMPONENT_CONTRACT_VIOLATION` | render | boot | error | a replacement component missing a contract prop, slot, target or event |
+| `MAGIK_LAYOUT_MISSING` | render | boot | error | a `screen` with no layout and no `layout: :None` |
+| `MAGIK_LAYOUT_UNKNOWN_SCREEN` | render | boot | error | a `nav_item` naming a screen that does not exist |
 | `MAGIK_ACTION_STATEFUL` | action | boot | error | an action holding state across requests |
 | `MAGIK_ACTION_IDEMPOTENCY_REQUIRED` | action | boot | error | a money-posting action with no `idempotent_by:` |
 | `MAGIK_LEDGER_UNBALANCED` | ledger | boot | error | debits ≠ credits in an `entry` |
 | `MAGIK_LEDGER_ENTRY_MUTATED` | ledger | runtime | error | an update or delete reaching a posted entry |
 | `MAGIK_JOBS_NO_PERFORM` | jobs | boot | error | a `job` declaring no `perform` |
 | `MAGIK_WEBHOOK_UNVERIFIED` | api | boot | error | an inbound webhook with no `verify_signature` |
+| `MAGIK_ADMIN_INLINE_MUTATION` | admin | boot | error | an `admin_panel` declaring a write path that is not one of the app's own actions — a Magik admin cannot have a mutation the product does not have |
 | `MAGIK_PWA_OFFLINE_UNSUPPORTED` | pwa | boot | error | an offline strategy or app-data cache requested |
 | `MAGIK_I18N_MISSING_KEY` | i18n | check | error | a `t()` key missing from a shipped locale |
 | `MAGIK_DOMAIN_BOUNDARY` | domains | boot | error | a direct cross-domain model reference |
@@ -139,7 +148,34 @@ Every code implied by [`../idea/03-guardrails.md`](../idea/03-guardrails.md) and
 | `MAGIK_HARNESS_STALE` | cli | check | warning | a generated app's framework block was written by an older magik than the one installed — `fix: magik generate agents --update` |
 | `MAGIK_HARNESS_MARKERS_MISSING` | cli | check | error | the `magik:framework-block` markers a regeneration needs were removed by hand, so an update refuses rather than guessing where the boundary was |
 
+**One code, every surface.** `MAGIK_POLICY_UNDECLARED` is the load-bearing row, and it is deliberately owned by `policy` rather than by each surface that can trip it. There is no admin-specific "unprotected panel" code, no channel-specific one and no job-specific one: an `admin_panel` with no `policy:` fails the boot under the same code as a `screen` with no `policy:`, because it is the same mistake. A per-surface family would be exactly the "one code for a category" the format rules above refuse, in reverse — and the point of the guardrail is that authorization is non-optional the way `tenant_id` is, not that the admin panel is a special case.
+
 The last two rows are **reserved and proposed, not implemented** — they are named by [`../idea/09-app-scaffold.md`](../idea/09-app-scaffold.md) so the names cannot be taken twice. Neither the `magik check` that would report a stale harness nor the `magik generate agents --update` that would fix one exists. Both also sit outside the `MAGIK_<SUBSYSTEM>_<CONDITION>` shape above — `HARNESS` is not a subsystem — which is a thing to settle before either is registered.
+
+## Option-level errors (R7)
+
+The contract above is **extended, not replaced**, for the largest class of errors a construct produces: a misspelled or illegal option. R7 ([`00-conventions.md`](00-conventions.md#dsl-design-rules-r1r10)) requires that such a failure carry the four facts that let an agent fix it without reading framework source — the option it was given, what it probably meant, the legal set, and where to look the rest up.
+
+```json
+{ "code": "MAGIK_MODEL_UNKNOWN_OPTION",
+  "cause": "field :status, :enum was given `options:`; the option is spelled `values:`",
+  "location": "app/models/order.rb:4",
+  "stage": "boot",
+  "severity": "error",
+  "details": { "construct": "model", "declaration": "field", "option": "options",
+               "given": "options", "did_you_mean": "values",
+               "allowed": ["required","unique","default","values","currency","translatable"] },
+  "fix": "magik describe model.field --json" }
+```
+
+| Rule | Detail |
+|---|---|
+| The `fix:` points at `magik describe` | not at prose, and not at this page. `magik describe` answers about the *grammar*, so it needs no app, no boot and no database and can be run mid-edit ([`01-module-map.md`](01-module-map.md#the-option-tables-and-magik-describe)) |
+| `allowed` comes from the option table | the same rows the coercer just rejected the value against. There is no second list to drift (R8) |
+| `did_you_mean` is best-effort | omitted rather than guessed when nothing is close. A wrong suggestion costs more than none |
+| The error is what teaches the lookup | an agent that has seen one of these knows `magik describe` exists. That is the mechanism, and it is why the `fix:` line may not be softened into advice |
+
+`magik describe` is a phase-1 command and **is not implemented**; neither is any option table. This section is the contract those errors will be written against.
 
 ## Adding a code
 

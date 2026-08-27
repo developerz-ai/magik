@@ -1,6 +1,6 @@
 # API and webhooks
 
-**Status:** `Planned — not implemented`. Spec Phase 6, build step 10 — after auth/billing/admin,
+**Status:** `Planned — not implemented`. Spec Phase 6, build step 11 — after auth/billing/admin,
 because the admin panel is the first real consumer of the resource DSL. Nothing on this page runs.
 `As of 2026-08-26`.
 
@@ -11,19 +11,22 @@ because the admin panel is the first real consumer of the resource DSL. Nothing 
 api :V1 do
   auth :bearer, :api_key
 
-  resource :invoices do
+  resource :invoices, model: :Invoice, policy: %i[Invoice read] do
+    fields     :id, :number, :amount, :status, :due_on, :customer_id
+    filterable :status, :customer_id, :due_on
+    sortable   :due_on, :amount, :created_at
+    searchable :number
+    writable   :customer_id, :amount, :due_on
+
     index   scope: -> { Invoice.outstanding }, per_page: 50
     show
     create  action: :create_invoice
     update  action: :update_invoice
     destroy action: :void_invoice
-
-    filterable :status, :customer_id, :due_on
-    sortable   :due_on, :amount, :created_at
-    serialize  %i[id number amount status due_on customer_id]
   end
 
-  resource :customers do
+  resource :customers, model: :Customer, policy: %i[Customer read] do
+    fields :id, :name, :email
     index
     show
   end
@@ -35,8 +38,19 @@ end
 | `index` | paginated list. Cursor pagination; `per_page` is a ceiling, not a suggestion |
 | `show` | one record, tenant-scoped like everything else |
 | `create` / `update` / `destroy` | delegate to an **existing action**. The API never reimplements the mutation a screen already performs |
-| `filterable` / `sortable` | the allowed set. A filter on an undeclared column is a 400, not an open query surface |
-| `serialize` | the fields that leave the building. A field not on the list is not in the response |
+| `policy:` | the verb evaluated before anything is read or written. Required, exactly as on a screen — see [`policy`](Screens-And-Components.md#policy) |
+| `fields` | what leaves the building. A field not on the list is not in the response |
+| `filterable` / `sortable` / `searchable` | the allowed sets. A filter on an undeclared column is a 400, not an open query surface |
+| `writable` | what `create` and `update` accept. A whitelist, deliberately — not a `read_only` blacklist |
+
+**Those five declarations are one vocabulary, shared with `admin_panel`, `data_table` and `screen`.**
+There is not one concept here but five — shown, filtered, sorted, searched, written — so "one
+spelling" means one word per role, identical on every surface. They are declarations inside the
+block, never per-verb options; `per_page:` stays an option, because it is a scalar setting rather
+than a field subset.
+
+Serialization follows the model's field types: `:money` renders as minor units plus a currency, never
+a float.
 
 Routes are convention: `GET /api/v1/invoices`, `POST /api/v1/invoices`, `PATCH
 /api/v1/invoices/:id`. No route file.
@@ -56,7 +70,7 @@ validation the API skips.
 ```ruby
 api :V1 do
   auth :bearer
-  rate_limit by: :plan, default: 1000, window: 1.hour
+  rate_limit by: :plan, default: 1000, window: "1h"    # a :duration
 end
 ```
 
@@ -109,6 +123,7 @@ Deliveries go through the job queue, are retried with backoff, and are inspectab
 
 | Guardrail | Fails with | When |
 |---|---|---|
+| A resource names a policy verb | `MAGIK_POLICY_UNDECLARED` | boot |
 | An incoming webhook declares signature verification | `MAGIK_WEBHOOK_UNVERIFIED` | boot |
 | An API resource's mutations delegate to actions | `MAGIK_API_INLINE_MUTATION` | boot |
 | A filter names a declared column | `MAGIK_FILTER_UNDECLARED` | request |
@@ -128,5 +143,6 @@ Deliveries go through the job queue, are retried with backoff, and are inspectab
 ## Next
 
 - [Actions](Actions.md) — what every resource mutation delegates to.
+- [Screens and components](Screens-And-Components.md#policy) — `policy`. An API resource evaluates the same verb the screen does.
 - [Jobs](Jobs.md) — where webhook handling actually happens.
 - [Auth, billing, admin](Auth-Billing-Admin.md) — plans, which the rate limits key off.

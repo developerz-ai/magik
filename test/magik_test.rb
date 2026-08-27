@@ -63,4 +63,38 @@ class MagikTest < Minitest::Test
       assert_equal "Magik::#{const} is spec-only; see docs/idea/00-build-spec.md", error.message
     end
   end
+
+  # `DSL_SURFACE` is copied from the spec, so it is where spec drift lands
+  # first and silently — a stub still raises either way. These pin the three
+  # spellings a reader is most likely to get wrong from memory.
+  def test_the_surfaces_use_the_spellings_that_are_valid_ruby
+    jobs = Magik::Jobs::DSL_SURFACE.join("\n")
+
+    # `retry` is a Ruby keyword and does not parse as a declaration.
+    assert_includes jobs, "retries times:"
+    refute_match(/\bdo retry\b/, jobs)
+
+    computed = Magik::Model::DSL_SURFACE.join("\n")
+
+    # A brace block binds to the last call, so the parens are load-bearing.
+    assert_includes computed, "computed(:name, :type)"
+  end
+
+  # TruffleRuby's threads are genuinely parallel and it has no `fork`, so a test
+  # worker is a thread and there is exactly one worker model.
+  def test_the_test_runner_parallelises_with_threads_not_ractors
+    surface = Magik::Testing::DSL_SURFACE.join("\n")
+
+    assert_includes surface, "one thread per test file group"
+    refute_includes surface, "Ractor"
+  end
+
+  # Three field types exist so a malformed value fails at boot rather than at
+  # first use. A type added after release is a migration for every app that
+  # worked around its absence.
+  def test_the_model_surface_names_every_type_that_is_a_type
+    surface = Magik::Model::DSL_SURFACE.join("\n")
+
+    %w[:money :file :duration].each { |type| assert_includes surface, type }
+  end
 end

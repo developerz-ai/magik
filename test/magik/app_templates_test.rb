@@ -313,6 +313,58 @@ class MagikAppTemplatesTest < Minitest::Test
     end
   end
 
+  # Agents are scoped by file set and must *tile* the app tree: every directory
+  # a declaration can land in has exactly one owner, or two agents dispatched by
+  # `/feature` collide on the same file. `policy` and `layout` are phase-2
+  # constructs, so `app/policies/` and `app/layouts/` need owners like the rest.
+  def test_every_app_directory_has_exactly_one_owning_agent
+    owners = {
+      "app/models/" => "data-modeler", "app/actions/" => "action-author",
+      "app/screens/" => "screen-builder", "app/layouts/" => "screen-builder",
+      "app/policies/" => "policy-author", "app/ledgers/" => "ledger-author",
+      "test/" => "test-writer"
+    }
+
+    owners.each do |directory, agent|
+      source = ".claude/agents/#{agent}.md"
+
+      assert_includes agent_sources, source, "#{agent} is not in the MANIFEST"
+
+      glob = "`#{directory}**`"
+      claimants = agent_sources.select { |other| ownership_claim(other).include?(glob) }
+
+      assert_equal [source], claimants,
+                   "#{directory} must be claimed by #{agent} and by nobody else"
+    end
+  end
+
+  # The "You own …" paragraph an agent opens with, which is its file set.
+  # @param source [String] a `.claude/agents/*.md` template path
+  # @return [String]
+  def ownership_claim(source)
+    read(source).split("\n## ", 2).first.to_s
+  end
+
+  # `.claude/README.md` is the roster an agent reads before dispatching, so it
+  # goes stale the moment an agent file is added without it.
+  def test_the_claude_readme_lists_every_agent_in_the_manifest
+    roster = read(".claude/README.md")
+
+    agent_sources.each do |source|
+      assert_includes roster, "`#{File.basename(source, ".md")}`",
+                      ".claude/README.md does not list #{source}"
+    end
+  end
+
+  # TruffleRuby has no `fork` and its threads are genuinely parallel, so a test
+  # worker is a thread and there is exactly one worker model. Ractors are not
+  # it, and a template that says otherwise teaches the wrong invariant.
+  def test_no_template_calls_the_concurrency_model_a_ractor
+    offenders = manifest_rows.map(&:source).select { |source| read(source).include?("Ractor") }
+
+    assert_empty offenders, "a test worker is a thread, not a Ractor: #{offenders.join(", ")}"
+  end
+
   # --- ownership, staging and honesty --------------------------------------
 
   def test_the_ownership_markers_are_balanced

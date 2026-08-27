@@ -3,9 +3,13 @@
 # TWO RUBIES, ON PURPOSE.
 #
 #   truffleruby   THE PRODUCTION TARGET. Non-negotiable architecture decision 1
-#                 in docs/idea/00-build-spec.md: Magik runs on TruffleRuby, with
-#                 concurrency via Ractors and Fibers rather than a thread per
-#                 request. Anything that only works on CRuby is a bug, and this
+#                 in docs/idea/00-build-spec.md: Magik runs on TruffleRuby, and
+#                 its concurrency is REAL PARALLEL OS THREADS — no global lock,
+#                 measured rather than assumed by scripts/probes/runtime.rb.
+#                 That is precisely why decision 2 is Rack + Puma with a thread
+#                 per request, and why there are no forked workers anywhere in
+#                 the design: TruffleRuby implements no `fork`.
+#                 Anything that only works on CRuby is a bug, and this
 #                 container exists so that is discoverable before CI says so.
 #
 #   cruby         The development default, and what `ruby` resolves to. It boots

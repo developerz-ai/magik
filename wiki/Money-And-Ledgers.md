@@ -1,7 +1,7 @@
 # Money and ledgers
 
 **Status:** `Planned — not implemented`. The `:money` type is spec Phase 1; ledgers, audit and
-idempotency are spec Phase 5, build step 8. Nothing on this page runs. `As of 2026-08-26`.
+idempotency are spec Phase 5, build step 9. Nothing on this page runs. `As of 2026-08-26`.
 
 Magik has no "fintech mode". A ledger is declared with the same grammar as a model, and the money
 guarantees are on by default for every app — the spec's success criterion is that fintech-grade
@@ -91,8 +91,8 @@ MAGIK_IMMUTABLE_RECORD: :Invoice 0192... is :paid and immutable_after :paid
 A retried mutation must not perform twice.
 
 ```ruby
-action :charge_invoice do
-  idempotent_by :invoice_id, window: 24.hours
+action :charge_invoice, policy: %i[Invoice record_payment] do
+  idempotent_by :invoice_id, window: "24h"      # a :duration
 
   perform do |params|
     invoice = Invoice.find!(params[:invoice_id])

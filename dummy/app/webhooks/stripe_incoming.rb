@@ -16,6 +16,14 @@
 # the rules is how a Stripe payment and a hand-entered payment end up validated
 # differently.
 #
+# AN OPEN QUESTION, recorded here rather than answered. `action :record_payment`
+# names `policy: %i[Invoice record_payment]`, and a policy predicate takes an
+# ACTOR. Stripe is not one. `webhook :incoming` is not among the surfaces
+# MAGIK_POLICY_UNDECLARED lists, so nothing here fails to boot — but "the
+# signature verified" and "the actor may do this" are different claims, and the
+# spec does not yet say which actor a verified webhook presents. See
+# dummy/README.md, "What writing this taught us".
+#
 # Demonstrates: webhook :incoming, verify_signature, on :event (Phase 6).
 
 webhook :incoming, :stripe do

@@ -2,7 +2,7 @@
 
 The loop a contributor or an agent follows to land one piece of the framework, start to finish, with the commands.
 
-**Status:** planned. `bin/check`, `magik` and the test runner do not exist yet; the commands below are the intended ones. Where a step cannot run today, the page says so. Reviewed 2026-08-26.
+**Status:** partly runnable. `bin/check` and `rake test` exist and pass today; the DSL, the option tables, `magik describe` and the framework's own test runner do not, so the steps that touch them are the intended ones. Where a step cannot run today, the page says so. Reviewed 2026-08-26.
 
 ## The loop
 
@@ -14,11 +14,12 @@ The loop a contributor or an agent follows to land one piece of the framework, s
 | 3 | Write the failing Minitest | edit | `test/magik/<subsystem>/<concern>_test.rb` |
 | 4 | Watch it fail | `bundle exec rake test TEST=test/magik/<subsystem>/<concern>_test.rb` | red, for the right reason |
 | 5 | Implement | edit | `lib/magik/<subsystem>/<concern>.rb` |
-| 6 | Register the error codes | edit | `lib/magik/<subsystem>/errors.rb` |
-| 7 | Ship the guardrail | edit + test | the rule object in the same subsystem |
-| 8 | YARD every public method | edit | the same files |
-| 9 | Run the gate | `bin/check` | green |
-| 10 | Changelog | edit | `CHANGELOG.md` |
+| 6 | Add the option-table rows | edit | the construct's `Option` rows, which `magik describe` serializes |
+| 7 | Register the error codes | edit | `lib/magik/<subsystem>/errors.rb` |
+| 8 | Ship the guardrail | edit + test | the rule object in the same subsystem |
+| 9 | YARD every public method | edit | the same files |
+| 10 | Run the gate | `bin/check` | green |
+| 11 | Changelog | edit | `CHANGELOG.md` |
 
 Steps 1 and 3 are the two most often skipped and the two that make the difference: a construct with no doc is a construct nobody can call correctly, and an implementation written before its test is an implementation whose test is written to pass.
 
@@ -106,7 +107,23 @@ lib/magik/<subsystem>/<concern>.rb
 | Frozen | freeze what is registered; no mutable state after boot, because the parallel test runner depends on it. |
 | Stubs | anything you are not implementing raises `NotImplementedError` naming the spec phase. Never a fake that returns a plausible value. |
 
-## 6. Register the error codes
+## 6. Add the option-table rows
+
+Every option a construct accepts is a **row in the option table**, and that table is the one representation the coercer, the guardrails, the docs anchors and `magik describe` all read (R8, [`00-conventions.md`](00-conventions.md#dsl-design-rules-r1r10)). An option accepted by the coercer and missing from the table is not a shortcut; it is an option nobody can look up, which is an R6 defect.
+
+| The row carries | Because |
+|---|---|
+| name, type, default | R3 — every option has a default, so the minimal declaration boots |
+| the allowed set, where the space is closed | R2 — a closed set is a `Symbol` from that set, so a typo is refused at boot and the error can name the choices |
+| applicability (`applies_when`, `required_when`) | so `describe` can say *`values:` applies to `:enum`* rather than listing everything unconditionally |
+| the doc anchor | the join that lets an agent go schema → prose in one hop ([`09-shipped-docs.md`](09-shipped-docs.md)) |
+| the `MAGIK_*` codes this option can raise | R7 — the error names the option, the allowed set, and a `fix:` pointing at `magik describe` |
+
+And two shapes to refuse before writing the row: a **lambda in an option** (behaviour goes in a block — R9, and a schema cannot describe what an arbitrary `if:` decides), and a **per-name explosion** like `retention_days:` beside `retention_hours:` (R10 — that is one option taking a `:duration`, D1).
+
+Neither the option tables nor `magik describe` exists yet; both land at build-order step 2, and retrofitting them onto constructs already implemented is the migration that ordering exists to avoid.
+
+## 7. Register the error codes
 
 ```ruby
 # lib/magik/model/errors.rb
@@ -122,13 +139,15 @@ register "MAGIK_MODEL_FLOAT_MONEY",
 
 A raise with an unregistered code fails the catalogue test. A registered code is permanent from the moment it ships.
 
-## 7. Ship the guardrail
+## 8. Ship the guardrail
 
 **A construct is not done without its boot check** ([`../idea/06-phases.md`](../idea/06-phases.md)). The rule object lives in the same subsystem as the concept it guards; `core` runs it at boot and `check` runs the static ones without a server ([`01-module-map.md`](01-module-map.md)).
 
 Two tests, always: one app declaration that violates the rule and fails with the code, one that satisfies it and boots.
 
-## 8. YARD
+**If what you added is a surface that reaches a model** — a screen, an action, an API resource, a channel, a job, an admin panel — it takes a `policy:` verb, and a declaration with neither a verb nor an explicit `policy: :public` / `policy: :system` fails the boot with `MAGIK_POLICY_UNDECLARED`. That is decision 13, *authorization is evaluated in exactly one place*, and it is the reason `policy` sits at tier 1 ([`01-module-map.md`](01-module-map.md#why-policy-is-tier-1)). The generated authorization test — one per verb, including a cross-tenant denial — comes with it ([`04-testing-strategy.md`](04-testing-strategy.md)).
+
+## 9. YARD
 
 ```ruby
 # Coerces a value into this field's declared type.
@@ -149,26 +168,31 @@ bundle exec yard doc          # build
 bundle exec yard stats --list-undoc   # what is missing
 ```
 
-## 9. Run the gate
+## 10. Run the gate
 
 ```bash
 bin/check
 ```
 
-Intended steps, in cost order — the cheapest failure first:
+`bin/check` exists and runs today. Re-derive its steps rather than trusting a list here:
 
-| # | Step | Command it wraps |
+```bash
+bin/check --list          # the steps it actually runs
+bin/check --only test     # one of them
+bin/check --json          # the same run, as data
+```
+
+Two families of check, and only the first is wired into the gate so far:
+
+| Family | Where it lives | Status |
 |---|---|---|
-| 1 | lint | `bundle exec rubocop` |
-| 2 | boundaries | tier + front-door scan over `lib/magik/` ([`02-boundaries.md`](02-boundaries.md)) |
-| 3 | tests | `bundle exec rake test` |
-| 4 | docs | `bundle exec yard stats --list-undoc` — undocumented public methods fail |
-| 5 | catalogue | every raised code registered; every entry has a `fix` and a resolving `doc` |
-| 6 | conformance | swap-point suites, where the change touched a seam ([`../idea/04-swap-points.md`](../idea/04-swap-points.md)) |
+| lint, tests, YARD coverage, gem build, the CLI's own surface, docs packaging | `bin/check` steps | **runs today** |
+| boundaries, error-code catalogue, changelog, version consistency, doc commands, spec-only drift | one file each in [`../../scripts/checks/`](../../scripts/checks/), run directly — `ruby scripts/checks/<name>.rb` | **runs today, not yet a `bin/check` step** |
+| conformance — swap-point suites, where the change touched a seam ([`../idea/04-swap-points.md`](../idea/04-swap-points.md)) | nowhere yet | planned; there is no seam to conform to |
 
-`bin/check` is owned by another part of the boilerplate and does not exist yet; until it does, run steps 1, 3 and 4 by hand.
+The boundaries check is the one to run by hand after touching `lib/`: `ruby scripts/checks/boundaries.rb`.
 
-## 10. Changelog
+## 11. Changelog
 
 ```markdown
 ### Added

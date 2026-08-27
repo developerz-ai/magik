@@ -60,8 +60,8 @@ Never `raise "..."`, never a bare `StandardError`.
   [`wiki/Project-Layout.md`](../../wiki/Project-Layout.md), demonstrated by `dummy/`. Never
   invent a path in someone's app.
 - **TruffleRuby is the production target; this machine has CRuby 3.2 only.** Anything
-  Ractor-specific or Truffle-specific is verified in CI, not locally — say so rather than claiming
-  you ran it.
+  TruffleRuby-specific — genuinely parallel threads, no `fork` — is verified in CI, not locally —
+  say so rather than claiming you ran it.
 - Every public method gets YARD: summary, `@param`, `@return`, `@raise`. `rake yard` must not warn.
 
 ## The loop

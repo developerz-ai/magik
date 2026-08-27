@@ -1,7 +1,7 @@
 # CLI reference
 
-**Status:** `Mostly planned`. **Two commands exist today: `version` and `help`.** Everything else in
-this reference is specified and not implemented — calling it exits `1` with
+**Status:** `Mostly planned`. **Three commands exist today: `version`, `help` and `docs`.**
+Everything else in this reference is specified and not implemented — calling it exits `1` with
 `MAGIK_COMMAND_NOT_IMPLEMENTED`. `As of 2026-08-26`.
 
 The binary is `magik`. There is one command registry; a command that is not in it does not exist.
@@ -62,6 +62,7 @@ That triple is `Magik::Error#to_h` — one object, three renderings.
 |---|---|---|
 | `magik version` | print the version | **shipped** |
 | `magik help [command]` | the catalogue, or usage for one command | **shipped** |
+| `magik docs [slug]` | the documentation shipped inside this gem | **shipped** |
 | `magik new <name>` | scaffold an app | planned |
 | `magik generate model\|screen\|component\|action\|job\|migration <name>` | scaffold one declaration plus its test | planned |
 | `magik generate agents --update` | rewrite the framework-owned half of a generated app's AI harness | planned |
@@ -70,6 +71,7 @@ That triple is `Magik::Error#to_h` — one object, three renderings.
 | `magik worker` | run background jobs | planned |
 | `magik test [paths]` | the test suite | planned |
 | `magik check` | the guardrails, as a linter | planned |
+| `magik describe [construct[.declaration]]` | the DSL grammar as data: every option, type, default and error code | planned |
 | `magik db <sub>` | create, migrate, rollback, seed, reset | planned |
 | `magik domains` | the domain graph | planned |
 | `magik routes` | the routes convention produced | planned |
@@ -102,6 +104,22 @@ magik help --json
 
 Lists every registered command with its status, so `magik help --json` is the authoritative answer to
 "what works" — this page is a copy of it and copies go stale.
+
+Exit `0`.
+
+### `magik docs`
+
+```bash
+magik docs list
+magik docs path
+magik docs search tenant
+magik docs Models
+magik docs list --json
+```
+
+Reads the documentation packaged inside the installed gem, so the pages always match the version you
+are running. `magik docs path` prints the directory, which is what you point grep at. An unknown slug
+exits `1` with `MAGIK_DOCS_PAGE_NOT_FOUND`.
 
 Exit `0`.
 
@@ -270,6 +288,33 @@ magik check --json
 ```
 
 Exit `0` clean, `1` any finding. This is the command CI gates on.
+
+### `magik describe [construct[.declaration]]`
+
+The grammar, as data. Every construct, every declaration, every option with its type, default,
+allowed value set and the `MAGIK_*` codes it can raise.
+
+```bash
+magik describe                       # every construct
+magik describe model                 # one construct
+magik describe model.field           # one declaration, with its full option table
+magik describe policy.can --json     # the option table as data
+```
+
+| Flag | Does |
+|---|---|
+| `--json` | the option tables as data, which is the form a tool consumes |
+
+It answers about the **grammar**, so it needs no app, no boot and no database, and it works in an
+empty directory — unlike every other command on this page, it never looks for `config/app.rb`.
+
+It is **derived from the option tables the DSL validates against**, never hand-maintained: two tables
+drift, one cannot. The coercer, the guardrails, the docs anchors and `describe` all read the same
+table, so an option that exists is an option `describe` prints.
+
+It is not `magik routes` and it is not `magik registry`, which report what an **app** declared;
+`describe` reports what the framework accepts. It is the command an option-level error's `fix:` line
+points at — see [Error codes](Error-Codes.md).
 
 ### `magik db <sub>`
 

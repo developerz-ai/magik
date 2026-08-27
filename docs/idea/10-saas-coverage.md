@@ -69,6 +69,8 @@ Sixty-eight surfaces a real SaaS needs across its whole life. **Covered** = a co
 
 Classification column uses the four categories from the gap analysis below: **(a)** in scope, existing phase; **(b)** in scope, needs a new primitive or phase; **(c)** out of scope, belongs in [`05-limits.md`](05-limits.md); **(d)** not the framework's job.
 
+**This table is a dated snapshot, taken before the spec adopted this audit's proposals, and it is deliberately left as counted.** Every **(b)** row below — authorization, the application shell, media — has since become a construct in [`00-build-spec.md`](00-build-spec.md): `policy` and `layout` in phase 2, `attachment` in phase 4b. Rewriting the rows without re-running the count would replace a measurement with an assertion, which is the failure this page exists to prevent. **The re-count is owed**; run it rather than reading the old rows as current.
+
 ### Identity and access
 
 | # | Surface | Status | Where | Class |
@@ -87,7 +89,7 @@ Classification column uses the four categories from the gap analysis below: **(a
 |---|---|---|---|---|
 | 8 | Screens, routing by convention, actions | Covered | phase 2 | — |
 | 9 | Component kit (12 components) | Covered | phase 2 | — |
-| 10 | **Application shell — sidebar, topbar, nav, breadcrumbs** | **Absent** | zero occurrences of `sidebar`, `app shell`, `breadcrumb` in `docs/` or `wiki/` | **(b)** |
+| 10 | **Application shell — sidebar, topbar, nav, breadcrumbs** | **Absent** | when counted, `sidebar`, `app shell` and `breadcrumb` occurred zero times in `docs/` or `wiki/` | **(b)** |
 | 11 | **Responsiveness, mobile navigation, breakpoints, touch targets** | **Absent** | one occurrence of `responsive` in the whole tree, describing `grid` | **(b)** with 10 |
 | 12 | Dashboard composition | Partial | `grid`, `stat`, `chart`, `card` exist as parts; nothing composes them | (a) phase 2 |
 | 13 | Empty, loading and error states | Partial | `empty:` on `data_table`, nothing else | (a) phase 2 |
@@ -387,7 +389,7 @@ authorize { |user| user.can?(:read, Invoice) }
 
 `authorize` appears nowhere in [`02-dsl-surface.md`](02-dsl-surface.md). `can?` appears nowhere. The role `:owner` appears in `dummy/config/app.rb` as `two_factor :totp, required_for: [:owner]` with nothing anywhere that declares a role set. **This is the predicted failure happening in the reference app: the first real app invented an authorization system, and the second will invent a different one.** It also invented three different arities for the same block.
 
-**The spec already depends on the construct it does not have.** [`../../wiki/Auth-Billing-Admin.md`](../../wiki/Auth-Billing-Admin.md) specifies a boot guardrail, `MAGIK_ADMIN_UNPROTECTED`, on the rule that *"an admin panel with no declared access rule is a boot failure"*. There is no way to declare an access rule. The guardrail is unsatisfiable as written — it can only ever fail, or be quietly dropped. A guardrail catalogue containing a rule no app can satisfy is the strongest possible internal evidence that a primitive is missing.
+**The guardrail catalogue was already reaching for the construct.** [`../../wiki/Auth-Billing-Admin.md`](../../wiki/Auth-Billing-Admin.md) specifies a boot guardrail, `MAGIK_ADMIN_UNPROTECTED`, on the rule that *"an admin panel with no declared access rule is a boot failure"* — written when there was no way to declare an access rule, so it could only ever fail or be quietly dropped. **A guardrail catalogue containing a rule no app can satisfy is the strongest possible internal evidence that a primitive is missing.** `policy` is what makes the rule satisfiable, and `MAGIK_POLICY_UNDECLARED` is what it becomes — one code covering every surface rather than a special case for the admin.
 
 **Why nothing existing can absorb it.** Taking each candidate seriously:
 
@@ -478,7 +480,7 @@ The admin's protection is then `MAGIK_POLICY_UNDECLARED` like every other surfac
 
 #### b2 — `layout`: the application shell as a primitive
 
-**The component kit is a list of components with no layout primitives at all.** `button, form, field, data_table, modal, toast, card, list, grid, tabs, stat, chart` — twelve things that go *inside* a page, and nothing that *is* a page. `sidebar`, `app shell`, `breakpoint` and `breadcrumb` occur zero times across `docs/` and `wiki/`; `responsive` occurs once, describing `grid`.
+**The component kit was a list of components with no layout primitives at all.** `button, form, field, data_table, modal, toast, card, list, grid, tabs, stat, chart` — twelve things that go *inside* a page, and nothing that *is* a page. When this was counted, `sidebar`, `app shell`, `breakpoint` and `breadcrumb` occurred zero times across `docs/` and `wiki/`, and `responsive` occurred once, describing `grid`. Grepping for them now finds the construct this section argued for, which is the only reason the count moved.
 
 **The evidence, again from the reference app.** `dummy/app/screens/dashboard.rb` and `dummy/app/screens/invoices.rb` both open their `body` directly with content — a `grid` in one, a `tabs` in the other. Neither has a sidebar, a header, a nav or a link to the other. **There is no way to navigate Ledgerline.** The reference application for a framework that claims to cover 99% of SaaS has no navigation, because the grammar has no way to declare any. Nobody noticed, which is the point: an absence in a grammar is invisible until someone tries to use the product.
 

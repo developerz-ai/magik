@@ -55,16 +55,17 @@ rather than for your gem.
 |---|---|---|---|
 | 1 | **Name the change.** The screen or action a user touches, and what is true afterwards that was not before | — | you |
 | 2 | **Data.** Fields, scopes, the append-only migration | `app/models/`, `db/migrations/` | `data-modeler` |
-| 3 | **The write.** Typed params, `authorize`, guards, `idempotent_by` where a retry can reach | `app/actions/` | `action-author` |
-| 4 | **Money**, if any. A ledger entry — never a balance column | `app/ledgers/` | `ledger-author` |
-| 5 | **The UI.** A screen naming declared `state`; controls naming the action from step 3 | `app/screens/`, `app/components/` | `screen-builder` |
-| 6 | **Tests.** One file per declaration, mirroring `app/` | `test/` | `test-writer` |
-| 7 | **The gate.** `bin/check` — lint, tests, `magik check`, and every rule in `scripts/checks/` | — | `guardrail-reviewer` |
-| 8 | **The paperwork.** Tick `PLAN.md`; add any new env var to `.env.example`; if this slice taught you a rule, write it as a check | — | you |
+| 3 | **Who may.** The verbs this slice needs, and the rule behind each | `app/policies/` | `policy-author` |
+| 4 | **The write.** Typed params, a `policy:` verb, guards, `idempotent_by` where a retry can reach | `app/actions/` | `action-author` |
+| 5 | **Money**, if any. A ledger entry — never a balance column | `app/ledgers/` | `ledger-author` |
+| 6 | **The UI.** A screen naming declared `state` and a `policy:` verb; controls naming the action from step 4 | `app/screens/`, `app/layouts/` | `screen-builder` |
+| 7 | **Tests.** One file per declaration, mirroring `app/` | `test/` | `test-writer` |
+| 8 | **The gate.** `bin/check` — lint, tests, `magik check`, and every rule in `scripts/checks/` | — | `guardrail-reviewer` |
+| 9 | **The paperwork.** Tick `PLAN.md`; add any new env var to `.env.example`; if this slice taught you a rule, write it as a check | — | you |
 
-**Data before writes before UI.** A screen written first invents the state it wishes existed, and
-that invention is what gets built. Steps 2–6 touch disjoint directories, so they parallelise once
-the names in step 1 are fixed — and not before.
+**Data before policy before writes before UI.** A screen written first invents the state it wishes
+existed, and that invention is what gets built. Steps 2–7 touch disjoint directories, so they
+parallelise once the names in step 1 are fixed — and not before.
 
 ## Done means
 

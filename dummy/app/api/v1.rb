@@ -12,8 +12,16 @@
 # to, so the API and the browser cannot drift into two sets of rules. An API
 # that reimplements a mutation is an API that will validate it differently.
 #
-# Demonstrates: api, resource, auto-paginate/filter/sort, :bearer and :api_key
-# auth, per-plan rate limiting (Phase 6).
+# AUTHENTICATION IS NOT AUTHORIZATION, and this file is where the difference is
+# easiest to lose. `auth :bearer, :api_key` decides WHO is calling; the
+# `policy:` on each resource below decides WHAT they may do, using the same
+# verbs app/screens/, app/channels/ and the admin panels name. A resource with
+# neither a verb nor `policy: :public` fails the boot
+# (MAGIK_POLICY_UNDECLARED), which is what stops an API from quietly becoming
+# the widest door into the data.
+#
+# Demonstrates: api, resource, policy per resource (Phase 2), auto-paginate/
+# filter/sort, :bearer and :api_key auth, per-plan rate limiting (Phase 6).
 
 api :V1 do
   auth :bearer, :api_key
@@ -32,7 +40,11 @@ api :V1 do
     # Never exposed: internal tenant_id, the audit trail, processor tokens.
   end
 
-  resource :invoices do
+  # The resource's verb guards reading it. The write endpoints do NOT inherit
+  # it: each delegates to an action that carries its own verb — `issue_invoice`
+  # names `%i[Invoice issue]`, `record_payment` names `%i[Invoice record_payment]`
+  # — so the API cannot be a route around a rule the UI obeys.
+  resource :invoices, policy: %i[Invoice read] do
     index  filterable: %i[status customer_id due_on], sortable: %i[issued_on total], per_page: 50
     show
 
@@ -42,7 +54,7 @@ api :V1 do
     member :pay,   action: :record_payment, verb: :post
   end
 
-  resource :customers do
+  resource :customers, policy: %i[Customer read] do
     index filterable: %i[archived], searchable: %i[name email]
     show
     create action: :create_customer
@@ -51,7 +63,14 @@ api :V1 do
 
   # Read-only, and deliberately so. The ledger is append-only; there is no
   # endpoint that can edit history because there is no code that can.
-  resource :ledger_entries do
+  #
+  # The verb is `%i[Invoice read]` because these rows describe invoices and
+  # payments, and an actor who may read the invoice may read the postings that
+  # explain it. It is also the one place in this app where naming a verb was
+  # awkward: `ledger :Receivables` is not a model, so there is no
+  # `policy :LedgerEntry` to point at without inventing a model to hang it on.
+  # See dummy/README.md, "What writing this taught us".
+  resource :ledger_entries, policy: %i[Invoice read] do
     index filterable: %i[account entry_type posted_on], sortable: %i[posted_on]
     show
   end

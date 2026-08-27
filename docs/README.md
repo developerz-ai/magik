@@ -14,7 +14,7 @@ Three doc trees: why the framework is shaped this way, how the repo that will bu
 
 | Doc | Read this when… |
 |---|---|
-| [`idea/00-build-spec.md`](idea/00-build-spec.md) | you need the source of truth, verbatim as authored — every other doc defers to it |
+| [`idea/00-build-spec.md`](idea/00-build-spec.md) | you need the source of truth — every other doc defers to it, and nothing anywhere contradicts it |
 | [`idea/01-thesis.md`](idea/01-thesis.md) | you want the axioms behind the spec, and the table of what Magik takes from Rails, Meteor, LiveView, Django, Hanami and htmx — and refuses |
 | [`idea/02-dsl-surface.md`](idea/02-dsl-surface.md) | you are implementing a DSL construct and need its intended Ruby shape |
 | [`idea/03-guardrails.md`](idea/03-guardrails.md) | you want to know what fails a boot, and with which error code |
@@ -24,6 +24,9 @@ Three doc trees: why the framework is shaped this way, how the repo that will bu
 | [`idea/07-ai-first.md`](idea/07-ai-first.md) | you want the AI-first argument in full: what it changes about the design, and what each agent audience needs |
 | [`idea/08-component-overrides.md`](idea/08-component-overrides.md) | you want your own modal, table or chart instead of the kit's |
 | [`idea/09-app-scaffold.md`](idea/09-app-scaffold.md) | you want the three stages a generated app goes through — `magik new` → `/setup-project` → `/feature` |
+| [`idea/10-saas-coverage.md`](idea/10-saas-coverage.md) | you want the adversarial count of the grammar against what a SaaS actually needs, and the command that re-counts it |
+| [`idea/11-dsl-as-tool-surface.md`](idea/11-dsl-as-tool-surface.md) | you are adding DSL and need the rules it is designed against — including why `magik describe` exists and why `magik mcp` is deferred |
+| [`idea/12-the-range.md`](idea/12-the-range.md) | you want the two axes one framework has to span, from a weekend idea to a large product |
 
 ## `architecture/` — the repo
 
@@ -40,6 +43,7 @@ Three doc trees: why the framework is shaped this way, how the repo that will bu
 | [`architecture/08-dev-loop.md`](architecture/08-dev-loop.md) | you want to know what hot-reloads, what does not, and why |
 | [`architecture/09-shipped-docs.md`](architecture/09-shipped-docs.md) | you want to know why the gem carries its own manual, what `magik docs` serves, and what ships |
 | [`architecture/10-performance-defaults.md`](architecture/10-performance-defaults.md) | you are about to pick a default that costs something at runtime |
+| [`architecture/11-jobs-backend.md`](architecture/11-jobs-backend.md) | you need which Postgres queue is wrapped, by what locking mechanism, and where it stops being the right answer |
 | [`architecture/12-runtime-verification.md`](architecture/12-runtime-verification.md) | you want the runtime measurements the concurrency and server decisions rest on — the method, the numbers, and what would reverse them |
 
 ## `ops/` — running it

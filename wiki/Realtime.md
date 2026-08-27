@@ -11,7 +11,7 @@ inverse of the Meteor model where every page paid for reactivity whether it used
 
 ```ruby
 # app/screens/invoices.rb
-screen :Invoices do
+screen :Invoices, policy: %i[Invoice read] do
   state :invoices, -> { Invoice.overdue.eager(:customer) }
   live  :invoices, on: "invoices:tenant"
 
@@ -28,7 +28,7 @@ request/response.
 
 ```ruby
 # app/channels/invoice_updates.rb
-channel :invoice_updates do
+channel :invoice_updates, policy: %i[Invoice read] do
   subscribe_to "invoices:tenant"
 
   on_create :Invoice do |invoice|
@@ -44,7 +44,7 @@ end
 Or broadcast explicitly from an action, which is the common case:
 
 ```ruby
-action :mark_paid do |params|
+action :mark_paid, policy: %i[Invoice record_payment] do |params|
   invoice = Invoice.find!(params[:id])
   invoice.update(status: :paid)
   broadcast "invoices:tenant", :changed, invoice
@@ -105,11 +105,14 @@ passing test on both sides before it is claimed anywhere — see
 | Guardrail | Fails with | When |
 |---|---|---|
 | A `live` declaration names a channel that exists | `MAGIK_CHANNEL_UNDECLARED` | boot |
+| A channel names a policy verb | `MAGIK_POLICY_UNDECLARED` | boot |
+| A policy predicate performs no I/O | `MAGIK_POLICY_IO` | boot |
 | A channel name cannot cross tenants | `MAGIK_CHANNEL_CROSSES_TENANT` | boot |
 | A screen with `live` still holds no cross-request state | `MAGIK_STATEFUL_SCREEN` | boot |
 
 ## Next
 
 - [Screens and components](Screens-And-Components.md) — the screen a `live` line goes on.
+- [Screens and components](Screens-And-Components.md#policy) — `policy`. A channel evaluates **the same verb as the request path**; there is no second door to the data. It is also why a policy predicate may not query: a `live` screen re-evaluates one per subscriber per change.
 - [Jobs](Jobs.md) — the other way work reaches a user asynchronously.
 - [Testing](Testing.md) — `assert_broadcast`.

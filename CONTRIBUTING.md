@@ -79,11 +79,16 @@ what you would lose by not doing it. A spec change is agreed first and edited on
 quietly rewrites a spec section alongside an implementation will be declined even when the
 implementation is good, because it makes the source of truth negotiable in a code review.
 
-The twelve non-negotiable architecture decisions (TruffleRuby, Rack+Falcon, Sequel, no SPA
+The thirteen non-negotiable architecture decisions (TruffleRuby, Rack+Puma, Sequel, no SPA
 framework, opt-in realtime, no offline, no heavy client compute, multi-tenant by default, stateless
-servers, integer-cents money, mandatory swap points, domain modules) are exactly that. Arguing one
-is a discussion about the project's identity, and it is a fair discussion to have — in the open,
-before any code.
+servers, integer-cents money, mandatory swap points, domain modules, and authorization evaluated in
+exactly one place) are exactly that. Arguing one is a discussion about the project's identity, and
+it is a fair discussion to have — in the open, before any code.
+
+Read them in the spec rather than from that list —
+[`docs/idea/00-build-spec.md`](docs/idea/00-build-spec.md) § "Non-negotiable Architecture
+Decisions" is the wording that counts, and two of them carry a measurement rather than an argument:
+`ruby scripts/probes/runtime.rb --json` is what decisions 1 and 2 rest on.
 
 ## Code rules
 

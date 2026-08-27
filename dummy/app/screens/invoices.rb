@@ -14,11 +14,34 @@
 # place in the app where a write happens. Grep for `action` and you have found
 # every mutation in the product.
 #
-# Demonstrates: screen, state with params, data_table + form + modal + button
-# from the component kit (Phase 2), and htmx-driven interactivity with no
-# hand-written JavaScript (spec decision 4).
+# Demonstrates: screen, policy + layout + parent (Phase 2), state with params,
+# data_table + form + modal + button from the component kit (Phase 2), and
+# htmx-driven interactivity with no hand-written JavaScript (spec decision 4).
 
-screen :Invoices do
+screen :Invoices,
+       policy: %i[Invoice read],
+       layout: :App,
+       parent: :Dashboard do
+  # THREE DECLARATIONS IN THE HEADER, and none of them is a check written here:
+  #
+  #   policy:  names a verb declared in app/policies/invoice.rb. The same verb
+  #            answers app/channels/invoices.rb and the `resource :invoices`
+  #            block in app/api/v1.rb, so the browser, the socket and the API
+  #            cannot drift into three sets of rules. Omitting it — and omitting
+  #            `policy: :public` — fails the boot with MAGIK_POLICY_UNDECLARED.
+  #
+  #   layout:  names the shell in app/layouts/app.rb. MAGIK_LAYOUT_MISSING
+  #            refuses a screen that names neither a layout nor `layout: :None`.
+  #
+  #   parent:  is the whole of the breadcrumb declaration. `breadcrumbs` in the
+  #            layout derives "Dashboard › Invoices" from this line, so the
+  #            trail cannot fall out of step with the navigation.
+  #
+  # Note what `policy:` does NOT do: it does not filter rows. Row scoping is the
+  # tenant filter the framework applies to every query (spec decision 8), and
+  # the row actions below carry their own verbs.
+  title { t("invoices.title") }
+
   param :status, :enum, values: %i[all draft issued paid overdue], default: :all
   param :focus,  :uuid, default: nil
 
@@ -47,6 +70,9 @@ screen :Invoices do
       column t("invoices.status"),   :status, as: :badge
 
       # Each row action posts to an action, which is the only thing that writes.
+      # The action carries `policy: %i[Invoice issue]`; `when:` decides whether
+      # the button is drawn, the policy decides whether the post is honoured,
+      # and they are not the same question — a hidden button is not a rule.
       row_action t("invoices.issue"), action: :issue_invoice, when: ->(i) { i.status == :draft },
                  confirm: t("invoices.issue_confirm")
       row_action t("invoices.record_payment"), opens: modal(:record_payment), when: ->(i) { i.unpaid? }

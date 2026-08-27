@@ -65,6 +65,7 @@ README.md.erb                          erb                README.md             
 .claude/agents/data-modeler.md         copy               .claude/agents/data-modeler.md        replace
 .claude/agents/guardrail-reviewer.md   copy               .claude/agents/guardrail-reviewer.md  replace
 .claude/agents/ledger-author.md        copy               .claude/agents/ledger-author.md       replace
+.claude/agents/policy-author.md        copy               .claude/agents/policy-author.md       replace
 .claude/agents/screen-builder.md       copy               .claude/agents/screen-builder.md      replace
 .claude/agents/test-writer.md          copy               .claude/agents/test-writer.md         replace
 

@@ -324,6 +324,16 @@ feature parallelisable.
 | `test-writer` | `test/` | tests have their own rules — no shared state, no truncation, no wall clock — set by a parallel worker-thread runner that does not exist yet and will not forgive tests written without it |
 | `guardrail-reviewer` | **nothing. Read-only, no `Write` or `Edit`** | a reviewer that fixes what it finds stops reporting what it found. It is also the whole gate until `magik check` exists |
 
+**Two directories the roster does not yet tile.** `policy` and `layout` are phase-2 constructs
+([`00-build-spec.md`](00-build-spec.md)), so a generated app has `app/policies/` and `app/layouts/`
+and no agent owns either. The tiling rule says which way it goes: `app/layouts/` is `screen-builder`'s
+— a layout is built out of kit components and is where navigation is declared — and `app/policies/`
+is its own concern rather than `action-author`'s, because a policy guards reads as much as writes and
+`ls app/policies/` should be the complete list of authorization rules the way `ls app/actions/` is the
+complete list of writes. The agent templates in
+[`lib/magik/cli/templates/app/.claude/agents/`](../../lib/magik/cli/templates/app/README.md) predate
+both constructs and are owed that change.
+
 | Command | Does | Reads |
 |---|---|---|
 | `/setup-project` | stage 2, in full | the sentinel, then the user |

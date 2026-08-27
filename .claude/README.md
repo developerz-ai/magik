@@ -60,7 +60,7 @@ invoicing/billing SaaS.
 | [`dsl-designer`](agents/dsl-designer.md) | decides the Ruby shape of a construct **before** anyone implements it |
 | [`spec-implementer`](agents/spec-implementer.md) | one spec-backed slice under `lib/magik/<subsystem>/`, failing test first |
 | [`guardrail-author`](agents/guardrail-author.md) | one boot-time rule: check, `MAGIK_*` code, `fix:`, both tests, wiki row |
-| [`test-writer`](agents/test-writer.md) | Minitest that fails when the code breaks, and survives the Ractor runner |
+| [`test-writer`](agents/test-writer.md) | Minitest that fails when the code breaks, and survives the parallel thread runner |
 | [`swap-point-prover`](agents/swap-point-prover.md) | one contract test, two backends — a swap ships proven, not promised |
 | [`cli-author`](agents/cli-author.md) | `exe/magik`, `lib/magik/cli/`, exit codes, `--json`, the generators |
 | [`docs-keeper`](agents/docs-keeper.md) | flips `planned` → real only where a test proves it |

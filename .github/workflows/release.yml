@@ -194,7 +194,7 @@ jobs:
   #
   # A TAG IS NOT EXEMPT FROM THE GATE. The tag is immutable; the mistake it ships is not, and the
   # only cheap moment to find out is before the push. `bin/check` with no `--only` is every step:
-  # rubocop, test, yard, build, cli, docs. ci.yml splits those across jobs so a red step names
+  # rubocop, test, yard, build, cli, docs, checks. ci.yml splits those across jobs so a red step names
   # itself in the job list; a release runs all of them in one place because there is nothing to
   # triage here, only a decision to proceed or stop.
   build:

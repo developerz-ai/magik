@@ -13,7 +13,7 @@ You write no HTML, no CSS and no JavaScript. Not "less of it" — none.
 
 ```ruby
 # app/screens/invoices.rb
-screen :Invoices do
+screen :Invoices, policy: %i[Invoice read], layout: :App, parent: :Dashboard do
   state :invoices, -> { Invoice.overdue.eager(:customer) }
   state :total,    -> { Invoice.outstanding.sum(:amount) }
 
@@ -43,6 +43,11 @@ end
 Auto-routed to `/invoices`. There is **no** `config/routes.rb` — the router is convention. `screen
 :InvoiceDetail` is `/invoice_detail`; a screen taking a record takes it as a path segment.
 
+Two of those three options are not decoration. `policy:` names the verb the framework evaluates
+before the screen renders — see [`policy`](#policy) — and `layout:` names the shell it renders into,
+see [`layout`](#layout). Both are **required**, and both can be opted out of explicitly
+(`policy: :public`, `layout: :None`). `parent:` is what `breadcrumbs` is derived from.
+
 ### `state` is the only way a screen reads data
 
 A screen names a `state` and the state is a **model scope**. A `Sequel` dataset built inside a `body`
@@ -65,6 +70,113 @@ work. A screen or component that stashes an instance variable between requests f
 MAGIK_STATEFUL_SCREEN: :Invoices assigns @cursor outside a render pass
   fix: put it in the URL, or in a `state` declaration that recomputes per request
 ```
+
+## `policy`
+
+**Authorization is decided in exactly one place.** A screen, an action, an API resource, a realtime
+channel, a job and an admin panel are all *generated* surfaces, and an app cannot reach inside a
+generated surface to add a check — so every one of them **names a verb** instead. Architecture
+decision 13.
+
+```ruby
+# app/policies/invoice.rb
+policy :Invoice do
+  default :deny                        # required. There is no implicit allow
+
+  can :read do |actor, invoice|
+    actor.role?(:viewer, :member, :admin, :owner)
+  end
+
+  can :issue do |actor, invoice|
+    actor.role?(:admin, :owner) && invoice.status == :draft
+  end
+
+  can :administer do |actor, _invoice|
+    actor.staff? && actor.role?(:support_lead)
+  end
+end
+```
+
+The role set is declared once, beside the actor:
+
+```ruby
+App.define :Myapp do
+  roles       :owner, :admin, :member, :viewer, default: :member
+  staff_roles :support, :support_lead      # a separate axis — staff are not tenant members
+end
+```
+
+Every surface names a verb rather than writing a check, and **opting out is a declaration too**:
+
+```ruby
+screen      :Invoices,      policy: %i[Invoice read]
+action      :issue_invoice, policy: %i[Invoice issue]
+channel     :invoices,      policy: %i[Invoice read]
+admin_panel :Invoice,       policy: %i[Invoice administer]
+job         :DunningSweep,  policy: :system          # explicit, never implicit
+screen      :Pricing,       policy: :public          # a marketing page says so
+```
+
+| Rule | Detail |
+|---|---|
+| Predicates are pure | no queries, no I/O. A `live` screen re-evaluates one per subscriber per change, so a query here is a round trip per row per open socket |
+| A `nil` record denies | "no record loaded" and "record not found" are the same `nil`, and absent evidence is a denial |
+| One evaluator, every surface | the same block answers the HTTP request, the htmx post, the API call, the channel subscription and the admin render. There is no second door to the data |
+| It is not a swap point | a second authorization backend is a second authorization system, which is the failure this design is organised against |
+| `auth` supplies the actor, and never decides | `policy` lands in phase 2 and takes the actor as an opaque value; `auth` arrives in phase 7 and nothing in the policy layer changes at the handover |
+
+## `layout`
+
+The application shell — the thing a screen is rendered *into*, and where navigation is declared. A
+screen declares `state` and `body`; the layout is what wraps it.
+
+```ruby
+# app/layouts/app.rb
+layout :App do
+  sidebar do
+    brand { text app_name }
+
+    section t("nav.work") do
+      nav_item :Dashboard, icon: :home
+      nav_item :Invoices,  icon: :receipt, badge: -> { Invoice.overdue.count }
+      nav_item :Customers, icon: :users
+    end
+
+    section t("nav.settings"), collapsed: true do
+      nav_item :Members, icon: :users, policy: %i[Member administer]
+      nav_item :Billing, icon: :card,  policy: %i[Subscription administer]
+    end
+  end
+
+  topbar do
+    breadcrumbs                                     # derived from each screen's `parent:`
+    search action: :global_search, placeholder: t("nav.search")
+    account_menu items: %i[profile theme sign_out]
+  end
+
+  content { slot :screen }
+
+  responsive do
+    sidebar collapses_below: :md, into: :drawer     # CSS plus one htmx target. No build step
+  end
+end
+```
+
+A screen names one, and opting out is written down:
+
+```ruby
+screen :Invoices, layout: :App, parent: :Dashboard do … end
+screen :SignIn,   layout: :None do … end            # auth screens want no shell
+screen :Pricing,  layout: :Marketing do … end       # a second layout, not a special case
+```
+
+| Rule | Detail |
+|---|---|
+| A default that exists | `magik new` is specified to generate a working `:App` layout, so a generated app has a sidebar on its first run |
+| Nav cannot rot | `nav_item :Invoices` names a screen constant. A link to a screen that does not exist fails at boot |
+| Nav respects authorization | `policy:` on a `nav_item` hides what the actor cannot reach. Showing a link to a 403 is the most common authorization bug in a SaaS, and it is free when both are declarations |
+| Breadcrumbs are derived | from `parent:`, never typed per page |
+| It is not a second override system | its pieces are kit components with contracts, so all four rungs of [Using your own components](#using-your-own-components) apply unchanged |
 
 ## A component
 
@@ -111,6 +223,18 @@ declarations rather than dropping to HTML.
 | `tabs` | sectioned content, with the selected tab in the URL — not in memory |
 | `stat` | a single number with a label and optional delta |
 | `chart` | a rendered chart. **Server-rendered**; see the limit below |
+| `sidebar` | the shell's primary navigation column. Declared inside a [`layout`](#layout) |
+| `topbar` | the shell's header strip: breadcrumbs, search, account menu |
+| `nav_item` | one navigation link. Names a screen constant, and takes a `policy:` |
+| `breadcrumbs` | derived from each screen's `parent:`, never typed per page |
+| `account_menu` | the signed-in actor's menu — profile, theme, sign out |
+| `dashboard_grid` | the landing-screen arrangement of `stat`, `chart` and `card` |
+
+**Every kit component is responsive by construction.** No app-authored declaration is required to
+make a screen work on a phone, and that is meant to be a tested claim rather than an asserted one:
+`render_screen … at: :mobile` in a test, and a phase 2 exit criterion that the generated app renders
+correctly at 375px. The one place it costs you a line is `data_table` on a narrow screen, which
+becomes a **card list** — never a horizontal scroll.
 
 ## Using your own components
 
@@ -348,6 +472,13 @@ MAGIK_TIMEZONE_UNSPECIFIED: :Invoices renders :sent_at with no zone
 | A component may not read the database | `MAGIK_COMPONENT_DIRECT_QUERY` | boot |
 | An undeclared prop is refused | `MAGIK_PROP_UNDECLARED` | boot |
 | A component shadowing a kit name satisfies its contract | `MAGIK_COMPONENT_CONTRACT_VIOLATION` | boot |
+| Every surface reaching a model names a policy verb | `MAGIK_POLICY_UNDECLARED` | boot |
+| The verb it names is declared | `MAGIK_POLICY_UNKNOWN_VERB` | boot |
+| A policy predicate performs no I/O | `MAGIK_POLICY_IO` | boot |
+| A policy states `default :deny` | `MAGIK_POLICY_NO_DEFAULT` | boot |
+| A row rule denies a `nil` record | `MAGIK_POLICY_NULL_PASSES` | boot |
+| Every screen has a layout, or `layout: :None` | `MAGIK_LAYOUT_MISSING` | boot |
+| A `nav_item` names a screen that exists | `MAGIK_LAYOUT_UNKNOWN_SCREEN` | boot |
 
 ## Swap points
 
@@ -358,10 +489,12 @@ MAGIK_TIMEZONE_UNSPECIFIED: :Invoices renders :sent_at with no zone
 | Individual kit components | `Magik::Kit::*` | your own, by name — see [Using your own components](#using-your-own-components) |
 | The whole component kit | the built-ins | a kit gem: `kit :acme_ui` in `config/backends.rb` |
 | The client interactivity layer | htmx | **not a swap point.** No SPA framework, ever — architecture decision 4 |
+| Authorization | `policy` | **not a swap point.** A second authorization backend is a second authorization system |
 
 ## Next
 
 - [Actions](Actions.md) — what the forms and buttons above post to.
 - [Realtime](Realtime.md) — making a screen update itself, opt-in.
 - [Models](Models.md) — where `state` scopes come from.
+- [Auth, billing, admin](Auth-Billing-Admin.md) — who the actor a `policy` receives is, and `admin_panel`.
 - [Testing](Testing.md) — `render_screen` in a test.

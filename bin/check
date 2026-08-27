@@ -322,6 +322,56 @@ STEPS = [
       pass("#{files.size} Markdown files scanned, every relative link resolves",
            command: "bin/check --only docs")
     }
+  ),
+
+  # The repo's own conventions, as assertions. Each script under scripts/checks/
+  # asserts one thing this repository promises in prose -- the error codes are
+  # documented, the CHANGELOG has an [Unreleased], every documented command
+  # exists, dummy/ parses, the manifest is current, the tiers agree.
+  #
+  # They live here rather than only in scripts/ because the two of them that
+  # were red -- error-codes and doc-commands -- had been red for an unknown
+  # number of commits, and nobody noticed, for exactly one reason: nothing ran
+  # them. A check that is not in the gate is a check that does not exist, which
+  # is the same argument this repo makes about a convention that is not a
+  # guardrail.
+  Step.new(
+    name: "checks",
+    title: "repo checks — scripts/checks/*.rb, the conventions as assertions",
+    command: -> { "for f in scripts/checks/*.rb; do ruby \"$f\"; done" },
+    body: lambda {
+      # Dir.glob already sorts; the order matters because the fix: line below names the
+      # first failing script, and a stable order makes that reproducible.
+      scripts = Dir.glob("scripts/checks/*.rb")
+      if scripts.empty?
+        next fail_with(reason: "no_repo_checks", command: "ls scripts/checks/", exit_code: nil,
+                       expected: "at least one check under scripts/checks/",
+                       got: "the directory is empty or missing",
+                       fix: "git checkout scripts/checks   # the checks are tracked; restore them")
+      end
+
+      failures = []
+      failed_paths = []
+      scripts.each do |script|
+        ok, out, code = sh("ruby", script)
+        next if ok
+
+        failed_paths << script
+        failures << "#{File.basename(script)} (exit #{code})\n#{indent(out.strip, "      ")}"
+      end
+
+      unless failures.empty?
+        # The fix: names the first check that ACTUALLY failed, not the first
+        # check that exists -- a fix: line pointing at a passing script is
+        # advice wearing a command, which is the thing this repo forbids.
+        next fail_with(reason: "repo_check_failed", command: "ruby #{failed_paths.first}", exit_code: nil,
+                       expected: "every script under scripts/checks/ exits 0",
+                       got: "#{failures.size} of #{scripts.size} failed:\n\n#{failures.join("\n\n")}",
+                       fix: "ruby #{failed_paths.first}   # run the failing check alone and read its output")
+      end
+
+      pass("#{scripts.size} repo checks pass", command: "for f in scripts/checks/*.rb; do ruby \"$f\"; done")
+    }
   )
 ].freeze
 

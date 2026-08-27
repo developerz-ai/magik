@@ -105,6 +105,8 @@ model :Order do
   field :placed_at, :timestamp
   field :notes,     :text,      translatable: true      # phase 8
 
+  computed(:outstanding, :money) { total - paid_total }
+
   belongs_to :customer
   has_many   :line_items, model: :LineItem
 
@@ -122,9 +124,12 @@ end
 
 | Element | Contract |
 |---|---|
-| `field` | name, type, keyword options. Types: `:string`, `:text`, `:integer`, `:decimal`, `:boolean`, `:money`, `:timestamp`, `:date`, `:uuid`, `:json`, `:enum`, `:vector`. |
+| `field` | name, type, keyword options. Types: `:string`, `:text`, `:integer`, `:decimal`, `:boolean`, `:money`, `:duration`, `:timestamp`, `:date`, `:uuid`, `:json`, `:enum`, `:vector`, `:file`. |
 | `:money` | integer minor units plus a currency. A float assigned to one raises rather than rounding ([`03-guardrails.md`](03-guardrails.md)). |
+| `:duration` | a unit-suffixed string coerced at boot — `"14d"`, `"10m"`, `"90s"`. A malformed one fails the boot rather than the first use (D1). |
+| `:file` | an attachment, with `max_size:` and `content_types:` **required** — `MAGIK_MODEL_UNCONSTRAINED_UPLOAD` otherwise. The declaration form, derivatives and delivery are [`attachment`](#attachment), phase 4b. |
 | `:timestamp` | stored UTC. Rendering without an explicit zone is a boot failure, not a formatting quirk. |
+| `computed` | a derived field: `computed(:name, :type) { … }`. The parentheses are load-bearing — a brace block binds to the last call, so `computed :name, :type { … }` would bind to the symbol. |
 | Injected | `id` (UUIDv7), `tenant_id`, `created_at`, `updated_at`. Never declared by hand. |
 | `scope` | returns a Sequel dataset. The tenant filter is applied by the framework; writing it by hand is redundant, omitting it is not possible. |
 | Never | HTTP awareness, rendering, authorization decisions, or cross-domain reads ([`domain`](#domain)). |
@@ -209,10 +214,10 @@ Every kit component is replaceable — tokens, `extends:`, a shadowing definitio
 
 ### `screen`
 
-A page-level component. Auto-routed from its name — `:Orders` → `/orders`. State is computed per request; nothing survives the response.
+A page-level component. Auto-routed from its name — `:Orders` → `/orders`. State is computed per request; nothing survives the response. Every screen names a [`policy`](#policy) verb — or `policy: :public` — and is rendered into a [`layout`](#layout), which defaults to `:App`.
 
 ```ruby
-screen :Orders do
+screen :Orders, policy: %i[Order read] do
   title { t("orders.title") }
 
   state :orders do
@@ -233,7 +238,7 @@ end
 A mutation. Auto-wired to a POST endpoint derived from its name, invoked by the `hx-post` a `button` or `form` compiled to.
 
 ```ruby
-action :refund_order do |params|
+action :refund_order, policy: %i[Order refund] do |params|
   order = Order.find!(params[:order_id])
   Payments.refund(order: order, amount: order.total)     # phase 5 ledger entry
   order.update(status: :refunded)
@@ -245,6 +250,7 @@ end
 
 | Rule | Detail |
 |---|---|
+| Authorization | one `policy:` verb, evaluated before the block runs. A mutation with neither a verb nor an explicit `policy: :public` does not boot ([`03-guardrails.md`](03-guardrails.md)). |
 | Signature | one `params` hash, already coerced to the declared field types. |
 | Returns | a redraw, a redirect, or a toast — never HTML assembled by hand. |
 | Never | hold instance state across requests (boot guardrail), read raw headers, or perform slow work inline — enqueue a [`job`](#job). |
@@ -311,6 +317,8 @@ screen      :Pricing,       policy: :public          # opting out is a declarati
 | a predicate that queries | `MAGIK_POLICY_IO` |
 | `policy:` naming a verb the policy does not declare | `MAGIK_POLICY_UNKNOWN_VERB` |
 | a `policy` block with no `default :deny` | `MAGIK_POLICY_NO_DEFAULT` |
+
+**Three surfaces this construct does not yet cover** — an incoming webhook (which has no actor, only a verified origin), a surface over a non-model subject such as `ledger`, and a `flow`. Each is stated with its evidence in [`00-build-spec.md`](00-build-spec.md#phase-2--rendering--actions); none blocks phase 2, and each blocks the phase that ships the surface.
 | a row rule that would pass on a `nil` record | `MAGIK_POLICY_NULL_PASSES` |
 
 `MAGIK_POLICY_UNDECLARED` is the load-bearing one: it is what makes an `admin_panel` with no policy a boot failure rather than a documented risk.
@@ -361,7 +369,7 @@ screen :Pricing,  layout: :Marketing do … end       # a second layout, not a s
 | Rule | Detail |
 |---|---|
 | A default that exists | `magik new` generates a working `:App` layout with the conventional furniture in it. A generated app has a sidebar on its first run |
-| Nav cannot rot | `nav_item :Invoices` names a screen constant; a link to a screen that does not exist fails at boot |
+| Nav cannot rot | `nav_item :Invoices` names a screen constant; a link to a screen that does not exist fails at boot (`MAGIK_LAYOUT_UNKNOWN_SCREEN`). The same holds for an action: `search action: :global_search` above requires that `global_search` exist, or the boot fails with `MAGIK_LAYOUT_UNKNOWN_ACTION`. Only screens were guarded at first, which is how the drafted example above came to name an action no app declared |
 | Nav respects authorization | `policy:` on a `nav_item` hides what the actor cannot reach. Showing a link to a 403 is the most common authorization bug in a SaaS, and it is free when both are declarations |
 | Breadcrumbs are derived | from `parent:`, never typed per page |
 | Every screen has one | default `:App`; opting out is `layout: :None`, written down |
@@ -436,14 +444,14 @@ Nothing here costs anything until it is declared. A screen with no `live` is req
 ### `channel`, `live`, `broadcast`, `presence`
 
 ```ruby
-channel :orders do
+channel :orders, policy: %i[Order read] do
   subscribe_to :Order
   on_create { |order| broadcast "orders:#{order.tenant_id}", :insert, order }
   on_update { |order| broadcast "orders:#{order.tenant_id}", :update, order }
   presence tracking: %i[viewer_id cursor]
 end
 
-screen :Orders do
+screen :Orders, policy: %i[Order read] do
   live :orders, on: "orders:{tenant}"      # this line is the entire cost of realtime
 
   state :orders do
@@ -468,7 +476,7 @@ end
 ### `job`
 
 ```ruby
-job :SettleBatch do
+job :SettleBatch, policy: :system do
   retries times: 5, backoff: :exponential
   schedule cron: "0 3 * * *"        # or: schedule every: "10m" — a :duration (D1)
   idempotent_by :tenant_id          # D4: one spelling for "a repeat with this key does nothing new"

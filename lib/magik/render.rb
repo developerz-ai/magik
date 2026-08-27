@@ -10,8 +10,14 @@ module Magik
   #
   #   * `component :Name do prop; body do ... end end`
   #   * `screen :Name do state/body end`
-  #   * `kit: button, form, field, data_table, modal, toast, card, list, grid, tabs, stat, chart`
+  #   * `layout :Name do sidebar / topbar / content / responsive end` — the shell
+  #   * `kit: button, form, field, data_table, modal, toast, card, list, grid,
+  #     tabs, stat, chart, sidebar, topbar, nav_item, breadcrumbs, account_menu,
+  #     dashboard_grid`
   #   * `theme system: design tokens, light/dark mode via CSS vars`
+  #
+  # Every kit component is responsive by construction; `data_table` on a narrow
+  # screen becomes a card list, never a horizontal scroll.
   #
   # Status: **Not implemented — spec only.** Every entry point below raises
   # {NotImplementedError}. Nothing here reads config, touches a database or
@@ -28,7 +34,9 @@ module Magik
     DSL_SURFACE = [
       "component :Name do prop; body do ... end end",
       "screen :Name do state/body end",
-      "kit: button, form, field, data_table, modal, toast, card, list, grid, tabs, stat, chart",
+      "layout :Name do sidebar / topbar / content / responsive end",
+      "kit: button, form, field, data_table, modal, toast, card, list, grid, tabs, stat, chart, " \
+      "sidebar, topbar, nav_item, breadcrumbs, account_menu, dashboard_grid",
       "theme system: design tokens, light/dark mode via CSS vars"
     ].freeze
 

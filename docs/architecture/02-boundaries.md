@@ -2,7 +2,7 @@
 
 Two boundary systems: the tier rules between Magik's own subsystems, and the domain rules an app declares. Both are meant to fail the build or the boot, never a review.
 
-**Status:** planned. No tier checker exists, `bin/check` has no boundaries step, and the `domain` DSL is unimplemented. Reviewed 2026-08-26.
+**Status:** rule one is enforced, rule two is planned. The tier checker exists and runs — `ruby scripts/checks/boundaries.rb` — over an executable copy of the table in [`../../scripts/lib/tiers.rb`](../../scripts/lib/tiers.rb); `bin/check` does not yet run it as a step. The `domain` DSL and component shadowing are unimplemented. Reviewed 2026-08-26.
 
 ## Rule one — tiers, inside this repo
 
@@ -18,7 +18,7 @@ tier 5   check, testing
 tier 6   cli
 ```
 
-The table is duplicated in [`01-module-map.md`](01-module-map.md) and will have an executable copy in `bin/check`. Prose and code must agree; when they diverge, the code is right and the prose is a bug.
+The table is duplicated in [`01-module-map.md`](01-module-map.md) and has an executable copy in [`../../scripts/lib/tiers.rb`](../../scripts/lib/tiers.rb). Prose and code must agree; when they diverge, the code is right and the prose is a bug — and `MAGIK_BOUNDARY_TABLE_DRIFT` is what says so, because [`../../scripts/checks/boundaries.rb`](../../scripts/checks/boundaries.rb) re-parses both documents against the code on every run.
 
 | Rule | Detail |
 |---|---|
@@ -39,16 +39,19 @@ Each of these was the tempting sideways import, and the design that removed the 
 | `api` → `action` | REST resources look like actions | `api` resources are generated over `model` + `router`; an app's own callbacks are blocks it supplies |
 | `jobs` → `notify` | notifications deliver through the queue | inverted: `notify` (3) requires `jobs` (2) and enqueues |
 | `model` → `render` | serialization of a `:money` field for the admin | `model` exposes typed values; `render` and `api` decide presentation |
+| `render` → `auth` | a screen has to know whether this actor may see it | refused, and this is the edge that fixes `policy`'s tier. The decision is `policy`'s and `policy` is tier **1**; the *actor* is `auth`'s and arrives as an opaque value the request already resolved. `render` (2) requires `policy` (1) and never `auth` (3) |
 
 **`schema` sits at tier 1, not beside `core` at 0**, because it requires `core` for error codes and column value types. Colloquially both are "the bottom"; the table records the actual direction, so no exception line is needed.
 
-### How it will be enforced
+**`policy` sits at tier 1, not beside `auth` at 3**, and the reason is the same rule applied harder. `render` and `realtime` are tier 2 and both must evaluate policies; imports go strictly down, so an evaluator at tier 3 is unreachable from the two surfaces that need it most. `policy` therefore takes the actor as an opaque value — exactly as `router` at tier 1 takes a path without knowing what a screen is — and `auth` at tier 3 supplies that value and never decides. The full argument: [`01-module-map.md`](01-module-map.md#why-policy-is-tier-1).
 
-Planned as the `boundaries` step of `bin/check`:
+### How it is enforced
+
+[`../../scripts/checks/boundaries.rb`](../../scripts/checks/boundaries.rb), run directly today and a `bin/check` step once one is wired:
 
 ```
 1. read       every lib/magik/**/*.rb
-2. scan       require / require_relative statements (regex over source — no app boot needed)
+2. scan       require / require_relative statements and constant references (regex over source — no app boot needed)
 3. resolve    specifier → owning subsystem, or "internal file of another subsystem"
 4. evaluate   tier(importer) > tier(imported)? front door only?
 5. report     one finding per violation: file:line, both subsystems, both tiers, allowed set
@@ -56,12 +59,12 @@ Planned as the `boundaries` step of `bin/check`:
 
 | Property | Detail |
 |---|---|
-| Codes | `MAGIK_BOUNDARY_TIER` (sideways or upward) · `MAGIK_BOUNDARY_INTERNAL_REQUIRE` (past the front door) |
+| Codes | `MAGIK_BOUNDARY_TIER` (sideways or upward) · `MAGIK_BOUNDARY_INTERNAL_REQUIRE` (past the front door) · `MAGIK_BOUNDARY_TABLE_DRIFT` (a document restates the table and no longer agrees with the code) |
 | Cost | a source scan, no boot, no database |
-| Where it runs | `bin/check` and CI. Not in `magik server` — a tier violation is a repo defect, not an app one |
+| Where it runs | `ruby scripts/checks/boundaries.rb`, and CI. Not in `magik server` — a tier violation is a repo defect, not an app one |
 | `--json` | one finding object per violation, same schema as every other check ([`03-error-codes.md`](03-error-codes.md)) |
 
-Until that step exists, the tier table is a convention — and per the repo's own rule, a convention with no check does not really exist. Writing the checker is part of build-order step 12 ([`../idea/06-phases.md`](../idea/06-phases.md)).
+The third code is the one that keeps this page honest: the table is written three times — here, in [`01-module-map.md`](01-module-map.md), and in `scripts/lib/tiers.rb` — and only the third is authoritative.
 
 ## Rule two — domains, inside an app
 
@@ -79,14 +82,20 @@ end
 ```
 domains/
   billing/
-    domain.rb          # the declaration above
-    models/            # owned by Billing — private unless exposed
-    screens/
-    actions/
-    components/        # domain-scoped component overrides
+    domain.rb              # the declaration above
+    app/                   # the SAME tree as a flat app, one level in
+      models/              # owned by Billing — private unless exposed
+      screens/
+      actions/
+      components/          # domain-scoped component overrides
+    test/
   accounts/
     domain.rb
+    app/
+    test/
 ```
+
+**A domain contains the same `app/` tree as a flat app** — `app/models/invoice.rb` becomes `domains/billing/app/models/invoice.rb` and nothing inside the file changes. The prescribed layout is [`../../wiki/Project-Layout.md`](../../wiki/Project-Layout.md), demonstrated by [`../../dummy/`](../../dummy/); a generator that invents a path is a bug.
 
 | Declaration | Meaning |
 |---|---|
@@ -107,7 +116,7 @@ domains/
 Boot-time is the whole point: a domain boundary enforced by review erodes at exactly the moment the app is large enough to need it. The intended failure shape:
 
 ```
-MAGIK_DOMAIN_BOUNDARY  domains/billing/actions/charge.rb:12
+MAGIK_DOMAIN_BOUNDARY  domains/billing/app/actions/charge.rb:12
 
   domain :Billing references Accounts::User directly.
   Accounts exposes: :AccountSummary, :find_account. Billing depends_on: [:Accounts].

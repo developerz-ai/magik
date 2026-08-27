@@ -7,7 +7,10 @@ module Magik
   #
   # Planned DSL surface, copied from the spec:
   #
-  #   * `auth do strategy; oauth_providers; two_factor end`
+  #   * `auth do strategy; oauth_providers; two_factor; session_ttl end`
+  #
+  # `session_ttl` takes a `:duration` — `session_ttl "14d"`, never an integer
+  # with the unit in the option name.
   #
   # Status: **Not implemented — spec only.** Every entry point below raises
   # {NotImplementedError}. Nothing here reads config, touches a database or
@@ -22,7 +25,7 @@ module Magik
     # The DSL this subsystem will expose, verbatim from the spec.
     # @return [Array<String>]
     DSL_SURFACE = [
-      "auth do strategy; oauth_providers; two_factor end"
+      "auth do strategy; oauth_providers; two_factor; session_ttl end"
     ].freeze
 
     # Implementation status of this subsystem.

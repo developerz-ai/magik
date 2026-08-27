@@ -28,8 +28,9 @@ webhook :outgoing, :invoice_events do
   sign_with :hmac_sha256, secret: ->(endpoint) { endpoint.signing_secret }
 
   # Spelled `retries`, not `retry`: `retry` is a Ruby keyword and cannot be a
-  # method name. See dummy/README.md, "What writing this taught us".
-  retries times: 8, backoff: :exponential, base: 1.minute
+  # method name. See dummy/README.md, "What writing this taught us". `base:` is
+  # a :duration (spec D1), never `1.minute` — there is no ActiveSupport here.
+  retries times: 8, backoff: :exponential, base: "1m"
 
   # The same shape app/api/v1.rb returns. A webhook payload that differs from
   # the API's representation of the same object is two contracts to maintain.

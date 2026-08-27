@@ -1,6 +1,6 @@
 # Testing
 
-**Status:** `Planned — not implemented`. Spec Phase 9, built **third** (build step 5) so that
+**Status:** `Planned — not implemented`. Spec Phase 9, delivered **third** (build step 5) so that
 everything after it is test-driven. Nothing on this page runs. `As of 2026-08-26`.
 
 Testing is not a chapter at the end of this manual. It is the third thing built, before realtime,
@@ -68,7 +68,8 @@ over Minitest assertions — the failure output is Minitest's, the backtrace is 
 ## Every helper, in use
 
 The spec names seven. Each one exists because it covers something that is otherwise slow, flaky, or
-written wrong.
+written wrong. `assert_queries(n) { … }` joins them for the one thing the others cannot express — the
+*absence* of an N+1.
 
 ### `perform_action`
 
@@ -100,6 +101,17 @@ expect(page).to have_htmx_post(:mark_paid)
 
 No browser, no driver, no headless anything. The output is HTML the server produced, so a test that
 passes here is testing what the user receives.
+
+`at:` renders the screen at a named breakpoint, which is **what makes the responsiveness claim
+testable rather than asserted**. Every kit component is meant to be responsive by construction; this
+is how you find out whether it was:
+
+```ruby
+page = render_screen :Invoices, at: :mobile      # 375px
+
+expect(page).to have_component(:card_list)       # data_table becomes a card list
+expect(page).not_to overflow_horizontally
+```
 
 ### `concurrently(n)`
 
@@ -250,6 +262,8 @@ obvious coverage is present without anyone typing it.
 | `ledger` | every declared `entry` balances; the ledger's accounts sum to zero |
 | `immutable_after :paid` | a write past the state is refused |
 | `idempotent_by` | a replayed call performs once — the `concurrently` assertion above, generated |
+| `policy :Model` | **one authorization test per declared verb**, including a cross-tenant denial — the actor from another tenant is refused by every surface that names the verb |
+| `attachment` / `:file` | an oversized upload and a disallowed content type are both refused |
 
 ```bash
 magik test --generated          # only the generated tests

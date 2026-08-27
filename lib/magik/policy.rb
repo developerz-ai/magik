@@ -44,7 +44,8 @@ module Magik
     DSL_SURFACE = [
       "policy :Name do default :deny; can :verb do |actor, record| ... end end",
       "screen/action/channel/job/api ..., policy: %i[Name verb]",
-      "roles :owner, :admin, :member, :viewer, default: :member"
+      "roles :owner, :admin, :member, :viewer, default: :member",
+      "staff_roles :support, :support_lead — a separate axis from tenant membership"
     ].freeze
 
     # Implementation status of this subsystem.

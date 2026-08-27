@@ -31,7 +31,14 @@ flow :Onboarding do
     end
   end
 
-  step :tax, guard: ->(account) { account.country.present? } do
+  # `skip_when` skips a step that does not apply; `guard` refuses one that must
+  # not proceed. They are different meanings and they keep different spellings
+  # (spec D2). It is a block rather than a lambda in an option because a
+  # precondition is behaviour — and because `magik describe` can list a
+  # `skip_when`, while it cannot describe what an arbitrary `if:` decides.
+  step :tax do
+    skip_when { |account| account.country.blank? }
+
     form action: :update_account do
       field :vat_id, :string, label: t("onboarding.vat_id"), optional: true
       submit t("onboarding.continue")

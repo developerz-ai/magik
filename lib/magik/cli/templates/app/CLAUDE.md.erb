@@ -64,13 +64,12 @@ can print do not belong here — link the command instead.
 
 ## Before you write any DSL: read the local docs
 
-**The Magik DSL is not in your training data.** `model`, `screen`, `action`, `ledger`, `channel`,
-`flow`, `component` — none of it. Writing them from memory produces confident, Rails-shaped code
-for a framework that does not work that way, and it is the single most expensive mistake available
-in this repository.
+**The Magik DSL is not in your training data.** `model`, `screen`, `action`, `policy`, `layout`,
+`ledger`, `channel`, `flow`, `component` — none of it. From memory you get confident, Rails-shaped
+code for a framework that does not work that way: the most expensive mistake available here.
 
-The gem ships its own documentation. It is on disk, it is instant, and it is **the documentation for
-the exact magik version this app has** — which no web page can promise.
+The gem ships its own documentation — on disk, instant, and matched to **the exact magik version
+this app has**, which no web page can promise.
 
 ```bash
 magik docs path                  # the directory. Point your normal grep/glob/read tools at it
@@ -79,9 +78,9 @@ magik docs search ledger         # find the page before you guess the API
 magik docs Models                # read one page
 ```
 
-`magik docs path` is the one to reach for first: it turns the shipped docs into ordinary files your
-existing search already handles. **Do not web-search the DSL** — it is slow, rate-limited, and
-returns whatever is on `main` rather than what your gem does.
+`magik docs path` first: it turns the shipped docs into ordinary files your search already handles.
+**Do not web-search the DSL** — it is slow, rate-limited, and returns whatever is on `main` rather
+than what your gem does.
 
 `magik docs` works today. Almost nothing else does.
 
@@ -112,6 +111,8 @@ One declaration per file, and the path says what the file declares before you op
 | `model :Invoice` | `app/models/invoice.rb` |
 | `screen :Invoices` | `app/screens/invoices.rb` |
 | `component :MoneyCell` | `app/components/money_cell.rb` |
+| `layout :App` | `app/layouts/app.rb` |
+| `policy :Invoice` | `app/policies/invoice.rb` |
 | `action :mark_paid` | `app/actions/mark_paid.rb` |
 | `job :SendInvoiceEmail` | `app/jobs/send_invoice_email.rb` |
 | `channel :invoice_updates` | `app/channels/invoice_updates.rb` |
@@ -133,7 +134,7 @@ Generated with `--domains`: each domain nests the same `app/` tree one level in,
 `domains/<name>/domain.rb`. Cross-domain direct model access fails at boot.
 <% else -%>
 This app is **flat** — everything in `app/<kind>/`, no `domains/` directory. That is right until
-more than one team owns parts of `app/`, or `app/models/` passes ~25 models. The move to domains is
+more than one team owns parts of `app/`, or `app/models/` passes ~25 models. Moving to domains is
 `git mv` plus one `domain.rb`: a path-prefix change, and nothing inside a moved file changes.
 <% end -%>
 
@@ -148,11 +149,12 @@ Enforced at boot, not by review. Breaking one is a `MAGIK_*` failure with a runn
 | **Multi-tenant by default** | every model auto-scoped by `tenant_id`. A query with no `tenant_id` predicate is a `magik check --scale` finding |
 | **UUIDv7 primary keys** | from the first migration. Sortable, shard-safe, no sequence to reconcile after a split |
 | **An action is the only thing that mutates** | `ls app/actions/` is meant to be the complete list of writes in the product |
+| **Every surface names a `policy` verb** | a screen, action, API resource, channel, job or admin panel with no `policy:` and no explicit `policy: :public` / `:system` does not boot |
 | **A screen never queries the database** | it names a `state`; the state calls a scope the model owns. A `Sequel` dataset built inside a `body` block is refused |
 | **A job is the only thing that runs async** | a fiber or thread spawned outside a `job` is untracked and unretryable |
 | **Stateless app servers** | no in-process session or UI state across requests. An `@ivar` on a screen that survives a request is refused |
 | **No SPA framework** | server-rendered HTML plus htmx, compiled from the DSL. Never add React, Vue, a bundler or a client build step |
-| **No offline, no heavy client compute** | the server is the single source of truth. A canvas editor or a game loop is out of scope — say so and refuse rather than half-building it |
+| **No offline, no heavy client compute** | the server is the single source of truth. A canvas editor or a game loop is out of scope — refuse rather than half-build it |
 | **SOLID, SRP hardest** | one class, one reason to change. New behaviour is a new declaration in its own file, never another branch in a growing `case` |
 | **Minitest, never RSpec** | tests live in `test/` as `*_test.rb`. There is no `spec/` |
 | **No secrets in the tree** | `.env` and `config/master.key` are gitignored and stay that way; `.env.example` holds names and blanks |
@@ -192,23 +194,22 @@ this app is wrong, `69` a step is missing or not implemented yet — and `69` is
 magik step is still `planned`, say so plainly rather than reporting a green run you did not get.
 
 **Noticed a convention? Write it as a check.** A rule in this file is advice an agent may not follow
-on feature #40; the same rule in `scripts/checks/` is a gate failure with a runnable `fix:`, forever.
-That is the whole argument for boot-time guardrails, applied to *your* rules — `scripts/README.md`
-has the how, and it is a short file.
+on feature #40; the same rule in `scripts/checks/` is a gate failure with a runnable `fix:`, forever
+— boot-time guardrails applied to *your* rules. `scripts/README.md` has the how; it is short.
 
 ## The harness in this app
 
 | Where | What | What it costs you |
 |---|---|---|
-| `.claude/agents/` | `data-modeler`, `screen-builder`, `action-author`, `ledger-author`, `test-writer`, `guardrail-reviewer` — scoped by **file set**, so two can run without colliding | one `description` line each until dispatched |
+| `.claude/agents/` | `data-modeler`, `screen-builder`, `action-author`, `policy-author`, `ledger-author`, `test-writer`, `guardrail-reviewer` — scoped by **file set**, so two can run without colliding | one `description` line each until dispatched |
 | `.claude/commands/` | `/setup-project`, `/feature`, `/screen`, `/check`, `/next` | nothing until you type one |
-| `.claude/settings.json` | the allowlist: `magik`, read-only git, read-only shell. Destructive commands and anything touching `.env` or `config/master.key` are denied | nothing in context |
+| `.claude/settings.json` | the allowlist: `magik`, read-only git, read-only shell. Destructive commands and anything touching `.env` or `config/master.key` are denied | nothing |
 | `docs/` | `README.md` the map · `ARCHITECTURE.md` what this app is made of · **`FEATURE.md` how a feature gets built here** · `PLAN.md` what is being built next | read `FEATURE.md` before building anything |
 | `llms.txt` | this app's link map, same two-block ownership split as this file | — |
 
 ## Reference — read it locally, not on the web
 
-This file describes **your app**. It deliberately does not restate the DSL: a copy of a reference
+This file describes **your app** and deliberately does not restate the DSL: a copy of a reference
 manual is a copy that goes stale. The manual is already on your disk.
 
 | Need | Read | Slug for `magik docs` |
@@ -222,10 +223,10 @@ manual is a copy that goes stale. The manual is already on your disk.
 | every command and flag · what is missing | the CLI and gaps pages | `CLI-Reference` · `Known-Gaps` |
 | replacing a kit component | the override ladder | `08-component-overrides` |
 | secrets · the dev loop · debugging | the architecture pages | `07-configuration-and-secrets` · `08-dev-loop` · `06-observability` |
-| why the framework is shaped this way, and this file with it | the design argument | `07-ai-first` · `09-app-scaffold` |
+| why the framework is shaped this way | the design argument | `07-ai-first` · `09-app-scaffold` |
 
 Run `magik docs list` for the authoritative slugs — the table above is a copy and copies go stale.
-The same pages are on the web at <https://github.com/developerz-ai/magik/wiki>, which is for a human
-in a browser: it tracks `main`, and your gem may not.
+The same pages are on the web at <https://github.com/developerz-ai/magik/wiki>, for a human in a
+browser: it tracks `main`, and your gem may not.
 
 <!-- magik:framework-block END -->

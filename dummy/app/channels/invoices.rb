@@ -16,14 +16,22 @@
 # single-database deployment — switchable to Redis pub/sub with
 # MAGIK_REALTIME_BACKEND, with no change to this file (spec decision 11).
 #
-# Demonstrates: channel, subscribe_to, on_create/on_update, presence (Phase 3).
+# Demonstrates: channel, policy (Phase 2), subscribe_to, on_create/on_update,
+# presence (Phase 3).
 
-channel :invoices do
+channel :invoices, policy: %i[Invoice read] do
+  # THE SAME VERB THE SCREEN NAMES. app/screens/invoices.rb, `resource :invoices`
+  # in app/api/v1.rb and this subscription all name `%i[Invoice read]`, so there
+  # is no second door to the data — which is the Meteor lesson the spec's thesis
+  # is built on. A channel that authorized itself would be exactly that door.
+  #
+  # This is also the surface that forces `can :read` to be pure: a subscription
+  # re-evaluates it once per subscriber per change, so a query in that predicate
+  # would be a round trip per open socket per invoice (MAGIK_POLICY_IO).
+
   # Tenant-scoped by construction. A channel name that is not scoped by tenant
   # is a cross-tenant data leak with a socket attached.
   name { "invoices:#{current_tenant.id}" }
-
-  authorize { |user| user.can?(:read, Invoice) }
 
   subscribe_to :Invoice
 

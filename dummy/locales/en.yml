@@ -11,13 +11,30 @@
 #
 # Declared in config/app.rb: `locales :en, :es, :de, default: :en`.
 en:
+  # The shell: app/layouts/app.rb. Section headings and nav labels are keys like
+  # everything else — a sidebar hard-coded in English is a sidebar that cannot
+  # be shipped to the :es and :de locales config/app.rb declares.
+  nav:
+    work: "Work"
+
+  auth:
+    sign_in:
+      title: "Sign in"
+      email: "Email"
+      password: "Password"
+      submit: "Sign in"
+
   dashboard:
+    # `title` on a screen is both the browser title and the breadcrumb label the
+    # layout's `breadcrumbs` renders, from this one key.
+    title: "Dashboard"
     outstanding: "Outstanding"
     overdue: "Overdue"
     plan: "Plan"
     revenue_12m: "Revenue, last 12 months"
 
   invoices:
+    title: "Invoices"
     new: "New invoice"
     number: "Number"
     customer: "Customer"

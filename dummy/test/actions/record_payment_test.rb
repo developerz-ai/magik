@@ -10,8 +10,14 @@
 # ledger has to hold under conditions a single-threaded test would never find.
 #
 # Demonstrates: perform_action, assert_enqueued, assert_broadcast, render_screen,
-# and `concurrently(n)` — one Ractor per caller, which is how an idempotency
-# claim gets tested rather than asserted (Phase 9).
+# and `concurrently(n)` — n THREADS, which is how an idempotency claim gets
+# tested rather than asserted (Phase 9).
+#
+# Threads, and there is no second worker model. TruffleRuby is the production
+# runtime, it has no GVL, so `concurrently(4)` is four callers running in
+# genuine parallel on four cores — and it has no `fork`, so nothing in this
+# framework may be designed around forked workers (spec: the runtime is not
+# negotiable).
 
 test :RecordPayment do
   it "refuses a payment larger than the balance" do
@@ -45,9 +51,10 @@ test :RecordPayment do
     args = { invoice_id: invoice.id, amount: money(5_00), method: :card,
              processor_token: "tok_test", idempotency_key: "evt_same" }
 
-    # Same key, four callers at once. A dedupe that only holds against a repeat
-    # and not against a race is not a dedupe — two workers pulling the same
-    # Stripe retry is the exact case it exists for.
+    # Same key, four callers at once, in four real OS threads. A dedupe that
+    # only holds against a repeat and not against a race is not a dedupe — two
+    # workers pulling the same Stripe retry is the exact case it exists for,
+    # and on a runtime with no GVL this test can actually produce that race.
     concurrently(4) { perform_action :record_payment, **args }
 
     expect(invoice.payments.count).to_eq 1

@@ -47,7 +47,7 @@ updates:
       # As of 2026-08-26 there are none — magik.gemspec declares zero runtime dependencies on
       # purpose, because the boilerplate loads only the standard library and declaring a dependency
       # the code does not require would be a lie about what is wired up. This group is therefore
-      # inert today and becomes live the moment Phase 1 adds sequel and falcon; it is here now so
+      # inert today and becomes live the moment Phase 1 adds sequel and puma; it is here now so
       # that day does not also need a Dependabot change.
       runtime-dependencies:
         dependency-type: production

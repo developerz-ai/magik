@@ -150,6 +150,22 @@ tenant they are helping. Every surface **names a verb** instead of writing a che
 `channel`, `job`, `api resource`, `admin_panel`. Opting out is a declaration too: `policy: :public`,
 `policy: :system`. Drafted Ruby: [`02-dsl-surface.md`](02-dsl-surface.md#policy).
 
+**Three questions `policy` has not answered, found by writing the reference app rather than by
+reading the design.** Each is a surface that reaches a model but has no actor or no model to name,
+so each is a place `MAGIK_POLICY_UNDECLARED` is currently unsatisfiable — the same shape of defect
+that `MAGIK_ADMIN_UNPROTECTED` was, and it is recorded here rather than discovered again later.
+
+| Open question | Why the obvious answer is wrong | Evidence |
+|---|---|---|
+| **What actor does a verified incoming webhook present?** `webhook :incoming` is now in the surface list above, because Stripe's handler calls `perform_action :record_payment` and that action names a verb. But **a verified signature is not an actor** — it authenticates an origin, not a person, and `policy: :system` grants every verb in the app to anything that can reach the endpoint | a per-endpoint service actor, declared on the webhook and carrying only the verbs that endpoint needs, is the likely shape. It is not yet designed | `dummy/app/webhooks/stripe_incoming.rb` |
+| **What does a surface over a non-model subject name?** `policy :Model` presumes a model. `ledger :Receivables` is not one, and `api resource :ledger_entries` therefore has no legal verb to name. The reference app borrows `%i[Invoice read]` with a comment, which is a workaround, not a design | either `policy` accepts a non-model subject, or every generated surface must project onto a model. The first widens the construct; the second is a constraint that has to be stated and enforced | `dummy/app/api/v1.rb` |
+| **Does a `flow` name a verb, or inherit from the actions its steps post to?** A flow renders forms that post to actions, and onboarding is reachable before setup completes. Inheriting is attractive and probably wrong: it makes a flow's authorization a function of every action it touches, which is exactly the "second door" the construct exists to close | undecided | `dummy/app/flows/onboarding.rb` |
+
+None blocks phase 2 — screens and actions, the two surfaces phase 2 delivers, are fully specified.
+All three block the phase that ships the surface in question, and each is cheaper to settle now than
+after that surface exists.
+
+
 **`layout` is the application shell**, and a screen names one
 (`screen :Invoices, layout: :App, parent: :Dashboard`); opting out is written down
 (`layout: :None`). `magik new` generates a working `:App` layout, so **a generated app has a sidebar
@@ -393,12 +409,12 @@ full catalogue with its `fix:` lines is [`03-guardrails.md`](03-guardrails.md).
 
 | Guardrail | What fails | Code |
 |---|---|---|
-| **Every surface reaching a model names a policy verb** | a `screen`, `action`, `api resource`, `channel`, `job` or `admin_panel` with no `policy:` and no explicit `policy: :public` / `policy: :system` | `MAGIK_POLICY_UNDECLARED` |
+| **Every surface reaching a model names a policy verb** | a `screen`, `action`, `api resource`, `channel`, `job`, `webhook :incoming` or `admin_panel` with no `policy:` and no explicit `policy: :public` / `policy: :system` | `MAGIK_POLICY_UNDECLARED` |
 | A policy predicate performs no I/O | a `can` block issuing a query — `live` re-evaluates one per subscriber per change, so a query here is one round trip per row per open socket | `MAGIK_POLICY_IO` |
 | A named verb exists | `policy: %i[Invoice publish]` where `policy :Invoice` declares no `:publish` | `MAGIK_POLICY_UNKNOWN_VERB` |
 | Denial is the default | a `policy` block with no `default :deny` | `MAGIK_POLICY_NO_DEFAULT` |
 | A rule receiving a `nil` record denies | a row-level rule that would pass on an absent record | `MAGIK_POLICY_NULL_PASSES` |
-| Every screen has a layout | a `screen` with no layout and no `layout: :None`; and a `nav_item` naming a screen that does not exist | `MAGIK_LAYOUT_MISSING` · `MAGIK_LAYOUT_UNKNOWN_SCREEN` |
+| Every screen has a layout | a `screen` with no layout and no `layout: :None`; a `nav_item` naming a screen that does not exist; and a layout declaration naming an `action` that does not exist — `search action: :global_search` carries exactly the rot `nav_item` is guarded against | `MAGIK_LAYOUT_MISSING` · `MAGIK_LAYOUT_UNKNOWN_SCREEN` · `MAGIK_LAYOUT_UNKNOWN_ACTION` |
 | Uploads are bounded | a `:file` field or `attachment` with no `max_size` and no `content_types` — an unbounded upload field is an unbounded storage bill and a trivial DoS | `MAGIK_MODEL_UNCONSTRAINED_UPLOAD` |
 
 `MAGIK_POLICY_UNDECLARED` is the load-bearing one. It makes authorization non-optional the way

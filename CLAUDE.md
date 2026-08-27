@@ -27,12 +27,12 @@ docs, the gem skeleton, the CI, the release plumbing. `0.0.1` is a RubyGems name
 - `magik version`, `magik help` and `magik docs`, all with `--json`; `help` marks every spec'd command
   `ready` or `planned`. `magik docs` serves the documentation packaged inside the gem — see
   [Where the DSL reference is](#where-the-dsl-reference-is).
-- **19 spec-only subsystem stubs**, one per planned subsystem, each exposing `SPEC_PHASE`,
+- **20 spec-only subsystem stubs**, one per planned subsystem, each exposing `SPEC_PHASE`,
   `DSL_SURFACE`, `STATUS` and a `.define` that raises `NotImplementedError`.
 - a Minitest suite that passes **on bare Ruby with no bundle** — `rake test`.
 
-There is no `App.define`, no `model`, no `screen`, no `action`, no router, no server and no database
-code.
+There is no `App.define`, no `model`, no `screen`, no `action`, no `policy`, no `layout`, no router,
+no server and no database code.
 
 Your job, in almost every session here, is to **implement a phase of
 [`docs/idea/00-build-spec.md`](docs/idea/00-build-spec.md)** — starting from Phase 1.
@@ -108,7 +108,14 @@ not add a number to any document that no command in this table re-derives.
     promised in prose.
 12. **Domain modules enforce boundaries at boot.** Cross-domain direct model access fails the boot,
     not a review.
-13. **SOLID, and SRP hardest** — for Magik's own internals *and* for the code Magik generates or
+13. **Authorization is evaluated in exactly one place.** Every surface that reaches a model — a
+    `screen`, `action`, `api resource`, `channel`, `job` and `admin_panel` — names a verb in a
+    `policy` and the framework evaluates it. There is no second door to the data and no per-surface
+    check. The evaluator sits at **tier 1** (below `render` and `realtime`, which must call it) and
+    takes the actor as an opaque value; `auth` at tier 3 supplies that value and never decides.
+    Authorization is **not** a swap point — a second authorization backend is a second authorization
+    system. Predicates are pure: no queries, no I/O.
+14. **SOLID, and SRP hardest** — for Magik's own internals *and* for the code Magik generates or
     asks a user's app to write. One class, one reason to change. Small objects with one job; no god
     objects, and no module that grows a new responsibility because it was convenient. New behaviour
     arrives as a **new registered object**, never as another branch in a growing `case`. Depend on
@@ -147,15 +154,16 @@ MAGIK_LEDGER_UNBALANCED: ledger :Payouts does not balance
 
 ### Subsystem module names — use these exact names
 
-`core` `cli` `model` `schema` `render` `action` `router` `realtime` `jobs` `ledger` `api` `auth`
-`billing` `admin` `i18n` `pwa` `notify` `testing` `domains` `check`
+`core` `cli` `model` `schema` `render` `action` `router` `policy` `realtime` `jobs` `ledger` `api`
+`auth` `billing` `admin` `i18n` `pwa` `notify` `testing` `domains` `check`
 
 `schema` is migrations. `render` is component/screen/HTML+htmx. Do not invent a synonym for one of
 these, and do not add a new subsystem without a spec section to point at.
 
 ## Where the DSL reference is
 
-Magik's DSL — `model`, `screen`, `action`, `ledger`, `channel`, `flow` — is in no model's training
+Magik's DSL — `model`, `screen`, `action`, `policy`, `layout`, `ledger`, `channel`, `flow` — is in
+no model's training
 data, so **never write it from memory and never web-search for it.** Read it.
 
 - **Working on Magik** (this repo): the reference is in-tree. `docs/` is the design and the spec,
@@ -183,6 +191,9 @@ present tense, in code, in a comment, in a commit message or in a doc.
 | you can test TruffleRuby behaviour locally | you cannot — TruffleRuby is the production runtime and is **not installed** on the dev machine. CRuby ≥ 3.2 is what you have. TruffleRuby-only work is verified in CI, never in a local hook |
 | a `Float` is fine for money in a test fixture | it is not, anywhere. Integer cents, always, including in fixtures and examples |
 | an unimplemented method should return `nil` or an empty result | it should `raise NotImplementedError` with a message naming the phase that will implement it. A plausible-looking empty answer is the failure mode this whole repo is designed against |
+| a drafted DSL spelling is fine because it reads well | **it is not designed until a parser has seen it.** `retry` is a Ruby keyword, so the job declaration is `retries times: 5, backoff: :exponential`; and `computed :name, :type { … }` binds the brace block to the symbol, so the spelling is `computed(:name, :type) { … }`. Both bugs survived every reading and died to `ruby -c`. Extract the ` ```ruby ` blocks and parse them |
+| authorization belongs with `auth` in phase 7 | `policy` lands in **phase 2**, and its evaluator sits at **tier 1** — `render` and `realtime` are tier 2 and must call it, and imports go strictly down. `auth` at tier 3 supplies the actor and never decides. Adding a `policy:` argument to six constructs after all six exist is the migration nobody survives |
+| a screen is a whole page | a screen is rendered **into a `layout`** — the application shell, also phase 2. `magik new` generates a working `:App` layout, so a generated app has a sidebar on its first run. A screen with no layout and no `layout: :None` does not boot |
 | a new generator can pick its own file paths | the app layout is prescribed — [`wiki/Project-Layout.md`](wiki/Project-Layout.md), demonstrated by [`dummy/`](dummy/) |
 
 Error codes are `MAGIK_<SUBSYSTEM>_<CONDITION>`. Every one carries a cause and a `fix:` that is a

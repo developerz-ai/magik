@@ -46,6 +46,13 @@ test/reports/
 .env.*.local
 !.env.example
 
+# The app scaffold ships a .env.example.erb template INSIDE the gem. `.env.*`
+# above swallowed it, so it was present on the author's disk, listed in the
+# scaffold MANIFEST, and absent from both a fresh clone and the built gem --
+# `rake test` reads it from disk, and the gemspec builds its file list from git.
+# The negation is the whole fix; the allow-list style above is why it is safe.
+!lib/magik/cli/templates/app/.env.example.erb
+
 # The key that decrypts config/credentials.yml.enc. Committing this makes the
 # encrypted file pointless. It is supplied out of band: MAGIK_MASTER_KEY in
 # production, a file on a developer's machine locally.

@@ -18,17 +18,45 @@ This page answers the three questions that decision leaves open:
 
 ## The constraints that do the eliminating
 
-Four facts about Magik decide most of the comparison before quality enters it.
+Six facts about Magik decide most of the comparison before quality enters it.
 
 | Constraint | Source | Consequence |
 |---|---|---|
-| **Sequel, not ActiveRecord** | spec item 3 | a backend whose storage layer *is* ActiveRecord is not adaptable; it is a second ORM in the process |
+| **Sequel, not ActiveRecord** | spec decision 3 | a backend whose storage layer *is* ActiveRecord is not adaptable; it is a second ORM in the process |
 | **Not a Rails app** | the whole spec | a gem with a runtime dependency on `railties` drags a framework in to run a queue |
-| **TruffleRuby in production** | spec item 1 | anything with a threading or forking model tuned to MRI needs verifying, not assuming |
-| **Threads, genuinely parallel** | measured — [`12-runtime-verification.md`](12-runtime-verification.md) | the worker runs a bounded thread pool. Concurrency is a declared thread count, and the OS preempts a CPU-bound job rather than letting it stall its peers |
+| **TruffleRuby in production** | spec decision 1 | anything with a threading or forking model tuned to MRI needs verifying, not assuming |
+| **Threads, genuinely parallel** | measured — `ruby scripts/probes/runtime.rb`, [`12-runtime-verification.md`](12-runtime-verification.md) | the worker runs a bounded thread pool. Concurrency is a declared thread count, and the OS preempts a CPU-bound job rather than letting it stall its peers |
+| **`pg` releases the runtime lock** | measured — `scripts/probes/pg_concurrency.rb`, same page | the thread pool is a real thread pool for database work too. Without this result the worker's threads would serialise on every query and the pool would be decoration |
 | **`fork` is unavailable on TruffleRuby** | measured — same page | any backend whose scaling story is "fork a worker per core" has no scaling story here. More workers means more containers |
 
 The first two are not preferences. `activerecord` and `railties` are declared runtime dependencies or they are not, and that is checkable rather than arguable.
+
+### What the `job` DSL promises, and this page has to serve
+
+The backend is chosen to fit a declaration, not the other way round ([`../idea/02-dsl-surface.md`](../idea/02-dsl-surface.md#job)):
+
+```ruby
+job :SettleBatch, policy: :system do
+  retries times: 5, backoff: :exponential
+  schedule every: "10m"             # a :duration (D1) — never every: 15.minutes
+  idempotent_by :tenant_id          # D4: the one spelling for "a repeat with this key does nothing new"
+
+  perform do |args|
+    Payments.settle(tenant_id: args[:tenant_id])
+  end
+end
+```
+
+Four spellings on that declaration are settled and are not the backend's to rename:
+
+| Spelling | Why it is what it is |
+|---|---|
+| **`policy:`** | a `job` names a verb like every other surface that reaches a model — decision 13, *authorization is evaluated in exactly one place*. `policy: :system` is the usual opt-out for a job with no actor, and it is a **declaration**, not an omission: a job with neither fails the boot with `MAGIK_POLICY_UNDECLARED` ([`03-error-codes.md`](03-error-codes.md)) |
+| **`retries times:, backoff:`** | not `retry` — that is a Ruby keyword and does not parse as a method name. The same spelling appears on `webhook :outgoing` (R1) |
+| **`schedule every:` takes a `:duration`** | `every: "10m"`, coerced at boot. Not `15.minutes`, and not a `*_minutes` integer option (D1) |
+| **`idempotent_by`** | the job's dedupe key, the same word `action` already uses. `unique:` on a `field` means a database uniqueness constraint and nothing else; the two concepts stay apart, and the catalogue carries one option rather than two (D4) |
+
+`retries`, `schedule`, `idempotent_by` and the worker loop are Magik's to implement whichever storage this page picks — which is most of [the recommendation](#recommendation).
 
 ## Wrap what
 
@@ -85,7 +113,7 @@ It also ships `Que::Sequel::Model` for inspecting the queue, supports raw `PG` c
 |---|---|
 | **No release in ~22 months** | v2.4.1 shipped 2024-10-28. The most recent commit on `master` is 2026-01-01, and it is a CI fix. The repo is not archived (2,322 stars, 59 open issues, checked 2026-08-26) — it is *quiescent*, which is a different risk from abandoned but is not zero |
 | **MRI is the stated platform** | the README's compatibility list is "MRI Ruby 2.7+". TruffleRuby is neither supported nor refused; it is untested. Mitigated by Que being pure Ruby with no dependencies — the only native code beneath it is `pg`, which Magik carries anyway |
-| **The ecosystem is a version behind** | Que's README lists `que-scheduler` (cron), `que-locks` and `que-unique` (uniqueness) and `que-web` (dashboard) under "These projects are tested to be compatible with Que **1.x**". Magik's `job` DSL promises `schedule cron:`, `unique_while_running` and `magik jobs status` — every one of which is a satellite gem pinned to the previous major |
+| **The ecosystem is a version behind** | Que's README lists `que-scheduler` (cron), `que-locks` and `que-unique` (uniqueness) and `que-web` (dashboard) under "These projects are tested to be compatible with Que **1.x**". Magik's `job` DSL promises `schedule cron:`/`every:`, `idempotent_by` and `magik jobs status` — every one of which is a satellite gem pinned to the previous major |
 | **The worker is not the worker Magik needs** | Que runs a thread pool plus a dedicated locking thread — which is now the *right* shape and the wrong implementation, since it is tuned around MRI's GVL. Magik needs `magik worker` with its own thread-pool concurrency, Magik's own retry/backoff DSL, Magik's stable log field set ([`06-observability.md`](06-observability.md)) and Magik's error codes. None of that is Que's |
 
 Add those up and the honest size of the wrap becomes visible: **Que supplies the table, the migrations, and the claim query. Magik writes everything above them anyway.**
@@ -119,8 +147,9 @@ Concretely, in `lib/magik/jobs/backends/postgres.rb` ([`01-module-map.md`](01-mo
 | `LISTEN`/`NOTIFY` wakeup | **Que** for jobs, Magik's `realtime` transport for everything else — see [One mechanism, two subsystems](#one-mechanism-two-subsystems) | already built, already correct |
 | worker loop, thread-pool concurrency, drain, signals | **Magik** | Que's thread pool is close in shape but is sized and reasoned about for MRI's GVL; the drain, signal and shutdown-timeout behaviour is Magik's anyway |
 | `retries`, `backoff:`, `discard_on`, `timeout:`, `on_failure` | **Magik** | this is DSL surface; it cannot be delegated |
-| `schedule cron:` / `every:` | **Magik** | Que has none; the satellite gem is pinned to 1.x |
-| `unique_while_running`, enqueue-time dedup | **Magik** | same |
+| `schedule cron:` / `every:` (a `:duration`) | **Magik** | Que has none; the satellite gem is pinned to 1.x |
+| `idempotent_by` — the dedupe key and its index | **Magik** | same, and the spelling is settled (D4) rather than inherited from a satellite gem |
+| evaluating the job's `policy:` verb before `perform` runs | **Magik** | `policy` is tier 1 and `jobs` is tier 2, so the evaluator is reachable ([`01-module-map.md`](01-module-map.md#why-policy-is-tier-1)). No queue gem has an opinion about this and none should |
 | logs, traces, `magik jobs status` | **Magik** | the field set in [`06-observability.md`](06-observability.md) is non-negotiable |
 
 This is a **thin wrap of the part that is genuinely hard, and a full implementation of the part that is genuinely ours.** It is not a compromise between the two options; it is what an honest reading of both produces.
@@ -217,7 +246,7 @@ Two costs, stated:
 
 ## Threads in the worker
 
-`magik worker` runs a bounded **thread pool**: one job, one worker thread. On TruffleRuby those threads are genuinely parallel — 2.55–3.54× on 4 threads, measured ([`12-runtime-verification.md`](12-runtime-verification.md)) — so a worker process uses the cores it is given. Three consequences, in ascending order of how much trouble they cause.
+`magik worker` runs a bounded **thread pool**: one job, one worker thread. On TruffleRuby those threads are genuinely parallel — measured by `ruby scripts/probes/runtime.rb` ([`12-runtime-verification.md`](12-runtime-verification.md)); cite the probe rather than a ratio, because the ratio moves with machine load — so a worker process uses the cores it is given. Three consequences, in ascending order of how much trouble they cause.
 
 ### The connection pool is thread-keyed — which is Sequel's default
 
@@ -239,7 +268,7 @@ What the model does *not* require is the property that would have been hardest t
 
 `pg` is the right driver for the usual reason and one specific one: "Add support for TruffleRuby. It is regularly tested as part of our CI" ([`ruby-pg` README](https://github.com/ged/ruby-pg)).
 
-One open question sits upstream of all of it and is in [What is not decided](#what-is-not-decided): TruffleRuby treats native extensions as thread-unsafe by default and serialises them behind a global lock unless they mark themselves safe. **If `pg` does not get that lock lifted, the worker's threads serialise on every query.** It is unmeasured, and it belongs in [`../idea/05-limits.md`](../idea/05-limits.md) until it is not.
+The question that used to sit upstream of all of it is now answered. TruffleRuby treats native extensions as thread-unsafe by default and serialises them behind a global lock unless they mark themselves safe, and **if `pg` did not get that lock lifted, the worker's threads would serialise on every query** — a pool that looked like a pool and behaved like a queue. It does get lifted: `scripts/probes/pg_concurrency.rb` runs eight threads each issuing a one-second query on its own connection, and they overlap rather than serialising, on every engine tested ([`12-runtime-verification.md`](12-runtime-verification.md), `As of 2026-08-26`). Re-run it after a `pg` or TruffleRuby major, because the result is engine-and-driver specific and the probe is the mechanism for noticing.
 
 ### A job that blocks on CPU — the expensive case
 
@@ -252,7 +281,7 @@ Worker threads are OS threads and the OS scheduler preempts them. A job spinning
 
 So the cost of a CPU-bound job is capacity, not availability: it occupies a core for its duration, and a queue of them occupies the box.
 
-**`timeout:` is honourable here.** `Timeout` raises into the target from a timer thread; the timer thread runs, and it interrupts a spinning Ruby loop. `retries timeout: 30.seconds` on a CPU-bound job is a promise the runtime can keep.
+**`timeout:` is honourable here.** `Timeout` raises into the target from a timer thread; the timer thread runs, and it interrupts a spinning Ruby loop. `retries timeout: "30s"` on a CPU-bound job is a promise the runtime can keep — and the value is a `:duration`, coerced at boot, never `30.seconds` (D1).
 
 Two limits survive, and they are narrow:
 
@@ -294,7 +323,7 @@ The claim query is the only query that matters, and it is run constantly. Que's 
 | | |
 |---|---|
 | **Priority** | an integer, lower is more urgent, on the leading edge of the claim index. Que uses the Linux scale and defaults to 100, leaving room in both directions |
-| **Queue** | a text column in the claim predicate. Queues exist for **isolation**, not for priority — a slow queue must not starve a fast one, and CPU-bound work needs its own workers ([above](#a-job-that-blocks-on-cpu--the-trap)) |
+| **Queue** | a text column in the claim predicate. Queues exist for **isolation**, not for priority — a slow queue must not starve a fast one, and CPU-bound work needs its own workers ([above](#a-job-that-blocks-on-cpu--the-expensive-case)) |
 | **The cost of many queues** | Que's README, on working several at once: *"less efficient because it requires polling all of them."* A queue per job class is an anti-pattern that turns one indexed poll into N |
 
 ### Scheduled and cron jobs
@@ -321,15 +350,19 @@ Every worker runs this on a timer; exactly one gets a row back and enqueues the 
 
 ### Uniqueness, deduplication, and idempotency
 
-Three distinct guarantees. Conflating them is the bug, because they cover three non-overlapping windows.
+Three distinct windows, and **one declaration**. Conflating the windows is the bug; adding an option per window would be the other bug (R10), so the DSL carries `idempotent_by` and the backend implements the windows underneath it.
 
-| Guarantee | Window it covers | Mechanism | Fails to cover |
+| Window | What covers it | Mechanism | What it still fails to cover |
 |---|---|---|---|
-| **`unique_while_running`** — one instance at a time | from claim to completion | an advisory lock on `hash(job_class, args)`, taken alongside the job's own claim lock. Free crash recovery for the same reason | two enqueues where the first has already finished |
-| **Enqueue-time dedup** — do not queue a duplicate | from enqueue to completion | a partial unique index on `(job_class, args_digest) WHERE finished_at IS NULL`. The duplicate `INSERT` conflicts **inside the caller's transaction**, which is the only dedup that composes with transactional enqueue | a job that ran, succeeded, and is redelivered because the acknowledgement was lost |
-| **`idempotent_by` on the action** ([`../idea/00-build-spec.md`](../idea/00-build-spec.md) Phase 5, [`../../wiki/Money-And-Ledgers.md`](../../wiki/Money-And-Ledgers.md)) | forever, on the **effect** | a persisted idempotency key on the mutation itself, so a second execution is a no-op | nothing — this is the only one that is a guarantee rather than a window |
+| **From claim to completion** — one instance at a time | not a declaration. A property of claiming | an advisory lock on `hash(job_class, idempotency_key)`, taken alongside the job's own claim lock. Free crash recovery for the same reason the claim lock has it | two enqueues where the first has already finished |
+| **From enqueue to completion** — do not queue a duplicate | **`idempotent_by`**, at the enqueue site | a partial unique index on `(job_class, key_digest) WHERE finished_at IS NULL`. The duplicate `INSERT` conflicts **inside the caller's transaction**, which is the only dedup that composes with transactional enqueue | a job that ran, succeeded, and is redelivered because the acknowledgement was lost |
+| **Forever, on the effect** | **`idempotent_by`** on the mutation the job performs ([`../idea/00-build-spec.md`](../idea/00-build-spec.md) Phase 5, [`../../wiki/Money-And-Ledgers.md`](../../wiki/Money-And-Ledgers.md)) | a persisted idempotency key on the mutation itself, so a second execution is a no-op | nothing — this is the only one that is a guarantee rather than a window |
 
-**The rule that follows:** the first two are optimisations. Only `idempotent_by` is a guarantee, because only it survives the case an at-least-once queue actually produces — the job ran, the side effect landed, the process died before the row was marked finished, another worker picked it up. That is why [`../../wiki/Jobs.md`](../../wiki/Jobs.md) makes `idempotent_by` mandatory for money movement at boot and not merely recommended, and why `unique_while_running` must never be documented as if it prevented double execution. It prevents double *concurrency*.
+**Why one word covers two rows.** D4 settles it: a job's meaning — *a repeated request with the same key produces one effect* — is exactly what `action`'s `idempotent_by` already means, so the catalogue carries one option rather than two. The enqueue-time index and the effect-level key are the same declared key enforced at two depths, not two features that happen to rhyme.
+
+**And it is not `unique:`.** `unique:` on a `field` means a database uniqueness constraint and nothing else. A constraint and a dedupe key cannot converge, and sharing a stem while meaning different things is the worst of both — so the two spellings stay apart and neither drifts toward the other.
+
+**The rule that follows:** the first two rows are optimisations. Only the effect-level guarantee survives the case an at-least-once queue actually produces — the job ran, the side effect landed, the process died before the row was marked finished, another worker picked it up. That is why [`../../wiki/Jobs.md`](../../wiki/Jobs.md) makes `idempotent_by` mandatory for money movement at boot and not merely recommended, and why a claim-time lock must never be documented as if it prevented double execution. It prevents double *concurrency*.
 
 ## The ceiling
 
@@ -494,7 +527,7 @@ Written down so nobody reads the recommendation above as settled fact.
 | Open | Resolved by |
 |---|---|
 | Does Que run on TruffleRuby? | a spike, before Phase 4 starts. Its answer picks between "wrap Que" and "own it" |
-| Does `pg` run without TruffleRuby's global C-extension lock? | the same spike. TruffleRuby treats native extensions as thread-unsafe by default and serialises them unless they mark themselves safe; a global lock around every query would erase the parallelism the worker's thread pool depends on. **This now gates the thread worker model, not just the gem choice** |
+| ~~Does `pg` run without TruffleRuby's global C-extension lock?~~ | **answered 2026-08-26** — it does. `scripts/probes/pg_concurrency.rb`, recorded in [`12-runtime-verification.md`](12-runtime-verification.md). This was the row that gated the thread worker model, and it cleared |
 | How many concurrent jobs one worker process actually holds | a load test. Each in-flight job is an OS thread; the per-process ceiling and its memory cost are unmeasured ([`12-runtime-verification.md`](12-runtime-verification.md)) |
 | What Magik's own throughput is | a benchmark against real code. There is none, and no number appears on this page that Magik produced |
 | Whether advisory-lock claiming survives contact with a real deployment's connection topology | first real deployment. The PgBouncer incompatibility is known; whether it is a blocker is not |

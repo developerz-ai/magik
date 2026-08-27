@@ -11,8 +11,13 @@ module Magik
   #   * `test :Name do it "..." do expect(...) end end`
   #   * `helpers: perform_action, render_screen, concurrently(n), travel_to`
   #   * `helpers: assert_enqueued, assert_broadcast, assert_notified`
-  #   * `parallel: one Ractor per test file group, workers: :auto, transactional rollback per test`
+  #   * `parallel: one thread per test file group, workers: :auto, transactional rollback per test`
   #   * `magik test, magik test --watch, magik test --changed`
+  #
+  # A worker is a **thread**, and there is exactly one worker model. TruffleRuby's
+  # threads are genuinely parallel — that is why it is the production runtime — and
+  # it implements no `fork`, so there is no forked worker to fall back to
+  # (`docs/architecture/12-runtime-verification.md`).
   #
   # Status: **Not implemented — spec only.** Every entry point below raises
   # {NotImplementedError}. Nothing here reads config, touches a database or
@@ -30,7 +35,7 @@ module Magik
       "test :Name do it \"...\" do expect(...) end end",
       "helpers: perform_action, render_screen, concurrently(n), travel_to",
       "helpers: assert_enqueued, assert_broadcast, assert_notified",
-      "parallel: one Ractor per test file group, workers: :auto, transactional rollback per test",
+      "parallel: one thread per test file group, workers: :auto, transactional rollback per test",
       "magik test, magik test --watch, magik test --changed"
     ].freeze
 

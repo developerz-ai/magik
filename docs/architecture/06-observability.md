@@ -96,6 +96,8 @@ request  GET /orders            correlation=01J8… tenant=acme actor=u_31   42.
 
 The injected-tenant-predicate case is the point of `magik explain query`: the framework writes part of the SQL, so the framework has to be able to show it.
 
+**`magik registry` is not `magik describe`, and neither may grow into the other.** `registry` reports **what this app declared**; it needs a booted app and it is on this page. `describe` reports **what the grammar allows** — every construct, declaration and option with its type, default and allowed set — and it must work in an empty directory with no app, no boot and no database, which is when an agent needs it most ([`01-module-map.md`](01-module-map.md#the-option-tables-and-magik-describe)). They answer different questions from different sources: one reads the registry, the other serializes the option tables. A `registry` that started answering grammar questions would need the thing being described in order to describe it.
+
 ## Diagnostic commands
 
 | Command | Role | Status |

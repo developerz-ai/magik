@@ -40,6 +40,16 @@ Never report a migration as applied. Confirm with `magik version --json` before 
 `field :card_number` is refused at boot. Card data is tokenised or it is not stored — do not look
 for a way around this, and say so if asked.
 
+Three field types are types rather than conventions, for the same reason `:money` is one — a
+malformed value fails at boot instead of at first use. `:money` is integer minor units plus a
+currency. `:file` is an attachment and its `max_size:` and `content_types:` are **required**
+(`MAGIK_MODEL_UNCONSTRAINED_UPLOAD` otherwise). `:duration` is a unit-suffixed string coerced at
+boot — `"14d"`, `"10m"`, `"90s"` — never a `*_days` or `*_ms` integer with the unit in the name.
+
+A derived field is `computed(:total, :money) { … }`. **The parentheses are load-bearing**: a brace
+block binds to the last call, so `computed :total, :money { … }` binds the block to the symbol and
+does not mean what it looks like.
+
 ## A model describes data. It does not act
 
 No mutations, no HTTP, no rendering, no `Sequel` connection handling. A model declares `field`,

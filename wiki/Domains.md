@@ -1,6 +1,6 @@
 # Domains
 
-**Status:** `Planned — not implemented`. Spec architecture decision 12, build step 12 — the last
+**Status:** `Planned — not implemented`. Spec architecture decision 12, build step 13 — the last
 thing built. Nothing on this page runs. `As of 2026-08-26`.
 
 Domains are how a Magik app stops being one large namespace. A domain owns its own models, screens,
@@ -97,7 +97,7 @@ Boot time, every time. A boundary you can cross by accident is documentation, no
 
 ```ruby
 # domains/reporting/app/screens/revenue.rb
-screen :Revenue do
+screen :Revenue, policy: %i[Invoice read] do
   state :total, -> { Billing.outstanding_total }     # an exposed method, not a model
 end
 ```
@@ -108,7 +108,7 @@ Use it when you need an answer now and the coupling is one you accept.
 
 ```ruby
 # domains/billing/app/actions/mark_paid.rb
-action :mark_paid do |params|
+action :mark_paid, policy: %i[Invoice record_payment] do |params|
   invoice = Invoice.find!(params[:id])
   invoice.update(status: :paid)
   publish :invoice_paid, invoice_id: invoice.id, amount: invoice.amount

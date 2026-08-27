@@ -48,6 +48,7 @@ runnable is a defect in the error — report that too, with the code.
 | `MAGIK_TENANT_SCOPE_MISSING` | a query with no `tenant_id`. `data-modeler` — the fix is a scope on the model, not a `where` at the call site |
 | `MAGIK_SCREEN_DIRECT_QUERY` | a screen built its own dataset. `screen-builder` + `data-modeler`: the screen names a `state`, the model owns the scope |
 | `MAGIK_MUTATION_OUTSIDE_ACTION` | something writes outside `app/actions/`. `action-author`. Move the write; do not add an exception |
+| `MAGIK_POLICY_UNDECLARED` / `MAGIK_POLICY_UNKNOWN_VERB` / `MAGIK_POLICY_IO` | a surface with no `policy:` verb, a verb no policy declares, or a predicate that queries. `policy-author` names the verb; the surface's own agent adds the argument |
 | `MAGIK_ASYNC_OUTSIDE_JOB` | a fiber or thread outside `app/jobs/`. Untracked and unretryable |
 | `MAGIK_MONEY_OUTSIDE_LEDGER` | a `:money` field written outside a ledger entry. `ledger-author` |
 | `MAGIK_DECLARATION_MISPLACED` / `MAGIK_FILE_MULTIPLE_DECLARATIONS` | the layout rule. One declaration per file, in its kind's directory |

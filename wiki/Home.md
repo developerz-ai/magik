@@ -44,13 +44,13 @@ magik help                                             # the commands that actua
 | [Project layout](Project-Layout.md) | the directories a generated app has, and separately the layout of this framework repo | you are deciding where a file goes |
 | [CLI reference](CLI-Reference.md) | every command, flag, `--json` shape and exit code — with the two that exist today marked | you are driving the CLI, or an agent is |
 | [Models](Models.md) | `model`, `migrate`, fields, tenancy, UUIDv7, the Sequel seam | you are modelling data |
-| [Screens and components](Screens-And-Components.md) | `component`, `screen`, the component kit, theming, htmx | you are building UI |
+| [Screens and components](Screens-And-Components.md) | `component`, `screen`, `policy`, `layout`, the component kit, theming, htmx | you are building UI |
 | [Actions](Actions.md) | `action`, params, routing by convention, idempotency, the statelessness rule | you are writing a mutation |
 | [Realtime](Realtime.md) | `live`, `channel`, `broadcast`, `presence`, and why it costs nothing undeclared | you want a screen to update itself |
 | [Jobs](Jobs.md) | `job`, retries, schedules, the transactional queue, `magik worker` | you are moving work off the request |
 | [Money and ledgers](Money-And-Ledgers.md) | the `:money` type, `ledger`, `audited`, `immutable_after:`, `flow` | you are touching currency |
 | [API and webhooks](API-And-Webhooks.md) | `api`, `resource`, incoming and outgoing `webhook`, API auth, rate limits | you are exposing or consuming an integration |
-| [Auth, billing, admin](Auth-Billing-Admin.md) | `auth`, `billing`, `admin_panel`, `tenant_by` | you need the batteries |
+| [Auth, billing, admin](Auth-Billing-Admin.md) | `auth`, `billing`, `admin_panel`, `tenant_by`, teams and the abuse defaults | you need the batteries |
 | [Testing](Testing.md) | the `test` DSL over Minitest, inferred factories, the helpers, the parallel runner | you are writing a test — which is most of the time |
 | [Domains](Domains.md) | `domains/<name>/domain.rb`, `depends_on`, `exposes`, `publishes_events`, boot-time enforcement | your app got big enough to need walls |
 | [Error codes](Error-Codes.md) | the `MAGIK_*` catalogue, the code/cause/`fix:` contract | something raised a code at you |
@@ -81,6 +81,7 @@ architecture decisions, and a page that contradicts one is wrong.
 | Server renders, htmx interacts | no React, no Vue, no per-screen SPA escape hatch. Ever |
 | Realtime is opt-in per screen | a screen with no `live` declaration opens no socket and pays nothing |
 | Multi-tenant by default | every model is scoped by `tenant_id` and every primary key is a UUIDv7 |
+| Authorization is decided in one place | every surface that reaches a model names a verb in a `policy`. There is no second door to the data, and no per-surface check |
 | Money is integer cents | a `Float` in a currency field is refused by the type system, not caught in review |
 | Stateless app servers | a screen or action holding instance state across requests fails at boot |
 | Every default has a swap | DB, cache, jobs, search and realtime backends are config keys — an opinion with no escape hatch is a future rewrite |
@@ -99,11 +100,11 @@ architecture decisions, and a page that contradicts one is wrong.
 
 | Where | What it is |
 |---|---|
-| [`docs/idea/00-build-spec.md`](../docs/idea/00-build-spec.md) | the specification, kept verbatim. Everything else elaborates on it |
+| [`docs/idea/00-build-spec.md`](../docs/idea/00-build-spec.md) | the source of truth for what Magik is. Everything else elaborates on it and nothing contradicts it |
 | [`docs/idea/`](../docs/idea/) | **why** — thesis, DSL surface, guardrails, swap points, limits, phases |
 | [`docs/architecture/`](../docs/architecture/) | **how** — conventions, module map, boundaries, error codes, testing strategy |
 | [`docs/ops/README.md`](../docs/ops/README.md) | running an app for real. Recommendations only |
 | [`.claude/README.md`](../.claude/README.md) | the agent workbench: subagent definitions and slash commands, committed to the tree |
 | API docs | <https://developerz-ai.github.io/magik/api/> — YARD, generated from what exists |
-| [`ROADMAP.md`](../ROADMAP.md) | the nine phases, the twelve build steps, and the version milestones |
+| [`ROADMAP.md`](../ROADMAP.md) | the ten phases, the thirteen build steps, and the version milestones |
 | [`llms.txt`](../llms.txt) | the machine-readable repo map |

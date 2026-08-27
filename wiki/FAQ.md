@@ -166,6 +166,8 @@ Same ambition — the full stack, opinionated, batteries included. Different ans
 | Routing | `config/routes.rb` | convention. `screen :Invoices` is `/invoices`. There is no routes file |
 | Mutations | controller actions, service objects, model callbacks — several places | `action`. **One** place, enforced at boot |
 | Multi-tenancy | a gem, or you build it | built in. Every model scoped by `tenant_id`, UUIDv7 keys from day one |
+| Authorization | Pundit or CanCanCan, wired per controller | `policy`. One rule set per model, and **every** surface — screen, action, API resource, channel, job, admin — names a verb or fails to boot |
+| Application shell | a hand-written layout, plus a navigation partial | `layout`. Sidebar, topbar, breadcrumbs and nav as declarations, generated working by `magik new` |
 | Money | a gem, and a decimal column you have to remember | a `:money` type. A `Float` is refused by the type system |
 | Double-entry | your problem | `ledger`, balance-validated at boot |
 | Conventions | documented; violations are caught in review | **enforced**. A violated convention is a boot failure with a code and a fix |

@@ -42,11 +42,14 @@ that can be skipped · a mock that reimplements the logic under test, so the tes
 
 ## Write for the runner that is coming
 
-Phase 9 brings one Ractor per test file group and **transactional rollback per test, never
-truncation**. Tests written without that in mind get rewritten, so from the first one:
+Phase 9 brings one thread per test file group and **transactional rollback per test, never
+truncation**. A worker is a thread, and that is the only worker model there is: TruffleRuby's threads
+are genuinely parallel and it has no `fork`. Tests written without that in mind get rewritten, so
+from the first one:
 
 - **No shared mutable state** — no class-level accumulator, no `@@` counter, no memoised singleton
-  a test mutates. A Ractor cannot share it and the failure looks like flakiness.
+  a test mutates. Threads share one heap, so two files racing on it is a real data race and the
+  failure looks like flakiness.
 - **No cross-test ordering.** Each test creates what it needs.
 - **Never truncate, never `DELETE FROM`.** Assume the harness wraps each test in a transaction.
 - **No wall clock, no `sleep`, no port assumptions.** Use `travel_to`; inject anything time-shaped.

@@ -15,10 +15,18 @@
 # Postgres-backed and transactional (Phase 4), so a rolled-back invoice cannot
 # leave a queued email behind — the two commit together or neither does.
 #
-# Demonstrates: job, retry with backoff, perform, on_failure, run by
-# `magik worker`.
+# Demonstrates: job, policy: :system (Phase 2), retries with backoff, perform,
+# on_failure, run by `magik worker`.
 
-job :SendInvoiceEmail do
+job :SendInvoiceEmail, policy: :system do
+  # A job has no actor: nobody is looking at a screen when this runs. `:system`
+  # says so out loud, because the alternative — a job that simply omits
+  # `policy:` — is indistinguishable from a job whose author forgot, and
+  # MAGIK_POLICY_UNDECLARED exists precisely so those two cannot look the same.
+  #
+  # It is not a way around the rules. This job renders and mails one invoice to
+  # the customer it belongs to; a job that fanned data out to somebody else
+  # would still be answerable to `can :read`.
   queue :mailers
 
   # Five attempts over roughly an hour. An email provider having a bad minute is
@@ -29,7 +37,11 @@ job :SendInvoiceEmail do
   # be a method name. A design-by-example finding: the spec writes `retry` and
   # the language will not allow it. See dummy/README.md, "What writing this
   # taught us".
-  retries times: 5, backoff: :exponential, base: 30.seconds
+  # `base:` is a :duration — a unit-suffixed string coerced at boot (spec D1),
+  # never `30.seconds`. There is no ActiveSupport here, and putting the unit in
+  # the option name (`base_seconds:`) is the per-name explosion the spec's
+  # vocabulary rules exist to prevent.
+  retries times: 5, backoff: :exponential, base: "30s"
 
   perform do |invoice_id:|
     invoice = Invoice.find(invoice_id)

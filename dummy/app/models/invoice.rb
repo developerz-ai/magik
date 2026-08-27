@@ -12,8 +12,10 @@
 # `immutable_after` are the reason an invoicing app can be trusted, and they are
 # two lines.
 #
-# Demonstrates: :money (Phase 1), has_many, computed, scope, state machine,
-# audited + immutable_after (Phase 5), timezone-safe :timestamp (Phase 8).
+# Demonstrates: :money (Phase 1), :file with its required bounds (Phase 1, the
+# declaration form is `attachment` in Phase 4b), has_many, computed, scope,
+# state machine, audited + immutable_after (Phase 5), timezone-safe :timestamp
+# (Phase 8).
 #
 # NOTE ON WHAT IS NOT HERE. This file declares data and invariants. It does not
 # issue an invoice (app/actions/issue_invoice.rb), does not email one
@@ -34,6 +36,20 @@ model :Invoice do
   # An instant. `:timestamp` carries a zone and cannot be rendered without an
   # explicit conversion — a boot guardrail, not a lint (spec: Guardrails).
   field :issued_at, :timestamp
+
+  # The customer's purchase order, which large customers require an invoice to
+  # quote. `max_size:` and `content_types:` are NOT optional on a `:file`: a
+  # field without both fails the boot with MAGIK_MODEL_UNCONSTRAINED_UPLOAD,
+  # because an unbounded upload field is a disk-filling endpoint, and a content
+  # type nobody declared is a `.png` that is really an `.svg` — stored XSS.
+  # The type is sniffed from magic bytes on ingest, never from the extension and
+  # never from the client's header.
+  #
+  # Derivatives, signed delivery and direct-to-storage upload are the
+  # `attachment` declaration, Phase 4b. This is the field type it builds on.
+  field :purchase_order, :file,
+        max_size: "10MB",
+        content_types: %w[application/pdf image/png]
 
   belongs_to :account
   belongs_to :customer

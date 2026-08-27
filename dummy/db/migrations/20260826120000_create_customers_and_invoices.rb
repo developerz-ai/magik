@@ -13,7 +13,8 @@
 # they do not.
 #
 # Demonstrates: migrate, up/down, uuid_v7 primary keys, automatic tenant_id,
-# the :money column type, and indexes that exist because of how the app queries.
+# the :money and :file column helpers, a :duration column, and indexes that
+# exist because of how the app queries.
 
 migrate :CreateCustomersAndInvoices do
   up do
@@ -41,6 +42,10 @@ migrate :CreateCustomersAndInvoices do
       column :vat_id,   :string
       column :notes,    :jsonb, default: "{}" # translatable: one key per locale
       column :archived, :boolean, null: false, default: false
+      # A :duration is stored as the unit-suffixed string it was declared with
+      # ("30d"), coerced at boot rather than at read time. One column, and the
+      # unit is in the value where it belongs rather than in the column name.
+      column :payment_terms, :string, null: false, default: "30d"
       timestamps
 
       index %i[tenant_id email]
@@ -55,6 +60,10 @@ migrate :CreateCustomersAndInvoices do
       column :issued_on, :date
       column :due_on,    :date
       column :issued_at, :timestamptz # never a bare `timestamp`
+      # `file` emits the blob reference for a `:file` field, exactly as `money`
+      # below emits two columns for a `:money` one. The bytes are not in the
+      # database; the row points at them.
+      file   :purchase_order
       timestamps
 
       index %i[tenant_id number], unique: true

@@ -11,7 +11,7 @@ is work it cannot retry, schedule or observe.
 
 ```ruby
 # app/jobs/send_invoice_email.rb
-job :SendInvoiceEmail do
+job :SendInvoiceEmail, policy: :system do
   retries times: 5, backoff: :exponential
   queue :mailers
 
@@ -49,7 +49,7 @@ broker: an external queue cannot join your transaction.
 ## Scheduling
 
 ```ruby
-job :SweepOverdue do
+job :SweepOverdue, policy: :system do
   schedule cron: "0 6 * * *", zone: "UTC"
 
   perform do
@@ -57,11 +57,18 @@ job :SweepOverdue do
   end
 end
 
-job :RefreshExchangeRates do
-  schedule every: 15.minutes
+job :RefreshExchangeRates, policy: :system do
+  schedule every: "15m"                 # a :duration, never 15.minutes
   perform { Rates.refresh! }
 end
 ```
+
+`every:` takes a [`:duration`](Models.md#field-types) — a unit-suffixed string, coerced at boot. One
+spelling for every duration in the grammar; `15.minutes` is not it.
+
+A job reaches a model, so it names a policy verb like every other surface. Most jobs run with no
+actor and say so explicitly — `policy: :system`. A job acting on behalf of somebody names the verb
+instead. Silence is `MAGIK_POLICY_UNDECLARED`, at boot.
 
 `zone:` is required on a `cron:` schedule. A cron expression with no zone is a job that runs at a
 different wall-clock time twice a year and nobody notices until it matters
@@ -118,6 +125,7 @@ answer:
 | Guardrail | Fails with | When |
 |---|---|---|
 | Async work happens in a job | `MAGIK_ASYNC_OUTSIDE_JOB` | boot |
+| A job names a policy verb, or `policy: :system` | `MAGIK_POLICY_UNDECLARED` | boot |
 | A `cron:` schedule names a timezone | `MAGIK_SCHEDULE_ZONE_MISSING` | boot |
 | A job's arguments are serialisable | `MAGIK_JOB_ARGS_UNSERIALISABLE` | enqueue |
 | A job that moves money runs through an idempotent action | `MAGIK_IDEMPOTENCY_REQUIRED` | boot |

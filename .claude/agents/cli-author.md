@@ -51,8 +51,9 @@ That is the highest-risk code in this repo. Treat it as such.
 - **SRP**: one subcommand, one object, registered — never one growing `case` in a dispatcher. See
   [`docs/architecture/00-conventions.md`](../../docs/architecture/00-conventions.md).
 - Boot time is a feature. Do not `require` the world to print `--help`.
-- TruffleRuby is the production target; CRuby 3.2 is what this machine runs. Anything Truffle- or
-  Ractor-specific is verified in CI.
+- TruffleRuby is the production target; CRuby 3.2 is what this machine runs. Anything
+  TruffleRuby-specific — real parallel threads, no `fork` — is verified in CI, because TruffleRuby is
+  not installed here.
 
 ## Verify
 

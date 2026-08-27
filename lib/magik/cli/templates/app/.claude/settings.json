@@ -5,6 +5,7 @@
       "Bash(magik version:*)",
       "Bash(magik help:*)",
       "Bash(magik docs:*)",
+      "Bash(magik describe:*)",
       "Bash(magik check:*)",
       "Bash(magik test:*)",
       "Bash(magik generate:*)",
