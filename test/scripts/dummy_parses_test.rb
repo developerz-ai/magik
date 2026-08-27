@@ -74,6 +74,51 @@ class MagikScriptsDummyParsesTest < Minitest::Test
                  DummyParses.shell_parse_error(broken, "dummy/app/models/magik_example.rb")
   end
 
+  # The normaliser, against the ACTUAL stderr each engine produces.
+  #
+  # These three strings are transcribed from real runs, not invented: 3.2 from a
+  # laptop, 3.3/3.4 and truffleruby-head from the CI legs that went red. Two of
+  # the three shapes were discovered only after a push, because no laptop runs
+  # all three -- so they are pinned here, where every engine checks them.
+  TMP = "/tmp/magik-parse20260101-1-abcdef.rb"
+  REAL = "dummy/app/models/magik_example.rb"
+
+  def test_normalise_strips_the_cruby_3_2_filename_prefix
+    raw = "#{TMP}: #{TMP}:1: syntax error, unexpected end-of-input, expecting ')' (SyntaxError)"
+
+    assert_equal "#{REAL}:1: syntax error, unexpected end-of-input, expecting ')'",
+                 DummyParses.normalise(raw, TMP, REAL)
+  end
+
+  def test_normalise_strips_the_prism_progname_prefix
+    # Ruby 3.3 and 3.4 print the PROGNAME, not the filename. Stripping "a
+    # repeated path" fixed 3.2 and broke these two.
+    raw = "ruby: #{TMP}:1: syntax errors found"
+
+    assert_equal "#{REAL}:1: syntax errors found", DummyParses.normalise(raw, TMP, REAL)
+  end
+
+  def test_normalise_leaves_an_unprefixed_message_alone
+    raw = "#{TMP}:1: syntax error, unexpected end-of-input"
+
+    assert_equal "#{REAL}:1: syntax error, unexpected end-of-input",
+                 DummyParses.normalise(raw, TMP, REAL)
+  end
+
+  def test_normalise_never_leaks_the_temporary_path
+    [
+      "#{TMP}: #{TMP}:1: syntax error (SyntaxError)",
+      "ruby: #{TMP}:1: syntax errors found",
+      "#{TMP}:1: syntax error"
+    ].each do |raw|
+      result = DummyParses.normalise(raw, TMP, REAL)
+
+      refute_includes result, TMP, "leaked the temporary path from: #{raw}"
+      refute_includes result, "magik-parse", "leaked the temp prefix from: #{raw}"
+      assert result.start_with?(REAL), "did not start with the real path: #{result}"
+    end
+  end
+
   def test_the_check_walks_dummy_which_every_other_check_skips
     assert_empty MagikScripts::Repo.glob(MagikScripts::Checks::DummyParses::CORPUS)
     refute_empty MagikScripts::Repo.glob(MagikScripts::Checks::DummyParses::CORPUS, dummy: true)

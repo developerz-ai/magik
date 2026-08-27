@@ -85,17 +85,39 @@ module MagikScripts
           out = IO.popen(["ruby", "-c", file.path], err: %i[child out], &:read)
           return nil if $CHILD_STATUS&.success?
 
-          # The parser names the temporary file; the reader needs the real path.
-          # `gsub`, not `sub`: ruby -c prints the name twice -- `<file>: <file>:
-          # <line>: message` -- and replacing only the first leaves a /tmp path
-          # in a message whose whole job is to tell someone which file to open.
-          # Then collapse the doubled prefix, so this branch and the in-process
-          # one report the same shape and a diff of their output is empty.
-          out.to_s.lines.first.to_s.strip
-             .gsub(file.path, path)
-             .sub(/\A#{Regexp.escape(path)}:\s+(?=#{Regexp.escape(path)}:)/, "")
-             .sub(/\s+\(SyntaxError\)\z/, "")
+          normalise(out.to_s.lines.first.to_s, file.path, path)
         end
+      end
+
+      # Reduce one line of `ruby -c` stderr to the same string the in-process
+      # branch produces, so a reader cannot tell which engine found the error.
+      #
+      # THREE ENGINES, THREE SHAPES, and this method exists because two of them
+      # were discovered in CI rather than on a laptop:
+      #
+      #   CRuby 3.2      "<tmp>: <tmp>:1: syntax error, ... (SyntaxError)"
+      #   CRuby 3.3-3.4  "ruby: <tmp>:1: syntax errors found"      # Prism
+      #   in process     "<path>:1: syntax error, ..."             # the target
+      #
+      # 3.2 prefixes with the FILENAME and 3.4 prefixes with the PROGNAME, which
+      # is why stripping "a repeated path" fixed one engine and broke the other.
+      # The rule that covers both: drop any leading `<anything>: ` that sits
+      # directly in front of `<path>:`, and leave a message that has no prefix
+      # alone.
+      #
+      # @param raw [String] one line of the parser's stderr
+      # @param tmp [String] the temporary file the parser actually read
+      # @param path [String] the path the reader should be told to open
+      # @return [String] the normalised message
+      # @example
+      #   MagikScripts::Checks::DummyParses.normalise(
+      #     "ruby: /tmp/t.rb:1: syntax errors found", "/tmp/t.rb", "dummy/app/models/magik_example.rb"
+      #   ) # => "dummy/app/models/magik_example.rb:1: syntax errors found"
+      def self.normalise(raw, tmp, path)
+        raw.strip
+           .gsub(tmp, path)
+           .sub(/\A.*?:\s+(?=#{Regexp.escape(path)}:)/, "")
+           .sub(/\s+\(SyntaxError\)\z/, "")
       end
 
       # Run a block with warnings silenced. Compiling emits `warning: assigned
