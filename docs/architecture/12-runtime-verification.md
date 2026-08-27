@@ -92,7 +92,17 @@ Two different build modes, one short workload: that is a **confound, not a resul
 
 **Item 2 has no fallback position.** Falcon is built on the fiber scheduler; the fiber scheduler is not there; `async` raises on its first block. There is no configuration, no shim, and no degraded mode. Falcon on TruffleRuby is not a slower option — it is not an option.
 
-**The decision recorded here: keep TruffleRuby, change the mechanism.** Concurrency is real parallel threads. The server is **Puma**, not Falcon. Falcon returns if and when TruffleRuby implements the fiber scheduler, and the trigger below is how that gets noticed.
+**And to be fair to it, because a record that reads as a verdict on quality is a record nobody trusts: Falcon is not a bad server. It is an excellent one**, and on CRuby it would be the right choice — the fiber-per-connection model is genuinely better than a thread pool for the many-idle-connections workload Magik's realtime feature is. What disqualifies it here is an engine incompatibility and nothing else: it needs an API TruffleRuby has not implemented. If TruffleRuby ships that API, the argument for Falcon comes back intact, which is exactly why [the revisit condition](#the-one-condition-that-would-reopen-the-server-decision) below is stated precisely rather than as a general caveat.
+
+**The decision recorded here: keep TruffleRuby, change the mechanism.**
+
+| | |
+|---|---|
+| Runtime | **TruffleRuby.** CRuby ≥ 3.2 is supported for development tooling — `magik check`, `magik generate`, the local test loop — and is **not a production target**. The concurrency model does not work there: 0.8× is the GVL, and a CRuby production deploy would be a different framework wearing the same name |
+| Concurrency | **real parallel OS threads.** One mechanism |
+| Server | **Puma.** Falcon does not run on the production runtime, so it is not an option |
+
+There is no second path, no per-engine branch and no fallback mode. Nothing is implemented yet, so there is no installed base to be compatible with and no reason to design two systems. The [re-verification trigger](#re-verification-trigger) records what would change this decision; it does not pre-build the alternative.
 
 ### `ractor-shim` — a workaround, not an answer
 
@@ -153,23 +163,23 @@ false
 NotImplementedError: fork is not available
 ```
 
-Same on 34.0.1. This matters more than it looks, because "fork a worker per core" is the standard Ruby answer to everything the GVL forbids, and it is the fallback [`04-testing-strategy.md`](04-testing-strategy.md) had in reserve. On TruffleRuby there is no fork to fall back to:
+Same on 34.0.1. This matters more than it looks, because "fork a worker per core" is the standard Ruby answer to everything the GVL forbids, and a great deal of Ruby deployment advice assumes it is available. Here it is not:
 
 | Wants to fork | Consequence on TruffleRuby |
 |---|---|
-| Puma clustered mode (`workers N`) | unavailable. Puma runs **single mode** — one process, a thread pool. Which is exactly the mode the parallelism result makes viable |
-| A forked test-worker pool | unavailable in-process. `Process.spawn` works (verified) and gives separate processes at a higher cost: a full boot each, no copy-on-write sharing |
+| Puma clustered mode (`workers N`) | unavailable. Puma runs **single mode** — one process, one thread pool. That is the deployment shape, and the parallelism result is what makes it viable: the reason clustered mode exists is the GVL, and there is no GVL here |
+| A forked test-worker pool | unavailable. The test runner is thread-based ([`04-testing-strategy.md`](04-testing-strategy.md)) |
 | `wurk`'s fork-based swarm | already documented as unavailable here in [`11-jobs-backend.md`](11-jobs-backend.md), from wurk's own README. The probe independently confirms the reason |
 
-`Process.spawn` was verified to work on both TruffleRuby builds. `fork` and `spawn` are not interchangeable: `spawn` pays a full boot per worker and shares no pages.
+More capacity comes from more containers, not more processes on one box — which is the stateless topology [`../ops/README.md`](../ops/README.md) already specifies.
 
 ### Puma boots and serves on TruffleRuby
 
 Puma 8.0.2 was installed under both TruffleRuby builds — it compiles its C extension there — booted in single mode with a 4–8 thread pool, and served an HTTP request successfully. That establishes only that the server runs. It is **not** a throughput measurement, a concurrency measurement, or a production endorsement, and the load test that would earn any of those is on the owed list.
 
-### CRuby's role is unchanged, and now has a number
+### CRuby's role, now with a number attached
 
-CRuby is supported for tooling and development ([`10-performance-defaults.md`](10-performance-defaults.md) §7.1). The 0.8× column is what that support is *not* for: CRuby is the fast-boot engine for `magik check`, `magik generate` and the local test loop, and it is not the engine the concurrency design is aimed at. The probe makes the split explicit rather than asserted.
+CRuby is the fast-boot engine for development tooling — `magik check`, `magik generate`, the local test loop — and it is **not a production target**. The 0.8× column is why: the concurrency model this framework is built on does not exist there. The split was already the stated policy ([`10-performance-defaults.md`](10-performance-defaults.md) §7.1); the probe turns it from a preference into a measurement.
 
 ## The open question, owed and unanswered
 
@@ -212,10 +222,24 @@ This finding is about what upstream has **not yet implemented**, and that class 
 
 | Upstream change | What it reverses |
 |---|---|
-| TruffleRuby implements `Fiber::Scheduler` / `Fiber.set_scheduler` | item 2 comes back. `async` boots, Falcon becomes possible, and the cheap-idle-connection argument for realtime is live again. Re-open the server decision |
+| **TruffleRuby implements `Fiber::Scheduler` / `Fiber.set_scheduler`** | the server decision — see [below](#the-one-condition-that-would-reopen-the-server-decision) |
 | TruffleRuby's fibers stop being OS threads (the Loom work its docs point at) | the idle-connection ceiling changes shape even without a scheduler |
-| `Ractor` lands on TruffleRuby | item 1's original mechanism becomes available. It does **not** automatically win — threads already parallelise and are more compatible with gems, by TruffleRuby's own assessment — but the comparison is worth re-running |
-| `fork` becomes available in the native configuration | forked workers return as an option for the test runner and for Puma clustered mode |
+| `Ractor` lands on TruffleRuby | the original mechanism becomes available. It does **not** automatically win — threads already parallelise and are more compatible with gems, by TruffleRuby's own assessment — but the comparison is worth re-running |
+| `fork` becomes available in the native configuration | Puma clustered mode and process-based workers become possible. Re-open the sizing question, not the concurrency model |
+
+### The one condition that would reopen the server decision
+
+Stated precisely, because "this may change someday" is not a trigger and nobody acts on it.
+
+| | |
+|---|---|
+| **The trigger** | TruffleRuby implements `Fiber::Scheduler` / `Fiber.set_scheduler`. That single upstream change, and nothing else. Not a TruffleRuby release in general, not a Falcon release, not a benchmark someone publishes |
+| **How we notice** | the probe runs in CI against the newest TruffleRuby. `fiber_scheduler.available` flips from `false` to `true` and the step goes red. **That is the mechanism** — a changed probe result, not somebody happening to read a changelog |
+| **What we do then** | re-run `scripts/probes/runtime.rb` on every engine, confirm `async` boots, and then re-evaluate Falcon against Puma **on the workload that actually motivates it**: many concurrent idle realtime connections |
+| **Why that is the same question** | it is [the measurement already owed](#the-open-question-owed-and-unanswered). The reason to want Falcon back *is* the reason thread-per-connection is a concern. Answer one and you have the evidence for the other |
+| **What it would cost to move** | a configuration and deployment change, not an app-code change. The server sits behind Rack; a Magik app's screens, actions and jobs do not name it ([`../idea/04-swap-points.md`](../idea/04-swap-points.md)). The realtime transport is the one place that would need real work |
+
+**That last row is why Puma can be committed to without hedging.** The design has one server, one concurrency model, and no Falcon-compatible abstraction held in reserve — because the cost of revisiting is a deployment change, not a rewrite. Building the alternative now to save a cost that low would be paying for insurance more expensive than the risk.
 
 **How it gets noticed rather than discovered.** `bin/check` does not run this probe — it is not a correctness check and it takes seconds of CPU. CI should:
 

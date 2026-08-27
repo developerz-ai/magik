@@ -27,7 +27,7 @@ Five commands, no Docker, no Node, no `config/` archaeology. Open `http://localh
 | `gem install magik` | installs the CLI globally so `magik new` is reachable before there is a bundle |
 | `magik new myapp` | writes the app skeleton — see [Project layout](Project-Layout.md). Installs nothing |
 | `bin/setup` | the app's **own** script: `bundle install`, create the database, run migrations, seed. Idempotent — safe to re-run |
-| `magik server` | boots Falcon, mounts the router, watches for changes |
+| `magik server` | boots the app server, mounts the router, watches for changes |
 
 `magik server` straight after `cd` is intended to **fail loudly**, not mysteriously: `magik new`
 installs no gems, so there is no bundle and no database. The boot is meant to stop on

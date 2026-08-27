@@ -40,12 +40,13 @@ Three doc trees: why the framework is shaped this way, how the repo that will bu
 | [`architecture/08-dev-loop.md`](architecture/08-dev-loop.md) | you want to know what hot-reloads, what does not, and why |
 | [`architecture/09-shipped-docs.md`](architecture/09-shipped-docs.md) | you want to know why the gem carries its own manual, what `magik docs` serves, and what ships |
 | [`architecture/10-performance-defaults.md`](architecture/10-performance-defaults.md) | you are about to pick a default that costs something at runtime |
+| [`architecture/12-runtime-verification.md`](architecture/12-runtime-verification.md) | you want the runtime measurements the concurrency and server decisions rest on — the method, the numbers, and what would reverse them |
 
 ## `ops/` — running it
 
 | Doc | Read this when… |
 |---|---|
-| [`ops/README.md`](ops/README.md) | you want the intended deployment shape: stateless app servers, Falcon, Postgres, workers — and the note that none of it runs yet |
+| [`ops/README.md`](ops/README.md) | you want the intended deployment shape: stateless app servers, Puma, Postgres, workers — and the note that none of it runs yet |
 
 Outside `docs/`: [`../README.md`](../README.md) is the repo entry point, `wiki/` is the reference manual, `CHANGELOG.md` records what actually landed.
 
@@ -63,7 +64,7 @@ Outside `docs/`: [`../README.md`](../README.md) is the repo entry point, `wiki/`
 ## Doc conventions
 
 - Every page opens with a one-line summary and a `Status:` line. No page claims behaviour that exists.
-- Status vocabulary: `planned`, `not implemented`, `spec only`. Never a benchmark number, a passing-test count, or "it does X" for framework behaviour.
+- Status vocabulary: `planned`, `not implemented`, `spec only`. Never a benchmark number, a passing-test count, or "it does X" for framework behaviour. The one page carrying measurements is [`architecture/12-runtime-verification.md`](architecture/12-runtime-verification.md), and they are measurements of the *Ruby engines*, not of Magik — every other page cites it rather than repeating a number.
 - Lead with the rule, not the reason. Tables for any list of things.
 - Code blocks are *intended* Ruby — they are design targets, not transcripts of a session.
 - Cross-link with relative paths. Date any claim that can go stale (`As of 2026-08-26`).

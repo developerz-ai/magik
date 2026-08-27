@@ -2,7 +2,7 @@
 
 Magik's grammar is shaped like a well-designed MCP server: few constructs, heavily parameterized, with a constant-size catalogue and the detail loaded on demand. This page argues that the resemblance is structural rather than cute, states the priority ordering it forces, and derives the rules for how new DSL gets designed.
 
-**Status:** spec only. The DSL is unimplemented ([`02-dsl-surface.md`](02-dsl-surface.md)); `magik describe` and `magik mcp` **do not exist and are not in [`00-build-spec.md`](00-build-spec.md)** — this page proposes both. The one thing here that runs is `magik docs` ([`../architecture/09-shipped-docs.md`](../architecture/09-shipped-docs.md)). Reviewed 2026-08-26.
+**Status:** spec only. The DSL is unimplemented ([`02-dsl-surface.md`](02-dsl-surface.md)). `magik describe` is **in the spec, phase 1, and not implemented**; `magik mcp` is **deferred by the spec**, with the condition for revisiting it recorded there ([`00-build-spec.md`](00-build-spec.md)). The one thing on this page that runs is `magik docs` ([`../architecture/09-shipped-docs.md`](../architecture/09-shipped-docs.md)). Reviewed 2026-08-26.
 
 ## Who this is for
 
@@ -10,7 +10,7 @@ Not "Ruby developers who want an AI assistant". **Developers whose code is writt
 
 ## The claim, in three sentences
 
-The `gold-standards-in-ai` rule for MCP servers is **few parameterized tools beat many** — a constant-size discovery surface (`list_resources` / `describe_resource` / `manage_resource`) with composition pushed into parameters, because every tool definition is re-sent on every step and a per-action tool surface grows linearly and never amortizes. Magik's DSL is that same shape applied to a framework: twenty-six rows in [`02-dsl-surface.md`](02-dsl-surface.md)'s construct table instead of a few hundred API methods, each construct carrying its variation in keyword options, so the whole vocabulary fits in a context window and one construct's shape predicts the next. If that is what the DSL *is*, then it inherits the obligations of a tool surface — it must be introspectable, its options enumerable and defaulted, its errors naming the option and the legal values — and none of those obligations is currently met.
+The `gold-standards-in-ai` rule for MCP servers is **few parameterized tools beat many** — a constant-size discovery surface (`list_resources` / `describe_resource` / `manage_resource`) with composition pushed into parameters, because every tool definition is re-sent on every step and a per-action tool surface grows linearly and never amortizes. Magik's DSL is that same shape applied to a framework: twenty-nine rows in [`02-dsl-surface.md`](02-dsl-surface.md)'s construct table instead of a few hundred API methods, each construct carrying its variation in keyword options, so the whole vocabulary fits in a context window and one construct's shape predicts the next. If that is what the DSL *is*, then it inherits the obligations of a tool surface — it must be introspectable, its options enumerable and defaulted, its errors naming the option and the legal values — and none of those obligations is currently met.
 
 ---
 
@@ -28,7 +28,7 @@ Magik pays a version of that bill, at a different frequency and with a different
 | Re-paid | every step | every session, and every turn the reference is quoted into context |
 | Grows with | one tool per action | one construct per capability |
 | Constant-size discovery | `list_resources` | the construct table in [`02-dsl-surface.md`](02-dsl-surface.md) |
-| Lazy detail | `describe_resource` | `magik docs <slug>` (exists) · `magik describe` (**proposed**, §2) |
+| Lazy detail | `describe_resource` | `magik docs <slug>` (exists) · `magik describe` (§2, planned) |
 | Composition lives in | `filters`, `sort`, `fields`, `include` | keyword options on the construct |
 | The failure when it overflows | the tool block does not fit; routing degrades | the agent reasons from half-remembered Rails and invents a plausible DSL |
 
@@ -110,7 +110,7 @@ This is the pivot of the whole argument, and it dissolves the apparent conflict 
 | **Comprehension** — reading it | cheap, and needs no prior exposure | `retries times: 5, backoff: :exponential` is understood instantly in a diff |
 | **Recall** — writing it from memory | expensive, and does not scale | *is it* `times:` *or* `attempts:` *or* `max_retries:`? *is it* `:exponential` *or* `"exponential"`? |
 
-Nobody retains that across twenty-six constructs and a few hundred options. This is the real, honest cost of every DSL ever designed and the reason DSLs get a reputation for being hard.
+Nobody retains that across twenty-nine constructs and a few hundred options. This is the real, honest cost of every DSL ever designed and the reason DSLs get a reputation for being hard.
 
 **Recall is exactly the cost automation eliminates.** An agent does not memorize; it looks up — on every invocation, at effectively no cost, and it never misremembers *if the surface is discoverable*. So the DSL's one genuine human weakness is the precise thing the AI-first premise removes, while its strength — legibility under review — survives untouched. That is not a coincidence to be admired; it is a load-bearing reason the whole design works.
 
@@ -122,9 +122,9 @@ An LLM writes decent nginx configuration and decent bash because both are everyw
 
 And the narrow, accurate version of the claim, because the framework's central design decision depends on it: **on a recall-heavy declarative surface, an agent with lookup and a gate outperforms a human working from memory.** Three parts, all necessary — lookup replaces the recall the agent also lacks for an unseen DSL, the gate catches what it still gets wrong, and the declarative surface is what makes both mechanisable. A human hand-writing nginx has none of the three, which is why hand-written nginx is a byword for subtle breakage. Nothing here assumes the agent is infallible: [`03-guardrails.md`](03-guardrails.md) calls the guardrails the product precisely because it is not.
 
-### The proposed surface: `magik describe`
+### The schema surface: `magik describe`
 
-Status: **proposed on this page, not in the spec, not implemented.** Adding it is a spec change under the "no framework code that is not spec-backed" rule in [`../architecture/00-conventions.md`](../architecture/00-conventions.md).
+Status: **in [`00-build-spec.md`](00-build-spec.md) as a phase-1 command, and not implemented.** It is built at build-order step 2, with the option tables it serializes — the tables are what the coercer, the guardrails, the docs anchors and `describe` all read (R8), and writing them after the first constructs exist is a retrofit.
 
 ```bash
 magik describe                          # the catalogue: every construct, one line each
@@ -185,7 +185,7 @@ One construct, as data:
 
 `magik docs` is the **prose half** and it exists today. `magik describe` is the **schema half** and it does not. They answer different questions and must not restate each other.
 
-| | `magik docs` (implemented) | `magik describe` (proposed) |
+| | `magik docs` (implemented) | `magik describe` (planned) |
 |---|---|---|
 | Answers | why this construct exists, when to reach for it, what it refuses | what options it takes, of what type, with what default and what legal values |
 | Source | markdown packaged in the gem | the option tables the DSL validates against |
@@ -198,7 +198,7 @@ The join is one field: every `describe` entry carries a `doc:` slug that `magik 
 
 ## 3. The MCP server — `magik mcp`
 
-**Status: proposed, not implemented, not in the spec.** Designed by following `gold-standards-in-ai`'s 3-tool pattern rather than by inventing a shape.
+**Status: deferred by [`00-build-spec.md`](00-build-spec.md), and not implemented.** The spec's reasoning is that this is strictly a second front end over `describe`, `docs`, `check --json`, `registry`, `routes` and `explain` — five of which do not exist — and that unlike `policy` it is not a retrofit, so deferring it costs a later release rather than a migration. The design below is what should be argued for when the condition the spec records is met: those five commands shipped, with schemas stable across one release. It follows `gold-standards-in-ai`'s 3-tool pattern rather than inventing a shape.
 
 ### The surface
 
@@ -226,7 +226,7 @@ The catalogue is deliberately **rich enough to act on** — construct names, dec
 | Candidate | Verdict | Why |
 |---|---|---|
 | `search_docs`, `read_doc`, `docs_path` | **parameter** (`op: "docs.*"`) | three verbs over one resource, one result shape, one safety profile — precisely the `list_recent_posts` / `list_published_posts` split the pattern forbids |
-| `list_models`, `list_screens`, `list_actions`, … | **parameter** (`op: "registry", kind: "model"`) | the per-verb explosion in its purest form: twenty-six constructs is twenty-six tools differing only in a filter value. `kind` is a whitelisted enum, per "whitelist, don't blacklist" |
+| `list_models`, `list_screens`, `list_actions`, … | **parameter** (`op: "registry", kind: "model"`) | the per-verb explosion in its purest form: twenty-nine constructs is twenty-nine tools differing only in a filter value. `kind` is a whitelisted enum, per "whitelist, don't blacklist" |
 | `describe_model`, `describe_job`, … | **parameter of `magik_describe`** | the construct name is data, not identity |
 | `run_check`, `run_scale_check` | **parameter** (`op: "check"`, `scale: true`) | `--scale` is a flag; a second tool would be a flag wearing a name |
 | `explain_error` | **parameter** (`op: "errors.explain"`) | a catalogue lookup keyed by a string |
@@ -271,7 +271,7 @@ Two further constraints:
 
 | DSL size | One tool per construct per verb (`list` · `describe` · `explain`) | The 3-tool pattern |
 |---|---|---|
-| 26 constructs (today's spec) | 78 tools | 3 |
+| 29 constructs (today's spec) | 87 tools | 3 |
 | plus a later construct set | linear, forever | 3 |
 | plus one op (`errors.explain`) | +1 tool | +1 enum value, +0 tools |
 
@@ -285,14 +285,14 @@ If the DSL is a tool surface, its options are a schema, and a schema has rules. 
 
 ### R1 — One concept, one spelling, everywhere
 
-An agent generalises from one construct to the next; every idea spelled two ways turns that generalisation into a plausible wrong guess. [`02-dsl-surface.md`](02-dsl-surface.md) already gets this mostly right — `retries times:, backoff:` is spelled identically on `job` and on `webhook :outgoing` — and the rule exists to keep it that way. Four concepts currently carry more than one spelling; each is a design question to settle **before** implementation, because a renamed option is a breaking change:
+An agent generalises from one construct to the next; every idea spelled two ways turns that generalisation into a plausible wrong guess. `retries times:, backoff:` is spelled identically on `job` and on `webhook :outgoing`, and the rule exists to keep it that way. Four concepts recur across constructs, and each was settled **before** implementation, because a renamed option is a breaking change after release and free before one. The decisions and their full reasoning are in [`00-build-spec.md`](00-build-spec.md)'s *DSL vocabulary* section; this is the index:
 
-| Concept | Spellings today | The question |
-|---|---|---|
-| A duration | `session_ttl "14d"` · `schedule every: "10m"` · `trial_days: 14` | one convention — a unit-suffixed string everywhere, or an explicit `*_days`/`*_ms` integer everywhere. Not both. |
-| A precondition | `guard { … }` on a `ledger` entry · `if: ->(ctx) { … }` on a `flow` step | one spelling for "do not proceed unless". A block and a lambda-in-an-option are two grammars for one idea. |
-| A field subset | `only: %i[…]` on `api create` · `filter:`/`sort:` on `api index` · `list_display`/`filterable`/`searchable`/`read_only` on `admin_panel` | four spellings of "which fields participate". `admin_panel` is a projection of `model`; its vocabulary should be `api`'s. |
-| Uniqueness | `unique: true` on `field` · `unique_by :tenant_id` on `job` | different meanings (a constraint vs a dedupe key) sharing a stem. Either they converge or they diverge — sharing a prefix while meaning different things is the worst of both. |
+| # | Concept | The one spelling | The rule it follows |
+|---|---|---|---|
+| D1 | A duration | a **`:duration` type** everywhere — a unit-suffixed string coerced at boot: `session_ttl "14d"`, `schedule every: "10m"`, `trial: "14d"`, `throttle per: "1h"` | R2 and R6. `*_days`/`*_ms` integers put the unit in the option name, which is the per-name explosion R10 prevents, and a type means a typo fails at boot rather than at first use |
+| D2 | A precondition | **`guard "reason" do … end`** on `ledger entry`, `action`, `job` and `flow step`; a step that simply does not apply uses **`skip_when do … end`** | R9 and R7. A precondition is behaviour, so it is a block; a lambda in an option is invisible to the schema, and a guard carrying its own sentence gives every failure a specific cause for free |
+| D3 | A field subset | **`fields`, `filterable`, `sortable`, `searchable`, `writable`** — five declarations, one vocabulary, identical on `api`, `admin_panel`, `data_table` and `screen` | R1 and R9. There are five roles here, not one, so "one spelling" means one word per role across every surface. `per_page:` stays an option: a scalar setting is not a field subset |
+| D4 | Uniqueness | they stay apart: **`unique:`** on a `field` is a database constraint, and a job's dedupe key is **`idempotent_by`** — the same word `action` already uses | R1 and R10. A constraint and a dedupe key cannot converge, and sharing a stem while meaning different things is the worst of both. Reusing `idempotent_by` removes an option from the catalogue rather than adding one |
 
 **Enforcement:** a `scripts/checks/` step over the option tables. Unenforceable as prose, mechanical as data — which is the point of §2.
 
@@ -378,12 +378,12 @@ R1–R10 are design rules for whoever implements a construct, which is what that
 
 | Not claimed | Reality |
 |---|---|
-| `magik describe` exists | it does not, and it is not in [`00-build-spec.md`](00-build-spec.md). Adding it is a spec change. |
-| `magik mcp` exists | it does not. No MCP server has been written, run or measured. |
+| `magik describe` exists | it does not. It is in [`00-build-spec.md`](00-build-spec.md) as a phase-1 command and nothing is implemented. |
+| `magik mcp` exists | it does not, and the spec defers it. No MCP server has been written, run or measured. |
 | The DSL is introspectable today | no DSL method exists in `lib/`. The option tables §2 depends on are not written. |
 | The token figures are Magik's | they are `gold-standards-in-ai`'s MCP measurements, cited to establish the shape of the argument. Nothing here is measured, `As of 2026-08-26`. |
 | Agents do not make mistakes | they do, constantly, and [`03-guardrails.md`](03-guardrails.md) is the whole framework's answer. The claim is narrower: **with lookup and a gate, an agent beats a human working from memory on a recall-heavy surface.** |
-| R1's four inconsistencies are bugs | they are **open design questions** in a spec-only document, raised because §1 shows they get expensive after the first release, not before. |
+| R1's four decisions have been exercised | they are settled spellings in a spec-only document. Nothing has been written against them, and §1's point stands: settling them was free now and would have been a semver break later. |
 
 Magik is not betting that the agent is infallible. It is betting that a fallible agent, given a discoverable surface and an unforgiving gate, ships better code than a careful human working from memory — and the architecture is arranged to win that bet.
 

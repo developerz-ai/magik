@@ -29,12 +29,17 @@ FROM mcr.microsoft.com/devcontainers/ruby:1-${RUBY_VERSION}-bookworm
 # check https://github.com/oracle/truffleruby/releases and bump this, or
 # override it per-build without editing the file:
 #
-#   docker build --build-arg TRUFFLERUBY_VERSION=24.2.1 .devcontainer
+#   docker build --build-arg TRUFFLERUBY_VERSION=34.0.1 .devcontainer
 #
-# As of 2026-08-26 this pin has NOT been verified against the releases page from
-# this machine — there is no network in the environment it was written in. If the
-# download 404s, that is the first thing to check.
-ARG TRUFFLERUBY_VERSION=24.2.1
+# As of 2026-08-26 this pin IS verified: 34.0.1 was installed and exercised on
+# this machine (truffleruby 34.0.1, like ruby 3.4.9, Oracle GraalVM JVM), and
+# both scripts/probes/runtime.rb and scripts/probes/pg_concurrency.rb were run
+# against it. See docs/architecture/12-runtime-verification.md.
+#
+# Keep this current. The pin was 24.2.1 until a stale build nearly produced a
+# wrong conclusion about the runtime — the probes only tell you the truth about
+# the version you actually run them on.
+ARG TRUFFLERUBY_VERSION=34.0.1
 ARG TARGETARCH=amd64
 
 # Postgres client tools: `psql` against docker/compose.yml, and pg_isready for

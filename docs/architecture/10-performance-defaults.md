@@ -28,7 +28,7 @@ The complete classification is the [summary table](#the-classification-in-one-ta
 
 **TruffleRuby · Puma · Sequel · Postgres · htmx.** Half the published Ruby performance advice is about a different stack, and applying it here would be worse than applying nothing.
 
-This page said *Falcon* until 2026-08-26, when the runtime was actually measured: TruffleRuby implements no fiber scheduler, `async` raises on its first block, and Falcon cannot boot there. The server is Puma, threads are the concurrency primitive, and they run genuinely in parallel because TruffleRuby has no GVL — [`12-runtime-verification.md`](12-runtime-verification.md).
+The concurrency primitive is a **thread**, and on TruffleRuby threads run genuinely in parallel — there is no GVL. That is measured, not assumed: [`12-runtime-verification.md`](12-runtime-verification.md), `As of 2026-08-26`.
 
 ### What does not apply here
 
@@ -48,53 +48,50 @@ CRuby-specific techniques, named so nobody wastes an afternoon:
 
 ## 1. Serialization
 
-JSON is not a corner of the framework. It is the API response body, the job payload, the production log line, the `--json` rendering of every CLI command and every error, and the `--json` request trace ([`06-observability.md`](06-observability.md)). It is on a hot path in four subsystems at once, which is why the spec puts Oj on the wrap list ([`../idea/00-build-spec.md`](../idea/00-build-spec.md)).
+JSON is not a corner of the framework. It is the API response body, the job payload, the production log line, the `--json` rendering of every CLI command and every error, and the `--json` request trace ([`06-observability.md`](06-observability.md)). It is on a hot path in four subsystems at once, which is why it gets a section here at all.
 
 ### One front door — baked in
 
-Framework and app code call `Magik::Core::Json.dump` / `.parse`. Nothing anywhere calls `JSON.generate`, `Oj.dump`, `#to_json` or `MultiJson` directly. This is the same *one namer* rule the swap points use: a codec named at four hundred call sites is a codec that cannot be changed.
+Framework and app code call `Magik::Core::Json.dump` / `.parse`. Nothing anywhere calls `JSON.generate`, `#to_json` or `MultiJson` directly. This is the same *one namer* rule the swap points use: a codec named at four hundred call sites is a codec that cannot be changed.
 
 **Not switchable**, because the alternative is not a slower version — it is no seam at all.
 
 ### The mode is pinned — baked in
 
-Oj's own documentation states that `:object` "is the default mode unless changed in the Oj default options", and describes it as generating "JSON that follows conventions which allow Class and other information … to be encoded in a JSON document" ([Oj Modes](https://github.com/ohler55/oj/blob/develop/pages/Modes.md)).
+**Interchange JSON in, interchange JSON out.** The seam emits and accepts plain JSON: objects, arrays, strings, numbers, booleans, `null`. It never emits Ruby type markers and it never reconstructs a Ruby object from something a document claims to be.
 
-That is a footgun with Magik's name on it. An agent that writes `Oj.dump(payload)` and reads the README emits a document with Ruby class markers in it — not interchange JSON — and a parser in `:object` mode reconstructs Ruby objects from whatever the document claims. For an inbound webhook body or a job payload that is not a performance question at all.
+That is a security rule dressed as a serialization rule. Codecs in this ecosystem ship object-round-tripping modes, and a payload that can name a class is a payload that can name *any* class. For an inbound webhook body or a job payload, that is not a performance question at all. So the mode is pinned at the seam and is not an option.
 
-So the mode is pinned at the seam (`:strict` for anything leaving the process, `:compat` where json-gem semantics are expected) and is not an option. `Oj.mimic_JSON` — which Oj documents as making Oj "take over" the `JSON` constant's methods ([JsonGem.md](https://github.com/ohler55/oj/blob/develop/pages/JsonGem.md)) — is **not** used: a global monkey-patch of `JSON` is exactly the kind of action-at-a-distance the boundary rules exist to prevent ([`02-boundaries.md`](02-boundaries.md)).
+**No global monkey-patching of `JSON`.** A codec that takes over the `JSON` constant's methods process-wide is exactly the action-at-a-distance the boundary rules exist to prevent ([`02-boundaries.md`](02-boundaries.md)), and a seam whose behaviour depends on which gem loaded last is not a seam.
 
-### Which codec — a swap point, and the default is engine-dependent
+### Which codec — the stdlib `json` gem
 
-This is the part that would have been embarrassing to assert instead of check.
+**The codec is the `json` gem.** No C-extension JSON dependency is carried.
+
+The reason is one fact, and it is the reference library's own decision rather than an opinion:
 
 | Fact | Source |
 |---|---|
-| Oj is a C extension with no pure-Ruby fallback | [Oj README](https://github.com/ohler55/oj/blob/develop/README.md) |
-| Oj's stated compatibility is "Ruby 2.7+ and RBX" — **TruffleRuby is not listed** | [Oj Compatibility.md](https://github.com/ohler55/oj/blob/develop/pages/Compatibility.md) |
-| Oj has nonetheless tracked TruffleRuby: "3.7.1 — Updated to support TruffleRuby", "3.13.19 — TruffleRuby issues resolved" | [Oj CHANGELOG](https://github.com/ohler55/oj/blob/develop/CHANGELOG.md) |
-| TruffleRuby has had to fix its own side: "Investigate failures in oj test suite" — "Some missing C API functions (like `rb_ivar_foreach`), some differences and some segfaults" | [oracle/truffleruby#2701](https://github.com/oracle/truffleruby/issues/2701) |
 | **The `json` gem ships a TruffleRuby-specific pure-Ruby generator**, selected by engine: `if RUBY_ENGINE == 'truffleruby' … JSON.generator = JSON::TruffleRuby::Generator` | [ruby/json `lib/json/ext.rb`](https://github.com/ruby/json/blob/master/lib/json/ext.rb), [CHANGES.md](https://github.com/ruby/json/blob/master/CHANGES.md) |
+| TruffleRuby vendors that gem | the engine ships it |
 
-The last row is the load-bearing one. The reference JSON library for the whole Ruby ecosystem decided that on TruffleRuby, a **pure-Ruby generator compiled by Graal beats its own C extension** — and TruffleRuby vendors that gem. "Use the C extension because C is fast" is a CRuby intuition, and it does not obviously survive the move to a JIT that compiles Ruby and interprets C through Sulong.
+The reference JSON library for the whole Ruby ecosystem decided that on TruffleRuby a **pure-Ruby generator compiled by Graal beats its own C extension**. "Use the C extension because C is fast" is a CRuby intuition, and it does not survive the move to a JIT that compiles Ruby and interprets C through Sulong. Carrying a C-extension codec would mean adding a native dependency to beat a generator the runtime's own maintainers chose — and it has never been measured here.
 
-Oj's own published claims, quoted and attributed as required: Oj's `Advanced.md` states it "is about 2 times faster than any other Ruby JSON parser, and 3 or more times faster at serializing JSON" ([Oj Advanced.md](https://github.com/ohler55/oj/blob/develop/pages/Advanced.md)). **These are undated, unbenchmarked claims from the project's own documentation, made about CRuby.** Magik cites them as Oj's position, not as a measurement, and not as a claim about TruffleRuby.
-
-Therefore JSON is **a seam, not a hard-coded gem**:
+The codec remains **a seam**, because that is the rule for anything reversible ([`../idea/04-swap-points.md`](../idea/04-swap-points.md)):
 
 ```ruby
 App.define :Shop do
-  use :json, :auto          # the default: :oj on CRuby, :stdlib on TruffleRuby
+  use :json, :stdlib        # the default, and the only backend shipped
 end
 ```
 
 | Tier | Decision |
 |---|---|
 | **Baked in** | one front door; a pinned mode; no `mimic_JSON` |
-| **Default on, switchable** | the codec — `use :json, :auto \| :oj \| :stdlib`, or `MAGIK_JSON_BACKEND` |
+| **Default on, switchable** | the codec — `use :json, …`, or `MAGIK_JSON_BACKEND`, for an app that has measured something better on its own workload |
 | **Opt-in** | nothing |
 
-`:auto` is a default that reads the engine, not a fallback chain — an explicitly named backend that does not load fails at boot with `MAGIK_CONFIG_UNKNOWN_BACKEND`, per the swap-point rule that candidates never silently degrade. The conformance suite for this seam is a round-trip corpus (unicode, deep nesting, large integers, `:money` minor units, `nil`) run against every codec on both engines, and it is what would settle which default is right — see [Measurement](#11-measurement).
+A named backend that does not load fails at boot with `MAGIK_CONFIG_UNKNOWN_BACKEND`, per the swap-point rule that candidates never silently degrade. The conformance suite for this seam is a round-trip corpus (unicode, deep nesting, large integers, `:money` minor units, `nil`) run against every registered codec — see [Measurement](#11-measurement).
 
 ### Where JSON is *not* used
 
@@ -112,9 +109,9 @@ Almost all real SaaS slowness is here. The sections below are ordered by how oft
 
 ### 2.1 Connection pooling under a thread pool — baked in
 
-**Corrected 2026-08-26.** This section previously did fiber-per-request arithmetic and made `Sequel.extension :fiber_concurrency` a baked-in correctness requirement. Both rested on Falcon, and Falcon cannot boot on TruffleRuby — no fiber scheduler, `async` raises immediately ([`12-runtime-verification.md`](12-runtime-verification.md)). The server is Puma, the concurrency primitive is a thread, and the arithmetic below is the thread arithmetic. It was flagged on this page as its own largest open question; the measurement is in, and most of it is now settled.
+Getting the pool wrong is a correctness bug, not a slow page, so the arithmetic is stated rather than left to the operator.
 
-**The mechanism, unchanged.** Sequel's connection pool keys checked-out connections on `Sequel.current`, whose definition in `lib/sequel/core.rb` is:
+**The mechanism.** Sequel's connection pool keys checked-out connections on `Sequel.current`, whose definition in `lib/sequel/core.rb` is:
 
 ```ruby
 # The current concurrency primitive, Thread.current by default.
@@ -125,28 +122,18 @@ end
 
 and whose pool comments describe `@allocated` as "a hash with thread/fiber keys and connection values for currently allocated connections" ([threaded.rb](https://github.com/jeremyevans/sequel/blob/master/lib/sequel/connection_pool/threaded.rb)). `hold` short-circuits on `owned_connection(Sequel.current)` — re-entrant checkout is keyed on the concurrency primitive.
 
-Puma runs **one thread per in-flight request**, from a bounded pool. One request, one thread, one `Thread.current` — so Sequel's **default** keying is already the correct keying, and the pool hands each concurrent request its own connection.
+Puma runs **one thread per in-flight request**, from a bounded pool. One request, one thread, one `Thread.current` — so Sequel's **default** keying is the correct keying, and the pool hands each concurrent request its own connection. Nothing has to be configured to make that true, and **`Sequel.current` must be left alone**: `magik doctor` asserts it resolves to a `Thread` and fails loudly if some dependency has changed it underneath the app.
 
-**What changed, concretely:**
+**The arithmetic.**
 
-| | Before (Falcon assumed) | Now (measured) |
-|---|---|---|
-| Requests run on | fibers, many per thread | threads, one per request |
-| `Sequel.current` must be | `Fiber.current`, via `Sequel.extension :fiber_concurrency` | **`Thread.current` — the default. No extension.** |
-| Failure mode if wrong | two requests sharing one connection, interleaved, silently corrupt | not reachable: the default keying matches the runtime |
-
-**`Sequel.extension :fiber_concurrency` is no longer loaded, and loading it would be a bug.** Keying checkout on `Fiber.current` under a thread-per-request server is not merely unnecessary — on TruffleRuby a fiber is an OS thread, so it buys nothing, and it breaks the re-entrant-checkout short-circuit for any code that legitimately uses a fiber inside a request. The boot check that this section used to demand — "verify `Sequel.current` resolves to a Fiber" — inverts: **`magik doctor` should assert `Sequel.current` is a `Thread`** and fail loudly if some gem has loaded the extension underneath the app.
-
-**The arithmetic, under threads.**
-
-| | Threads-per-request (Puma — Magik's model) | Fibers-per-request (Falcon — not available here) |
-|---|---|---|
-| Concurrency ceiling | `max_threads` × processes — a number you chose, and Puma enforces it | unbounded fibers, bounded by file descriptors |
-| Pool size rule | **`pool = max_threads`.** It *derives* from the server, and any other value is a mistake in one direction or the other | `pool` derives from nothing; it *is* the concurrency limit |
-| Pool smaller than threads | threads queue on the connection pool and then raise `Sequel::PoolTimeout` after `:pool_timeout` (Sequel default 5s). Looks like slowness, reports as an error | — |
-| Pool larger than threads | connections the app can never use, charged against the server's `max_connections` | — |
-| Overload looks like | requests queue on Puma's `backlog`, latency rises before anything errors | requests queue on the connection pool |
-| Connections the DB sees | `max_threads` × processes × hosts | `max_connections` × processes × hosts |
+| Rule | |
+|---|---|
+| Concurrency ceiling | `max_threads` × processes — a number you chose, and Puma enforces it |
+| **Pool size** | **`pool = max_threads`.** It *derives* from the server, and any other value is a mistake in one direction or the other |
+| Pool smaller than threads | request threads queue on the connection pool and then raise `Sequel::PoolTimeout` after `:pool_timeout` (Sequel default 5s). Looks like slowness, reports as an error |
+| Pool larger than threads | connections the app can never use, charged against the server's `max_connections` |
+| Overload looks like | requests queue on Puma's `backlog`; latency rises before anything errors |
+| Connections the DB sees | `max_threads` × processes × hosts |
 
 Sequel's defaults are `:max_connections` 4 and `:pool_timeout` 5 seconds ([opening databases](https://sequel.jeremyevans.net/rdoc/files/doc/opening_databases_rdoc.html)); on Ruby ≥ 3.2 the default pool class is `:timed_queue`.
 
@@ -154,10 +141,10 @@ Sequel's defaults are `:max_connections` 4 and `:pool_timeout` 5 seconds ([openi
 
 | | |
 |---|---|
-| Puma mode | **single mode.** One process, one thread pool. `workers N` is not available on the production runtime |
-| How you get more processes | run more containers. That is the ops story already ([`../ops/README.md`](../ops/README.md)): stateless app servers behind a load balancer |
-| Why this is tolerable rather than a wound | the reason clustered mode exists is the GVL — one process cannot use more than one core. TruffleRuby has no GVL, and threads there were measured at 2.4–3.5× on 4 threads. One process *can* use the cores |
-| What is still unmeasured | whether one Puma process on TruffleRuby holds enough concurrent connections to make that true in production. Named as owed work in [`12-runtime-verification.md`](12-runtime-verification.md) |
+| Puma mode | **single mode.** One process, one thread pool. `workers N` does not apply |
+| How you get more capacity | more containers. That is the ops story already ([`../ops/README.md`](../ops/README.md)): stateless app servers behind a load balancer |
+| Why that is the right shape rather than a concession | clustered mode exists because of the GVL — one process cannot use more than one core. TruffleRuby has no GVL and threads there were measured at 2.55–3.54× on 4 threads. One process *does* use the cores |
+| What is still unmeasured | how many concurrent connections one Puma process on TruffleRuby holds. Named as owed work in [`12-runtime-verification.md`](12-runtime-verification.md) |
 
 **Magik's default: the pool is a declared ceiling, and the total is checked, not assumed.**
 
@@ -380,7 +367,7 @@ The third one is the interesting one, because it is the only one of the four in 
 
 ### 5.1 Compression — default on, switchable
 
-**Puma does not compress responses.** It is an HTTP server, not a middleware stack, and compression is not among its responsibilities. So compression is `Rack::Deflater` in Magik's middleware stack, on by default for text responses — which is where it would have had to live under any server. *(This paragraph previously argued the same conclusion from Falcon's Rack adapter; the server changed, the conclusion did not.)*
+**Puma does not compress responses.** It is an HTTP server, not a middleware stack, and compression is not among its responsibilities. So compression is `Rack::Deflater` in Magik's middleware stack, on by default for text responses.
 
 `Rack::Deflater`'s own documented option matters here: `:sync` "determines if the stream is going to be flushed after every chunk. Flushing after every chunk reduces latency for time-sensitive streaming applications, but hurts compression and throughput. Defaults to `true`" ([deflater.rb](https://github.com/rack/rack/blob/main/lib/rack/deflater.rb)). Magik sets `sync: false` for ordinary buffered responses and leaves it `true` for streamed ones, because the default is tuned for streaming and most responses are not streams.
 
@@ -438,9 +425,9 @@ MDN's own realism is worth carrying: "the cache removes old entries when new ent
 
 ### 5.6 Connections
 
-**Puma speaks HTTP/1.1 only.** There is no HTTP/2 and no HTTP/3 from the app process, so h2 and h3 — if wanted — terminate at the load balancer or reverse proxy in front of it, which is the topology [`../ops/README.md`](../ops/README.md) already describes. This is a real loss against Falcon, which does speak HTTP/2 natively, and it is a cost the runtime measurement imposed rather than one anybody chose.
+**Puma speaks HTTP/1.1 only.** There is no HTTP/2 and no HTTP/3 from the app process, so h2 and h3 — if wanted — terminate at the load balancer or reverse proxy in front of it, which is the topology [`../ops/README.md`](../ops/README.md) already describes. That is a real cost and it is stated rather than glossed.
 
-HTTP/1.1 keep-alive is the operative concern instead: **a held-open connection under Puma occupies a pool thread while it is being served, and a file descriptor for as long as it is held.** Under Falcon it would have cost a fiber. That difference is the whole of the open realtime question in [`12-runtime-verification.md`](12-runtime-verification.md), and until it is measured this page states no connection ceiling. The tuning levers are Puma's `max_threads` and `ulimit -n`, and neither has a recommended value here because none has been derived from a measurement.
+Keep-alive is the operative concern: **a held-open connection occupies a pool thread while it is being served, and a file descriptor for as long as it is held.** That is what makes the realtime connection ceiling an open question rather than an arithmetic one, and until it is measured ([`12-runtime-verification.md`](12-runtime-verification.md)) this page states no ceiling. The tuning levers are Puma's `max_threads` and `ulimit -n`, and neither has a recommended value here, because none has been derived from a measurement.
 
 **Static assets are served from the app process in development and expected to come from a CDN or a reverse proxy in production.** Puma can serve files, but a Ruby thread copying bytes is a thread not serving a request. *That is Magik's stance, not an upstream recommendation.*
 
@@ -518,31 +505,25 @@ The README's comparison: Native starts "about as fast as MRI startup" and reache
 
 Auxiliary engine caching (`--engine.CacheStore`), which persists compiled code across runs and would be the real answer for short-lived processes, is **Oracle GraalVM only** — "This feature is only available in Oracle GraalVM. In GraalVM Community Edition, these options are not available" ([Auxiliary Engine Caching](https://github.com/oracle/graal/blob/master/truffle/docs/AuxiliaryEngineCachingEnterprise.md)). Whether TruffleRuby is a supported consumer of it is **unverified**. A default that requires a specific commercial distribution is not a default Magik can ship.
 
-### 7.2 The concurrency model — and where the spec and the runtime disagree
+### 7.2 The concurrency model
 
-Spec item 1 says "Concurrency via Ractors/Fibers, not threads-per-request". Two things are true about that on the actual production runtime, and both are on the record:
+**Concurrency is real, parallel OS threads.** One request, one thread. One job, one worker thread. One test file group, one worker thread. There is no second mechanism anywhere in the framework.
 
-> "`Ractor` is currently not implemented on TruffleRuby." … "Threads are run in parallel on TruffleRuby and Threads are far more compatible with gems than `Ractor`, so `Ractor` is not so useful on TruffleRuby."
->
-> "In TruffleRuby, fibers are currently implemented using operating system threads, so they have the same performance characteristics as Ruby threads."
->
-> — [truffleruby/doc/user/compatibility.md](https://github.com/oracle/truffleruby/blob/master/doc/user/compatibility.md)
+That is a legitimate design only because of one property of the production runtime, and it is measured rather than assumed:
 
-And on the fiber scheduler that Falcon is built on:
+| | |
+|---|---|
+| TruffleRuby has no GVL | its README: it "does not have a global interpreter lock and runs both Ruby code and thread-safe native extensions in parallel" ([README](https://github.com/oracle/truffleruby/blob/master/README.md)) |
+| Threads there are genuinely parallel | **2.55–3.54× on 4 threads**, warmed, on a workload a JIT cannot fold away. CRuby measured 0.80–0.89× on the same probe |
+| The evidence | `ruby scripts/probes/runtime.rb` — method, results and limits in [`12-runtime-verification.md`](12-runtime-verification.md), `As of 2026-08-26` |
 
-> "Fiber scheduler changes are not implemented because it seems not worth it until Truffle supports VirtualThread on both Native Image and HotSpot."
->
-> — TruffleRuby Ruby-3.x support tracking, [#3039](https://github.com/oracle/truffleruby/issues/3039) (the same sentence appears in [#2453](https://github.com/oracle/truffleruby/issues/2453) and [#2733](https://github.com/oracle/truffleruby/issues/2733))
+**`fork` is not available on TruffleRuby**, which is why the process count is a container count (§2.1) and why nothing in this repo has a forked-worker mode.
 
-against Falcon's own description: "Falcon is built on top of the fiber scheduler and the async gem which allow it to handle thousands of connections concurrently" ([getting started](https://socketry.github.io/falcon/guides/getting-started/index.html)).
+**The per-request rules are what make it correct** — no in-process state across requests, a frozen registry after boot, no mutable globals ([`00-conventions.md`](00-conventions.md)). Under threads those stop being hygiene and become the isolation model, exactly as [`04-testing-strategy.md`](04-testing-strategy.md) says about tests.
 
-This is a genuine, unresolved conflict between two non-negotiable spec decisions and the runtime they name. It is written up in [Conflicts and open questions](#conflicts-and-open-questions) rather than papered over, because a performance document that quietly assumed cheap fibers on TruffleRuby would be wrong in its foundations.
+**What is not settled, and this page must not imply it is:** there is no cheap-per-idle-connection primitive on this runtime. A connection costs a thread while it is served and a file descriptor while it is held. Realtime is many mostly-idle connections, the probe measured CPU-bound parallelism, and the two are different questions. The owed measurement is specified in [`12-runtime-verification.md`](12-runtime-verification.md).
 
-What *is* settled, and is good news: **TruffleRuby has no GVL and runs threads in parallel.** The reasoning that makes threads-per-request unattractive on CRuby does not apply. Whatever the concurrency model turns out to be, the per-request rules stay the same either way — no in-process state across requests, a frozen registry after boot, no mutable globals ([`00-conventions.md`](00-conventions.md)) — and those are what make *any* of the three models safe.
-
-One TruffleRuby detail that matters for the database driver: "Native extensions are by default considered thread-unsafe for maximum compatibility with CRuby and use the global extension lock (unless `--cexts-lock=false` is used). Extensions can mark themselves as thread-safe either by using `rb_ext_ractor_safe()` or `rb_ext_thread_safe()`" (compatibility.md). `pg` declares Ractor compatibility from 1.5.0 ([pg CHANGELOG](https://github.com/ged/ruby-pg/blob/master/CHANGELOG.md)); whether that translates into TruffleRuby dropping the global extension lock for it is **unverified and is a `magik doctor` probe worth writing**, because a global lock around every query would erase the parallelism the runtime was chosen for.
-
-`pg` itself is in good shape on both fronts: "Add support for TruffleRuby. It is regularly tested as part of our CI" (1.3.0), and "Pg is fully compatible with `Fiber.scheduler` introduced in Ruby-3.0 since pg-1.3.0. … All possibly blocking IO operations are routed through the `Fiber.scheduler` if one is registered for the running thread" ([pg README](https://github.com/ged/ruby-pg/blob/master/README.md)). The second capability is inert on a runtime with no fiber scheduler to register.
+One TruffleRuby detail that matters for the database driver: "Native extensions are by default considered thread-unsafe for maximum compatibility with CRuby and use the global extension lock (unless `--cexts-lock=false` is used). Extensions can mark themselves as thread-safe either by using `rb_ext_ractor_safe()` or `rb_ext_thread_safe()`" ([compatibility.md](https://github.com/oracle/truffleruby/blob/master/doc/user/compatibility.md)). Whether `pg` gets that lock lifted is **unverified and is a `magik doctor` probe worth writing**, because a global lock around every query would erase the parallelism the runtime was chosen for. `pg` itself is CI-tested on TruffleRuby by its own maintainers ("Add support for TruffleRuby. It is regularly tested as part of our CI", 1.3.0), so the driver is not the doubt; the lock is.
 
 ### 7.3 `frozen_string_literal` — baked in
 
@@ -675,7 +656,7 @@ Everything else on this page has a command rather than a number:
 
 | Question | Command |
 |---|---|
-| Which JSON codec is faster here? | the `:json` seam conformance suite, run against `:oj` and `:stdlib` on CRuby and TruffleRuby in CI ([`../idea/04-swap-points.md`](../idea/04-swap-points.md)) |
+| Which JSON codec is faster here? | the `:json` seam conformance suite, run against every registered codec on TruffleRuby in CI ([`../idea/04-swap-points.md`](../idea/04-swap-points.md)) |
 | Does this pool size hold under load? | `magik doctor` for the arithmetic; the `duration_ms` distribution of `event=query` for the queueing |
 | Did that index get used? | `magik explain query <Scope>` |
 | Where did this request go? | the request trace, `--json` |
@@ -689,39 +670,29 @@ Everything else on this page has a command rather than a number:
 
 Named rather than smoothed over, because each is a place where a performance default meets a decision the spec already made.
 
-### 1. TruffleRuby does not implement `Ractor`, and the spec and the test runner both name it
+### 1. The realtime connection ceiling on TruffleRuby is unmeasured
 
-Spec item 1 is "Concurrency via Ractors/Fibers"; [`04-testing-strategy.md`](04-testing-strategy.md) builds the parallel test runner on "one Ractor per test file group". TruffleRuby's compatibility document states `Ractor` "is currently not implemented on TruffleRuby", and that threads are already parallel there so Ractors are "not so useful".
+**This is the largest open question in the performance design.** A connection under Puma costs a thread while it is served and a file descriptor while it is held. Realtime (`live`/`channel` over `LISTEN`/`NOTIFY`) is many mostly-idle connections, and nobody has measured how many one process holds or at what memory.
 
-The testing page already names Ractor maturity as a risk and already ships a forked-worker fallback and a runner-backend seam — so the *design* survives. What does not survive unexamined is the spec sentence. On the production runtime the choice is threads (genuinely parallel, no GVL) or the [`ractor-shim`](https://github.com/eregon/ractor-shim) gem that TruffleRuby's own docs point at, which runs Ractors as threads.
+Everything else about the concurrency model is settled by measurement ([`12-runtime-verification.md`](12-runtime-verification.md)). This is not, and no page in this repo may imply a number.
 
-**Resolution: a spec amendment, not a doc.** Someone has to decide whether item 1 means "not threads-per-request" (compatible with threads used differently) or "Ractors specifically" (not currently available on the target runtime).
+**Resolution: a load test, specified.** Idle SSE/WebSocket connections per Puma process on TruffleRuby, stepped, with RSS and heartbeat latency at each step. The procedure is written out in [`12-runtime-verification.md`](12-runtime-verification.md); it has not been run.
 
-### 2. Falcon is built on the fiber scheduler; TruffleRuby does not implement `Fiber.set_scheduler`
+### 2. Whether `pg` runs without TruffleRuby's global C-extension lock
 
-Spec item 2 is "Rack + Falcon (async, fiber-based)". Falcon's guide says it "is built on top of the fiber scheduler and the async gem". TruffleRuby's Ruby-3.x support issues state that "Fiber scheduler changes are not implemented", and compatibility.md adds that TruffleRuby's fibers "are currently implemented using operating system threads, so they have the same performance characteristics as Ruby threads."
+Detailed in §7.2. TruffleRuby serialises native extensions behind a global lock unless they mark themselves thread-safe. If `pg` does not get that lock lifted, every query in the process serialises and the threading argument for database work collapses — while the CPU-parallelism measurement stays true and irrelevant.
 
-Both halves of the premise are affected: the scheduler that makes third-party I/O non-blocking, and the assumption that a fiber per request is cheap.
+**Resolution: a probe, and it is small.** Issue N concurrent slow queries (`pg_sleep`) through the pool on TruffleRuby and check whether wall clock is N × one query or one query. Until it runs, this is the single biggest unverified assumption on the page.
 
-**This is the largest open question in the performance design, and it is upstream of most of §2.1.** If fibers are OS threads and there is no scheduler, "thousands of concurrent connections" is not the operating point, and the pool arithmetic changes shape again.
-
-**Resolution: an experiment, not an argument.** Boot Falcon on TruffleRuby in CI, issue concurrent slow queries through `pg`, and measure whether they overlap. That is a one-afternoon test and it decides a non-negotiable spec item. Until it is run, this page treats fiber-per-request concurrency on TruffleRuby as **unverified**. *(`pg` is CI-tested on TruffleRuby by its own maintainers, so the driver is not the doubt; the scheduler is.)*
-
-### 3. Oj is on the spec's wrap list, and TruffleRuby is not on Oj's compatibility list
-
-Detailed in §1. The spec names Oj; Oj's compatibility page names "Ruby 2.7+ and RBX" and not TruffleRuby; the `json` gem ships a *pure-Ruby* generator specifically for TruffleRuby because that is faster there.
-
-**Resolution: make it a seam** (`use :json, :auto`) rather than a hard dependency, add the row to [`../idea/04-swap-points.md`](../idea/04-swap-points.md), and let the conformance suite pick the per-engine default. This is the swap-point rule doing exactly the job it was written for.
-
-### 4. The default cache backend is a poor fragment-cache backend
+### 3. The default cache backend is a poor fragment-cache backend
 
 Detailed in §6. `use :cache, :memory` is right for "an app with no Redis"; it is close to useless for a fragment cache across the multi-process fleet the ops page describes. Not a contradiction — a documented interaction that needs a boot warning rather than silence.
 
-### 5. `SET`-based connection setup versus a connection pooler
+### 4. `SET`-based connection setup versus a connection pooler
 
 §2.3 sets four Postgres timeouts through `:connect_sqls`. PgBouncer lists `SET` as never working in transaction pooling mode, and `LISTEN` — the default realtime and job-wakeup transport — as never working either. So the deployment that most needs a pooler is the one whose defaults it breaks. Magik's answer is the libpq `options=` startup-parameter route when a pooler is declared, plus documentation that transaction pooling and the Postgres realtime backend are mutually exclusive. **That interaction is not currently in [`../ops/README.md`](../ops/README.md).**
 
-### 6. A code-naming drift worth fixing
+### 5. A code-naming drift worth fixing
 
 `wiki/Error-Codes.md` reserves `MAGIK_PAGINATION_UNBOUNDED`, which does not fit the `MAGIK_<SUBSYSTEM>_<CONDITION>` format from [`03-error-codes.md`](03-error-codes.md) — `pagination` is not a subsystem in [`01-module-map.md`](01-module-map.md). `MAGIK_API_PAGINATION_UNBOUNDED` would. Flagged for whoever owns the catalogue; not changed here.
 
@@ -760,7 +731,7 @@ Every default on this page, sorted by the rule in [The rule that sorts this page
 
 | # | Default | Switch | Seam? |
 |---|---|---|---|
-| 1 | JSON codec: `:oj` on CRuby, `:stdlib` on TruffleRuby | `use :json, :auto \| :oj \| :stdlib` · `MAGIK_JSON_BACKEND` | **yes — proposed new row for [`../idea/04-swap-points.md`](../idea/04-swap-points.md)** |
+| 1 | JSON codec: the `json` gem | `use :json, …` · `MAGIK_JSON_BACKEND` | **yes — proposed new row for [`../idea/04-swap-points.md`](../idea/04-swap-points.md)** |
 | 2 | Connection pool size and timeout | `database pool:, pool_timeout:` | no — configuration |
 | 3 | The four timeout values, per process role | `App.define`, per role | no — configuration |
 | 4 | Prepared statements, built at boot | `database prepared_statements: false` (a pooler in transaction mode) | no |

@@ -6,11 +6,13 @@ An adversarial test of one sentence in [`00-build-spec.md`](00-build-spec.md): t
 
 ## Verdict
 
-**The 99% claim is not defensible as stated. It needs both a qualification and four gaps closed before it can be made honestly.**
+**As a claim about where the grammar stands, "99% of SaaS use cases" is not defensible. As a target the phases are sequenced to reach, it is.** That is how [`00-build-spec.md`](00-build-spec.md) states it, and this page is the measurement it names.
 
 The precise form of the failure matters, because it is not "the spec is thin". The spec is unusually complete about **the transaction shapes of a SaaS** — a row, a mutation, a page, an async job, a double-entry posting, a signed webhook, a versioned API — and it is more rigorous about several of them (money, tenancy, idempotency, N+1) than the frameworks it is competing with. What it does not cover is **the surfaces a SaaS presents to people**: who may do what, what the application looks like around the data, what a support engineer does at 2am, what the signup form does when a bot finds it, and what the email actually looks like when it arrives.
 
 Counted by surface rather than by sentiment, the table below is **68 rows**: the specced grammar fully covers **12**, partially covers **15**, is silent on **40**, and contains **1** surface (admin access control) that is specified as a boot guardrail the DSL cannot satisfy. That is **under a fifth covered**, not 99%.
+
+**What this count is a measurement of.** It was taken on 2026-08-26 against the grammar as the spec then stood, and it is what produced the three closures the spec now carries — `policy` and `layout` in phase 2, and media as phase 4b. **The count has not been re-taken since**, so read every row below as the finding that motivated the design rather than as the state of the current grammar. Re-taking it is owed, and the command is right here.
 
 Re-derive it rather than trusting the sentence — the table is the source, and it is machine-countable:
 
@@ -55,7 +57,7 @@ Most of the UI-side findings below collapse into one sentence, and it is a desig
 
 > **Ship the shape, not the parts.** Nobody's SaaS is a novel interface. It is a sidebar with nav sections, a topbar with search and an account menu, a stat row, a filterable table, a detail view, a settings area, a members page, a billing page, and an empty state before the first record exists. The framework knows that. It should hand it over, not ship twelve components and let ten thousand teams reassemble the same thing.
 
-This is proposed as axiom 13 in [`01-thesis.md`](01-thesis.md). It is also, in this audit's judgement, **the sharpest practical differentiator Magik has against Rails** — a bigger one than the DSL — and it compounds with the AI-first thesis, because an agent generates whatever the framework makes easiest. If the conventional shell, the empty state and the responsive collapse are defaults, every generated screen inherits them. If they are documentation, every generated screen is a bare table.
+This is axiom 13 in [`01-thesis.md`](01-thesis.md). It is also, in this audit's judgement, **the sharpest practical differentiator Magik has against Rails** — a bigger one than the DSL — and it compounds with the AI-first thesis, because an agent generates whatever the framework makes easiest. If the conventional shell, the empty state and the responsive collapse are defaults, every generated screen inherits them. If they are documentation, every generated screen is a bare table.
 
 The tension it must respect is the one the thesis already names: opinionated defaults with no escape hatch is the Meteor failure mode. Every piece of shipped shape needs its documented override, on the existing ladder in [`08-component-overrides.md`](08-component-overrides.md) — not a second, special system.
 
@@ -217,7 +219,7 @@ Ranked by what an operator hits first:
 
 And where Magik should deliberately **not** follow: kanban, map view and a media-library browser are product surfaces, not admin primitives. Grid view is worth having only because a media-heavy resource is unusable as a table.
 
-**The minimum surface that reaches the bar** — drafted in [`02-dsl-surface.md`](02-dsl-surface.md) as "Proposed — `admin_panel`, expanded":
+**The minimum surface that reaches the bar** — drafted in [`02-dsl-surface.md`](02-dsl-surface.md) under [`admin_panel`](02-dsl-surface.md#admin_panel):
 
 | Must add | Shape |
 |---|---|
@@ -254,7 +256,7 @@ What it needs, and — this is the part worth stating — **every item has an ht
 | **Empty, loading, error states** | `empty:` exists. Loading is `hx-indicator` on the target — **compilable from the table's own shape, so it should be automatic**. Error is an inline state with a retry re-issuing the same request | see the states section above |
 | **Narrow-screen behaviour** | the table becomes a **card list**, not a horizontal scroll | the one place responsiveness costs the author a line: `compact primary: :reference, secondary: %i[status total], action: :issue_invoice` |
 
-The recommendation is that `data_table` gets a full subsection of [`02-dsl-surface.md`](02-dsl-surface.md), not a row in a kit table, and a phase-2 exit criterion of its own.
+So `data_table` gets a full subsection of [`02-dsl-surface.md`](02-dsl-surface.md) rather than a row in a kit table, and a phase-2 exit criterion of its own.
 
 ### `chart`
 
@@ -280,7 +282,7 @@ The upload is not the hard part. The path is:
 
 | Concern | Recommendation |
 |---|---|
-| **Direct-to-storage** | presigned uploads, as the **default and not an option**. A request server proxying a 2GB file collides head-on with decision 9 and with Falcon's fiber model — it occupies a connection for minutes and makes "add another server" a lie about memory. `attachment :video, direct: true` should be the shape, and proxied upload the explicitly-chosen exception for small files |
+| **Direct-to-storage** | presigned uploads, as the **default and not an option**. A request server proxying a 2GB file collides head-on with decision 9 — it occupies a thread for minutes and makes "add another server" a lie about memory. `attachment :video, direct: true` should be the shape, and proxied upload the explicitly-chosen exception for small files |
 | **Multipart and resumable** | required for anything above a few hundred MB. This is a wrapped concern, not a built one — the storage backend's own multipart API, exposed through the seam |
 | **Progress and drag-and-drop with no build step** | the honest answer, stated plainly: **an upload component is the one place the "zero JavaScript" claim needs a footnote.** htmx alone cannot show byte-level progress on a direct-to-storage PUT. The framework ships a small, versioned, non-bundled `magik-upload.js` in `public/` alongside htmx — the same deal htmx itself gets: a fixed asset, no toolchain, no `node_modules`, no build. **The app author still writes no JavaScript**, which is the claim that actually matters; the framework author writes some, once. Saying this is better than either pretending it is free or dropping the feature |
 
@@ -407,7 +409,7 @@ authorize { |user| user.can?(:read, Invoice) }
 
 `policy` at tier 1 takes the actor as an **opaque value**, exactly as `router` at tier 1 takes a path without knowing what a screen is. That is what makes the tier legal rather than a special case.
 
-**The proposed Ruby**, in the house grammar — keyword, name, block of declarations:
+**The Ruby**, in the house grammar — keyword, name, block of declarations:
 
 ```ruby
 # app/policies/invoice.rb  <->  policy :Invoice
@@ -468,7 +470,7 @@ end
 
 `MAGIK_POLICY_UNDECLARED` is the load-bearing one. It makes authorization non-optional the way `tenant_id` is non-optional, which is the only mechanism that survives an agent in a hurry — and the AI-first thesis says plainly that an agent ships a plausible-looking mistake, so the boot has to be where it is caught.
 
-`MAGIK_ADMIN_UNPROTECTED` is then retired as a special case of `MAGIK_POLICY_UNDECLARED`, and stops being a rule no app can satisfy.
+The admin's protection is then `MAGIK_POLICY_UNDECLARED` like every other surface's — **one code rather than two**, and a rule an app can actually satisfy.
 
 **Where it sits in the plan.** `policy` must land **with phase 2**, not with `auth` in phase 7. A `screen` and an `action` are the first two surfaces that need it, and adding an authorization argument to five surfaces after all five exist is the retrofit the spec itself calls "a migration nobody survives" when it is talking about tenancy. Before `auth` ships, the actor is whatever the app's `actor_from` resolves; after it, `Magik::Auth.actor` supplies it. Nothing in the policy layer changes at that handover, which is the test that the tier split is right.
 
@@ -489,7 +491,7 @@ end
 | Composition — "just put the sidebar in every screen's body" | that is the hand-assembly this audit exists to reject, it duplicates the nav in every file, and it makes "which screens exist in the nav" unanswerable at boot |
 | Convention with no construct — a magic `app/layouts/application.html` | there is no template language, by design ([`05-limits.md`](05-limits.md)). The UI is Ruby. A layout that is not a declaration is not in the registry, so `magik routes` cannot say which layout serves a path and no guardrail can check it |
 
-**The proposed Ruby:**
+**The Ruby:**
 
 ```ruby
 # app/layouts/app.rb  <->  layout :App
@@ -654,7 +656,7 @@ Everything after "hand it to the transport" is missing, and everything before "r
 | **No unsubscribe** | required by law for anything non-transactional, and it needs a signed token, a preference record and a `List-Unsubscribe` header |
 | **Thin assertions** | `assert_notified` proves delivery was attempted. It does not assert the subject, the recipient, the body text, the links, or that a plain-text part exists |
 
-**Verdict on the question asked: yes, email warrants its own section in [`02-dsl-surface.md`](02-dsl-surface.md).** Not because it is a new primitive — every item above is a factory over `notification`, `webhook` and the CLI — but because the DSL surface page currently documents `notification` in nine lines, and nine lines is a fair description of a declaration and a wholly unfair description of a subsystem that has to render, inline, degrade, suppress, sign, deliver, retry and record. A section drafted there is proposed as "Proposed — email production".
+**Verdict on the question asked: yes, email warrants its own section in [`02-dsl-surface.md`](02-dsl-surface.md).** Not because it is a new primitive — every item above is a factory over `notification`, `webhook` and the CLI — but because nine lines is a fair description of a declaration and a wholly unfair description of a subsystem that has to render, inline, degrade, suppress, sign, deliver, retry and record. That section is *Email production*, in phase 8.
 
 ### Environments, staging and release
 
@@ -767,7 +769,7 @@ That produces **a good list view**. Measured against what an admin actually does
 | Impersonation with an audit record and a visible banner | no | (a) |
 | An audit of staff actions, queryable | partial — `audited` records the actor; nothing distinguishes or surfaces staff activity | (a) |
 
-The `admin_panel` design has one genuinely excellent property worth defending: **admin actions are the app's actions**, so there is no admin-only write path that skips the guards. Keep that and build the rest on it. And note that the whole surface is blocked on b1 — `MAGIK_ADMIN_UNPROTECTED` cannot be satisfied today, so the admin panel as specced cannot legally boot.
+The `admin_panel` design has one genuinely excellent property worth defending: **admin actions are the app's actions**, so there is no admin-only write path that skips the guards. Keep that and build the rest on it. And note that the whole surface is blocked on b1: an admin panel with no policy verb must not boot, and `policy` is what makes that rule satisfiable rather than decorative.
 
 #### Theming, and "looks good by default"
 
@@ -826,7 +828,7 @@ Ordered by what would hurt the first real Magik app most. The first three are th
 | 4 | Teams, roles, seats, invitations | a (phase 7) | every B2B SaaS needs it in week one, and it is the data model `policy` needs to decide anything | No, but painful |
 | 5 | Abuse defaults — CSRF/headers/cookies, throttling, enumeration, honeypot | a (phase 2/7) | an agent will not add any of them; the first public signup form is the incident | No — worse |
 | 6 | Email production — preview, inlining, plain text, suppression, bounces | a (phase 8) | email is the second-most-used surface of a SaaS after the screen, and the pipeline stops at "hand it to SMTP". An agent cannot even see one | No |
-| 7 | Admin depth — detail views, association browsing, forms, bulk actions, filters, impersonation, staff audit | a (phase 7) + b1 | the 2am screen is a list view. Benchmarked against Avo, only one of four view types exists; and as specced it cannot boot, because `MAGIK_ADMIN_UNPROTECTED` is unsatisfiable | No |
+| 7 | Admin depth — detail views, association browsing, forms, bulk actions, filters, impersonation, staff audit | a (phase 7) + b1 | the 2am screen is a list view. Benchmarked against Avo, only one of four view types existed; and the surface cannot be protected at all until `policy` exists | No |
 | 8 | Environments, per-environment seams, staging, release gating | a (phase 1) | the first deploy hits all of it at once, and a dev/production seam difference is untested by construction | No |
 | 9 | Data lifecycle — soft delete, GDPR export and erasure, retention | a (phase 1/5) | the first support ticket and the first subject request; erasure vs. append-only ledgers needs designing, not adding | No |
 | 10 | Search and cache as app-facing constructs | a (phase 1/2) | two seams listed on the swap-points page with no way for an app to use them is a strange thing to specify |  No |
@@ -855,24 +857,28 @@ The ordering principle: **anything that wraps every surface must land before the
 
 ### What this changes about 1.0
 
-[`../../ROADMAP.md`](../../ROADMAP.md) defines `1.0.0` as all phases green plus three executable proofs. This audit recommends a **fourth**, because the first three can all be true of an application that is insecure and unusable:
+[`../../ROADMAP.md`](../../ROADMAP.md) defines `1.0.0` as all phases green plus three executable proofs. This audit argued for a **fourth**, because the first three can all be true of an application that is insecure and unusable, and it is now the spec's sixth success criterion:
 
 > **A generated app is safe and usable on its first run**, proven by: a cross-tenant actor is denied by every generated surface in a test; the generated shell renders correctly at 375px in a test; the generated signup form throttles and does not reveal whether an account exists.
 
 Each clause is a test, not a document — which is the standard the other three already meet.
 
-### Recommended changes to `00-build-spec.md`
+### Where this audit landed in the spec
 
-The build spec is the owner's verbatim document and is not edited by this audit. Four changes are proposed for the owner to make or reject:
+Every finding above is now part of the design rather than a recommendation about it. The map, so a
+reader of this page knows where to go for the decision rather than the argument:
 
-| # | Change | Why |
-|---|---|---|
-| 1 | Qualify the mission sentence. "Covers 99% of SaaS use cases" becomes a claim about what the grammar expresses, with the named exclusions from [`05-limits.md`](05-limits.md) attached — or the number comes out and the verticals stay | as written it is the sentence a user believes when choosing the framework, and this audit cannot support it |
-| 2 | Add `policy` to the Core DSL Surface under **Phase 2**, not Phase 7, and add "authorization is evaluated in exactly one place" to the Non-negotiable Architecture Decisions | it is an architecture decision, not a battery. Item 4's neighbours are all of that weight |
-| 3 | Add `layout` to Phase 2 and add the layout primitives (`sidebar`, `topbar`, `nav_item`, `breadcrumbs`, `account_menu`, `dashboard_grid`) to the component kit list | the kit as listed has no layout primitives, which is a list nobody noticed was incomplete until an app was written against it |
-| 4 | Add a `:file` field type to Phase 1's type list, and a security-defaults line to Phase 7 | Shrine is already on the wrap list with nothing calling it |
-| 5 | Add a **media phase** between Phase 4 (jobs) and Phase 5, covering attachments, derivatives, and a transcoding seam; and add a media service to the Libraries to Wrap list | the 99% claim explicitly names ecommerce and marketplaces, neither of which is buildable without it |
-| 6 | Expand the `admin_panel` line in Phase 7 to name a detail view, association browsing, forms and bulk actions | as written it specifies a list view, which is a third of an admin |
+| This page's finding | Where it lives in [`00-build-spec.md`](00-build-spec.md) |
+|---|---|
+| The mission sentence is a target, not a description | Mission — and this page is the measurement it names |
+| Authorization is a primitive, in phase 2, evaluated in one place | `policy` in phase 2, and architecture decision 13 |
+| The application shell is a primitive | `layout` in phase 2, with the layout primitives in the kit list |
+| Media is its own phase, wrapped and not built | Phase 4b, plus a media service in Libraries to Wrap |
+| `:file` is a field type and phase-1 work | Phase 1's type list, with `MAGIK_MODEL_UNCONSTRAINED_UPLOAD` |
+| Security is defaults, not documentation | phase 2 and phase 7, one line each |
+| `admin_panel` needs four view types and a policy | Phase 7 |
+| A generated app must be safe and usable on its first run | the sixth success criterion |
+| Anything wrapping every surface lands before the surfaces multiply | the build order — `describe` at step 2, `policy` and `layout` at step 3, media at step 8 |
 
 ## Next
 
@@ -880,7 +886,7 @@ The build spec is the owner's verbatim document and is not edited by this audit.
 |---|---|
 | The spec being audited | [`00-build-spec.md`](00-build-spec.md) |
 | The axioms, including "ship the shape" | [`01-thesis.md`](01-thesis.md) |
-| Where the proposed constructs are drafted | [`02-dsl-surface.md`](02-dsl-surface.md) |
+| Where the constructs are drafted | [`02-dsl-surface.md`](02-dsl-surface.md) |
 | The guardrail bar every proposal here was tested against | [`03-guardrails.md`](03-guardrails.md) |
 | The seams, including the ones this audit adds | [`04-swap-points.md`](04-swap-points.md) |
 | The limits, including the ones this audit adds | [`05-limits.md`](05-limits.md) |

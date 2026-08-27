@@ -20,6 +20,7 @@ Six design consequences. Each is a thing an implementer can check, not a sentime
 
 | Property | Why an agent needs it |
 |---|---|
+| The grammar is a lookup, not a memory | a DSL's cost to its author is **recall**, and recall is the one cost automation removes — but only where the surface is lookupable. `magik describe` is what makes it one ([`11-dsl-as-tool-surface.md`](11-dsl-as-tool-surface.md)). |
 | One block shape for every construct | learning `model` teaches `job`, `ledger` and `api`. The grammar has one lesson, not twenty ([`02-dsl-surface.md`](02-dsl-surface.md)). |
 | Keyword arguments only | no positional booleans to get backwards, no argument order to remember. |
 | Declarations are order-independent | a generated file can be appended to without reasoning about what came before. |
@@ -42,6 +43,7 @@ An agent needs a fast, unattended, machine-readable answer to "is this right yet
 
 | Command | Answers | Status |
 |---|---|---|
+| `magik describe <construct>[.<declaration>] --json` | what the grammar allows: every option, its type, its default, its allowed set and the codes it can raise ([`11-dsl-as-tool-surface.md`](11-dsl-as-tool-surface.md)) | planned |
 | `magik check` | do the guardrails pass, with no server and no ceremony | planned |
 | `magik check --json` | the same, as structured findings with code, location, cause and fix | planned |
 | `magik check --scale` | which query sites will hurt when this app shards | planned |
@@ -56,7 +58,7 @@ An agent's working memory is finite, and a framework whose API does not fit insi
 
 | Budget decision | Effect |
 |---|---|
-| ~25 constructs, one grammar | the whole DSL is a page ([`02-dsl-surface.md`](02-dsl-surface.md)) |
+| ~30 constructs, one grammar | the whole DSL is a page ([`02-dsl-surface.md`](02-dsl-surface.md)) |
 | No SPA, no template language, no build config | three toolchains that are not in the context window because they are not in the framework ([`05-limits.md`](05-limits.md)) |
 | One gem, subsystems under `lib/magik/<subsystem>/` | one dependency, one namespace, one place a symbol can live |
 | Declarations over configuration | an app's behaviour is readable from its declarations; there is no `config/` archaeology to reconstruct |

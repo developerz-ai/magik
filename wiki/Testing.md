@@ -18,8 +18,7 @@ engineer. Prior art for the *runner mechanics* comes from Rails' parallel test r
 `parallel_tests` / `parallel_rspec`: process-per-core, database per worker, a clean split of work.
 That is where the borrowing stops — the framework choice is Minitest and it is not revisited.
 
-How it works underneath — Ractors versus forked workers, template-database cloning, the honest risks
-in each — is [`docs/architecture/04-testing-strategy.md`](../docs/architecture/04-testing-strategy.md).
+How it works underneath — worker threads, template-database cloning, the honest risks in each — is [`docs/architecture/04-testing-strategy.md`](../docs/architecture/04-testing-strategy.md).
 This page is what you type.
 
 ---
@@ -321,7 +320,7 @@ same code / cause / `fix:` contract as every other Magik error — see [Error co
 | Behaviour | Detail |
 |---|---|
 | **All cores by default** | `workers: :auto` means every core. You do not configure this to get it |
-| **One worker per test file group** | files are grouped and each group runs in its own Ractor. Tests within a file run in order |
+| **One worker per test file group** | files are grouped and each group runs on its own worker thread. Tests within a file run in order |
 | **A database per worker** | each worker gets its own database, cloned from a template. Workers never see each other's rows |
 | **Transactional rollback per test** | each test runs inside a transaction that is rolled back at the end. **No truncation** — that is where the speed comes from |
 | **Frozen clock per test** | time does not advance under you between two assertions |
@@ -371,7 +370,8 @@ nproc                                  # what "all cores" means on this box
 magik test --workers 1 --json | jq .duration_ms    # the serial baseline the parallel run is beating
 ```
 
-The honest risks in the parallel design — Ractor maturity on TruffleRuby most of all — are named in
+The honest risks in the parallel design — chiefly that thread-parallel tests demand genuinely
+shared-nothing tests — are named in
 [`docs/architecture/04-testing-strategy.md`](../docs/architecture/04-testing-strategy.md) rather than
 smoothed over here.
 

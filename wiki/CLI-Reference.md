@@ -66,7 +66,7 @@ That triple is `Magik::Error#to_h` — one object, three renderings.
 | `magik generate model\|screen\|component\|action\|job\|migration <name>` | scaffold one declaration plus its test | planned |
 | `magik generate agents --update` | rewrite the framework-owned half of a generated app's AI harness | planned |
 | `magik console` | a REPL with the app loaded | planned |
-| `magik server` | boot Falcon with hot reload | planned |
+| `magik server` | boot the app server with hot reload | planned |
 | `magik worker` | run background jobs | planned |
 | `magik test [paths]` | the test suite | planned |
 | `magik check` | the guardrails, as a linter | planned |
@@ -189,7 +189,7 @@ magik server --no-reload
 | `--port` / `--host` | bind address. Defaults `3000` / `127.0.0.1` |
 | `--env <name>` | environment |
 | `--no-reload` | disable hot reload |
-| `--workers <n>` | Falcon workers |
+| `--workers <n>` | worker threads in the server's pool |
 
 Boots on `MAGIK_SETUP_INCOMPLETE` with `fix: run bin/setup` if there is no bundle or database — an
 error naming the next command, not a stack trace. See [Development loop](Development-Loop.md).

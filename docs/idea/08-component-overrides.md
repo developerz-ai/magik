@@ -6,7 +6,7 @@ The component kit is an opinionated default, so it needs the same escape hatch e
 
 ## Why this page exists
 
-Spec item 11 requires a swap point for every opinionated default, and names five infrastructure backends. The kit — `button`, `form`, `field`, `data_table`, `modal`, `toast`, `card`, `list`, `grid`, `tabs`, `stat`, `chart` — is an opinionated default too, and a much more visible one: it is on every screen the user's customers see.
+Spec item 11 requires a swap point for every opinionated default, and names five infrastructure backends. The kit — `button`, `form`, `field`, `data_table`, `modal`, `toast`, `card`, `list`, `grid`, `tabs`, `stat`, `chart`, plus the layout primitives `sidebar`, `topbar`, `nav_item`, `breadcrumbs`, `account_menu` and `dashboard_grid` — is an opinionated default too, and a much more visible one: it is on every screen the user's customers see. A `layout` is built out of those primitives, so replacing one is this ladder and not a second system.
 
 A framework whose modal cannot be replaced is the Meteor failure mode one layer up ([`01-thesis.md`](01-thesis.md)): pleasant until the day the design system says otherwise, and then a rewrite. So the rule from [`04-swap-points.md`](04-swap-points.md) applies unchanged — **every opinionated default has a config-level or declaration-level swap, and a swap ships proven, not promised.**
 
@@ -90,7 +90,7 @@ end
 
 Kit components compose each other. `data_table` opens a row in a `modal`; `form` composes `field`; `toast` is raised by `action`. So `data_table` must be able to open **your** modal without knowing anything about it.
 
-Each kit component therefore publishes a contract — **props in, slots, htmx targets, events out** — and a replacement declares `satisfies Magik::Kit::Modal`. Boot verifies it.
+Each kit component therefore publishes a contract — **props in, slots, htmx targets, events out, and its accessibility obligations** — and a replacement declares `satisfies Magik::Kit::Modal`. Boot verifies it.
 
 | Contract element | Meaning | Example (`Modal`) |
 |---|---|---|
@@ -98,6 +98,7 @@ Each kit component therefore publishes a contract — **props in, slots, htmx ta
 | Slots | named regions a caller fills | `:content`, `:actions`, optional `:header` |
 | htmx targets | the DOM ids/selectors the framework will aim a swap at | `dom_id`, `#{dom_id}-content` |
 | Events out | what the component emits, which other components listen for | `magik:modal:open`, `magik:modal:close` |
+| Accessibility | the roles, the labelled-by relationship, the focus management and the keyboard path the replacement must also provide | `role="dialog"`, `aria-labelledby` the `:header` slot, focus trapped while open, `Esc` closes |
 
 | Failure | Code | `fix:` |
 |---|---|---|
@@ -141,4 +142,4 @@ Silent magic is the failure being designed against; a shadow you cannot see is e
 
 The server renders the markup; you may wire whatever you like to it ([`05-limits.md`](05-limits.md)).
 
-And whatever you replace still obeys the boot guardrails — a replacement component holds no in-process state across requests, and renders no timestamp without an explicit zone ([`03-guardrails.md`](03-guardrails.md)). The escape hatch is from Magik's *aesthetics*, never from its invariants.
+And whatever you replace still obeys the boot guardrails — a replacement component holds no in-process state across requests, and renders no timestamp without an explicit zone ([`03-guardrails.md`](03-guardrails.md)). Accessibility is in the same category, which is why it is a contract element rather than advice: a rung-3 replacement that drops the focus trap fails at boot exactly as a missing slot does. The escape hatch is from Magik's *aesthetics*, never from its invariants.

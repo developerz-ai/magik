@@ -28,7 +28,7 @@ magik help                                             # every command that runs
 | Every subsystem module is a documented stub | referencing one loads a module that raises `NotImplementedError` naming the spec section it will implement | `ruby -Ilib -e 'require "magik"; puts Magik::SUBSYSTEMS.keys.inspect'` lists all twenty |
 | `dummy/` and `examples/` are empty | there is no reference app to read, because there is no framework to write one against | the DSL examples on this wiki are the closest thing, and none of them has been executed |
 | No benchmark exists | the spec targets 1,000 tests in under 10s. Nothing has been measured, because there is no test runner | do not quote a performance number for Magik. There is none to quote |
-| TruffleRuby is untested locally | the production runtime is TruffleRuby; the development machine has CRuby 3.2.3. Anything TruffleRuby-specific runs in CI | assume nothing about Ractor behaviour until CI has run it |
+| TruffleRuby is barely exercised | the production runtime is TruffleRuby and the development default is CRuby. The only TruffleRuby behaviour anyone has measured is `scripts/probes/runtime.rb` ([results](../docs/architecture/12-runtime-verification.md)); everything else runs in CI | assume nothing beyond what that page records |
 | No swap point has been proven | every swap on this wiki — DB, cache, jobs, search, realtime — is a design commitment with no implementation and no test on either side | the spec requires a **passing test** before a swap is claimed. None exists |
 
 ---

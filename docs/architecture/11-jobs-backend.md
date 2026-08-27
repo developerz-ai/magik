@@ -25,7 +25,8 @@ Four facts about Magik decide most of the comparison before quality enters it.
 | **Sequel, not ActiveRecord** | spec item 3 | a backend whose storage layer *is* ActiveRecord is not adaptable; it is a second ORM in the process |
 | **Not a Rails app** | the whole spec | a gem with a runtime dependency on `railties` drags a framework in to run a queue |
 | **TruffleRuby in production** | spec item 1 | anything with a threading or forking model tuned to MRI needs verifying, not assuming |
-| **Falcon, fibers, not thread-per-job** | spec item 1, [`../ops/README.md`](../ops/README.md) | the connection pool must be fiber-keyed, and a job that does not yield blocks its whole process |
+| **Threads, genuinely parallel** | measured — [`12-runtime-verification.md`](12-runtime-verification.md) | the worker runs a bounded thread pool. Concurrency is a declared thread count, and the OS preempts a CPU-bound job rather than letting it stall its peers |
+| **`fork` is unavailable on TruffleRuby** | measured — same page | any backend whose scaling story is "fork a worker per core" has no scaling story here. More workers means more containers |
 
 The first two are not preferences. `activerecord` and `railties` are declared runtime dependencies or they are not, and that is checkable rather than arguable.
 
@@ -63,7 +64,7 @@ Using it would mean loading ActiveRecord into a Sequel application to run the qu
 
 `activejob`, `activerecord`, `railties` >= 7.1. Its own README: "The minimum supported version of Rails is 7.1." Same analysis, same outcome.
 
-Two of its design choices are worth stealing regardless, and are picked up below: claiming via `FOR UPDATE SKIP LOCKED` into a separate `ready_executions` table rather than a status column on the job row, and a worker that can be configured with `fibers: N` instead of `threads: N`.
+Two of its design choices are worth stealing regardless, and are picked up below: claiming via `FOR UPDATE SKIP LOCKED` into a separate `ready_executions` table rather than a status column on the job row, and a worker whose concurrency is a declared number rather than an implicit one.
 
 ### Que — the only candidate that fits, with real problems
 
@@ -85,7 +86,7 @@ It also ships `Que::Sequel::Model` for inspecting the queue, supports raw `PG` c
 | **No release in ~22 months** | v2.4.1 shipped 2024-10-28. The most recent commit on `master` is 2026-01-01, and it is a CI fix. The repo is not archived (2,322 stars, 59 open issues, checked 2026-08-26) — it is *quiescent*, which is a different risk from abandoned but is not zero |
 | **MRI is the stated platform** | the README's compatibility list is "MRI Ruby 2.7+". TruffleRuby is neither supported nor refused; it is untested. Mitigated by Que being pure Ruby with no dependencies — the only native code beneath it is `pg`, which Magik carries anyway |
 | **The ecosystem is a version behind** | Que's README lists `que-scheduler` (cron), `que-locks` and `que-unique` (uniqueness) and `que-web` (dashboard) under "These projects are tested to be compatible with Que **1.x**". Magik's `job` DSL promises `schedule cron:`, `unique_while_running` and `magik jobs status` — every one of which is a satellite gem pinned to the previous major |
-| **The worker is not the worker Magik needs** | Que runs a thread pool plus a dedicated locking thread. Magik needs `magik worker` with fiber concurrency, Magik's own retry/backoff DSL, Magik's stable log field set ([`06-observability.md`](06-observability.md)) and Magik's error codes. None of that is Que's |
+| **The worker is not the worker Magik needs** | Que runs a thread pool plus a dedicated locking thread — which is now the *right* shape and the wrong implementation, since it is tuned around MRI's GVL. Magik needs `magik worker` with its own thread-pool concurrency, Magik's own retry/backoff DSL, Magik's stable log field set ([`06-observability.md`](06-observability.md)) and Magik's error codes. None of that is Que's |
 
 Add those up and the honest size of the wrap becomes visible: **Que supplies the table, the migrations, and the claim query. Magik writes everything above them anyway.**
 
@@ -116,7 +117,7 @@ Concretely, in `lib/magik/jobs/backends/postgres.rb` ([`01-module-map.md`](01-mo
 | enqueue on the caller's Sequel connection | **Que** (`Que.connection = DB`) | this is the transactional guarantee, and Que already does it correctly |
 | claim / lock / unlock query | **Que** | the recursive CTE is the subtle part |
 | `LISTEN`/`NOTIFY` wakeup | **Que** for jobs, Magik's `realtime` transport for everything else — see [One mechanism, two subsystems](#one-mechanism-two-subsystems) | already built, already correct |
-| worker loop, fiber concurrency, drain, signals | **Magik** | Que's thread pool is not Magik's concurrency model |
+| worker loop, thread-pool concurrency, drain, signals | **Magik** | Que's thread pool is close in shape but is sized and reasoned about for MRI's GVL; the drain, signal and shutdown-timeout behaviour is Magik's anyway |
 | `retries`, `backoff:`, `discard_on`, `timeout:`, `on_failure` | **Magik** | this is DSL surface; it cannot be delegated |
 | `schedule cron:` / `every:` | **Magik** | Que has none; the satellite gem is pinned to 1.x |
 | `unique_while_running`, enqueue-time dedup | **Magik** | same |
@@ -214,57 +215,60 @@ Two costs, stated:
 | A dedicated connection per listening process | a `LISTEN` connection is in a session state and cannot be handed back to a pool. Every worker and every app process listening for realtime holds one. This is the thing that scales with process count and hits Postgres's `max_connections` first |
 | Bulk enqueue defeats it | Que's docs: enqueueing many jobs individually "and running the notify trigger for each ... can become a performance bottleneck." `Que.bulk_enqueue` inserts in one query and by default **does not fire the trigger**, so those jobs wait for the next poll. A bulk enqueue is a latency decision, and Magik's DSL must make that visible rather than surprising |
 
-## Fibers and Falcon
+## Threads in the worker
 
-Workers are fiber-based, not thread-per-job. Three consequences, in ascending order of how much trouble they cause.
+`magik worker` runs a bounded **thread pool**: one job, one worker thread. On TruffleRuby those threads are genuinely parallel — 2.55–3.54× on 4 threads, measured ([`12-runtime-verification.md`](12-runtime-verification.md)) — so a worker process uses the cores it is given. Three consequences, in ascending order of how much trouble they cause.
 
-### The connection pool must be fiber-keyed
+### The connection pool is thread-keyed — which is Sequel's default
 
-Sequel's concurrency primitive is `Thread.current` by default. Under Falcon, hundreds of fibers share one thread, so a thread-keyed pool hands **the same connection to every concurrently-suspended fiber** and they interleave protocol frames on it. The `pg` README is blunt about the result: *"it is not safe to access any PG object simultaneously from more than one thread or fiber unless the object is frozen."*
+Sequel's concurrency primitive is `Thread.current`. One job, one worker thread, one `Thread.current` — so the default keying is the correct keying and each in-flight job gets its own connection. That is what satisfies the `pg` constraint: *"it is not safe to access any PG object simultaneously from more than one thread or fiber unless the object is frozen."* Nothing has to be configured to make it true.
 
-Sequel ships the fix as a one-line extension:
+**What must not happen is `Sequel.current` being changed underneath the worker.** Sequel ships extensions that re-key checkout on a different primitive; loading one turns a correct pool into two jobs sharing a connection, and the failure mode is corrupted results rather than an exception. So the boot check is an assertion, not a configuration: **`Sequel.current` resolves to a `Thread`**, verified at worker boot, failing loudly if it does not ([`../idea/03-guardrails.md`](../idea/03-guardrails.md)).
 
-```ruby
-Sequel.extension :fiber_concurrency
-```
-
-> The `fiber_concurrency` extension changes the default concurrency primitive in Sequel to be `Fiber.current` instead of `Thread.current`. This is the value used in various hash keys to implement safe concurrency.
-> — `lib/sequel/extensions/fiber_concurrency.rb`, Sequel
-
-This is a **correctness requirement, not a tuning option**, and the failure mode without it is corrupted results rather than an exception. It belongs in Magik's boot path unconditionally, with a boot check that verifies `Sequel.current` resolves to a Fiber ([`../idea/03-guardrails.md`](../idea/03-guardrails.md)).
-
-**Pool size, not concurrency, is the throughput knob.** `magik worker --concurrency 200` against a pool of 10 gives ten jobs doing database work and 190 fibers parked on the pool checkout. The number that must be reported by `magik doctor` and logged at worker boot is the ratio, because the misconfiguration is silent — it looks like slowness, not like an error.
+**Pool size and concurrency are one number, not two.** `magik worker --concurrency 20` needs a pool of 20; anything smaller means threads blocking on checkout and then raising `Sequel::PoolTimeout`, anything larger is connections charged against the server's `max_connections` that no thread can use. `magik doctor` reports the pair and says so when they disagree, because the misconfiguration is silent — it looks like slowness, not like an error.
 
 One detail worth copying from Que: the advisory locks for **all** in-flight jobs are held on a single dedicated locking connection, while the jobs themselves run on pool connections. That is what stops advisory-lock claiming from pinning one connection per in-flight job. It also means the locking connection dying releases every lock at once — which is the desired behaviour, and is why it must be the *worker's* connection and not one borrowed from the app pool.
 
-### A job that blocks on IO — the good case
+### A job that blocks on IO — the common case
 
-This is what the fiber model is for. A job waiting on an HTTP call, an S3 upload or a slow query yields, and the other fibers run. One worker process holds thousands of in-flight slow jobs at roughly the memory cost of their stack frames.
+Most background work is IO-bound: an HTTP call, an S3 upload, a slow query. A worker thread waiting on a socket costs a thread and nothing else — **no GVL, so it blocks nobody**, and the other in-flight jobs keep running in parallel.
 
-It works **only if every blocking call routes through the fiber scheduler**, which is a property of the library, not of the job. Postgres is covered:
+The number that governs this is `--concurrency`, and it is a real ceiling rather than a limit nobody hits: each in-flight job is an OS thread with an OS thread's stack. A worker holding a hundred slow HTTP calls is holding a hundred threads. **How many one process actually sustains is unmeasured**, is on the owed list in [What is not decided](#what-is-not-decided), and no number appears here.
 
-> Pg is fully compatible with `Fiber.scheduler` introduced in Ruby-3.0 since pg-1.3.0. … All possibly blocking IO operations are routed through the `Fiber.scheduler` if one is registered for the running thread. That is why pg internally uses the asynchronous libpq interface even for synchronous/blocking method calls.
-> — [`ruby-pg` README](https://github.com/ged/ruby-pg)
+What the model does *not* require is the property that would have been hardest to guarantee: **a blocking call inside a C extension blocks its own thread and nobody else's.** There is no reactor to stall, so there is no per-gem audit of whether every dependency yields correctly. That is one fewer ongoing obligation on the framework and on every gem it touches.
 
-The same README lists exceptions where blocking states are *not* passed to the scheduler — large-object methods, GSSAPI/LDAP authentication, and a connection string using `service` without `host` and `port`. The last one is a config shape a deployment can wander into by accident, so `magik doctor` should reject it on a fiber-scheduled process rather than let the reactor stall.
+`pg` is the right driver for the usual reason and one specific one: "Add support for TruffleRuby. It is regularly tested as part of our CI" ([`ruby-pg` README](https://github.com/ged/ruby-pg)).
 
-The general rule Magik has to enforce and document: **a gem that calls a C function which blocks the OS thread blocks every fiber in the process.** Not every gem in the ecosystem is scheduler-aware. This is a real, ongoing limit and belongs in [`../idea/05-limits.md`](../idea/05-limits.md) rather than being discovered per gem.
+One open question sits upstream of all of it and is in [What is not decided](#what-is-not-decided): TruffleRuby treats native extensions as thread-unsafe by default and serialises them behind a global lock unless they mark themselves safe. **If `pg` does not get that lock lifted, the worker's threads serialise on every query.** It is unmeasured, and it belongs in [`../idea/05-limits.md`](../idea/05-limits.md) until it is not.
 
-### A job that blocks on CPU — the trap
+### A job that blocks on CPU — the expensive case
 
-**Fibers are cooperative. There is no preemption. None.** A job spinning in Ruby — a large PDF render, an image transform, a report aggregating a million rows in memory, a tight loop over a big array — yields nothing, so for its whole duration that worker process runs *one* job. Every other fiber stops: the other in-flight jobs, the `LISTEN` loop, the shutdown handler.
+Worker threads are OS threads and the OS scheduler preempts them. A job spinning in Ruby — a large PDF render, an image transform, a report aggregating a million rows in memory — **does not stall the process.** The other in-flight jobs, the `LISTEN` loop and the shutdown handler keep running, and on TruffleRuby they keep running *in parallel* rather than merely taking turns.
 
-It is worse than the thread case, and the comparison is the point. On MRI, the GVL forces a switch roughly every 100ms, so a CPU-bound job starves its peers but does not freeze them. On TruffleRuby, threads run genuinely in parallel. **Fibers do neither.** A framework that says "concurrency via Fibers, not threads" has quietly made CPU-bound work a different category of thing, and the framework has to say so.
+| | A CPU-bound job does this to its peers |
+|---|---|
+| Threads on MRI | starves them. The GVL forces a switch, so they progress slowly |
+| Threads on TruffleRuby (**the model**) | costs them **one core**. No GVL, genuine parallelism — the remaining threads run at full speed on the remaining cores |
 
-Three consequences, and each is a design output rather than advice:
+So the cost of a CPU-bound job is capacity, not availability: it occupies a core for its duration, and a queue of them occupies the box.
+
+**`timeout:` is honourable here.** `Timeout` raises into the target from a timer thread; the timer thread runs, and it interrupts a spinning Ruby loop. `retries timeout: 30.seconds` on a CPU-bound job is a promise the runtime can keep.
+
+Two limits survive, and they are narrow:
+
+| Limit | |
+|---|---|
+| A blocking call inside a C extension is still not interruptible | the exception is raised at the next Ruby-level check point, and a native call that never returns has none. This is the ordinary Ruby `Timeout` caveat, true on every engine, and it is a documentation obligation rather than a DSL refusal |
+| `Timeout` interrupts at an arbitrary point | the job is left wherever it was. This is an argument for `idempotent_by` and for doing writes in a short final transaction ([Long-running jobs](#long-running-jobs)), not an argument against the flag |
+
+Two design outputs follow, and each is a rule rather than advice:
 
 | Consequence | |
 |---|---|
-| **`timeout:` cannot be honoured on CPU-bound work** | `Timeout` works by raising into the target from elsewhere. For a fiber that never yields, "elsewhere" never runs. `retries timeout: 30.seconds` on a CPU-bound job is a promise the runtime cannot keep — so either the DSL refuses it or the docs state it, and silently accepting it is not an option |
-| **CPU-bound work needs its own queue and its own workers** | `queue :heavy`, served by workers running at low concurrency, on their own machine shape. This is why `queue` exists in the DSL and is not decoration |
-| **`magik check --scale` should flag the shape** | a `perform` block with no IO call and an unbounded loop over a collection is a heuristic, not a proof — so a warning, per the rule in [`../idea/03-guardrails.md`](../idea/03-guardrails.md) that a guardrail with legitimate counter-examples warns rather than refuses |
+| **CPU-bound work gets its own queue and its own workers** | `queue :heavy`, served by workers at low concurrency on their own machine shape. This is why `queue` exists in the DSL and is not decoration |
+| **`magik check --scale` flags the shape** | a `perform` block with no IO call and an unbounded loop over a collection is a heuristic, not a proof — so a warning, per the rule in [`../idea/03-guardrails.md`](../idea/03-guardrails.md) that a guardrail with legitimate counter-examples warns rather than refuses |
 
-The honest summary for [`10-performance-defaults.md`](10-performance-defaults.md): **fibers make IO-bound jobs nearly free and make CPU-bound jobs a deployment topology decision.** Most SaaS background work is IO-bound, which is why this is still the right default. It is not a free lunch and it should not be sold as one.
+The honest summary for [`10-performance-defaults.md`](10-performance-defaults.md): **a job costs a thread for its duration, whatever it is doing.** IO-bound jobs are cheap in CPU and not free in threads; CPU-bound jobs cost a core. The per-process ceiling that follows is unmeasured and must not be sold as anything else.
 
 ## Job table design
 
@@ -490,7 +494,8 @@ Written down so nobody reads the recommendation above as settled fact.
 | Open | Resolved by |
 |---|---|
 | Does Que run on TruffleRuby? | a spike, before Phase 4 starts. Its answer picks between "wrap Que" and "own it" |
-| Does the `pg` fiber-scheduler path hold under TruffleRuby's C extension support? | the same spike — this one gates the fiber worker model, not just the gem choice |
+| Does `pg` run without TruffleRuby's global C-extension lock? | the same spike. TruffleRuby treats native extensions as thread-unsafe by default and serialises them unless they mark themselves safe; a global lock around every query would erase the parallelism the worker's thread pool depends on. **This now gates the thread worker model, not just the gem choice** |
+| How many concurrent jobs one worker process actually holds | a load test. Each in-flight job is an OS thread; the per-process ceiling and its memory cost are unmeasured ([`12-runtime-verification.md`](12-runtime-verification.md)) |
 | What Magik's own throughput is | a benchmark against real code. There is none, and no number appears on this page that Magik produced |
 | Whether advisory-lock claiming survives contact with a real deployment's connection topology | first real deployment. The PgBouncer incompatibility is known; whether it is a blocker is not |
 | Whether the recurring-job row claim is enough, or a scheduler process is needed | implementation. The row claim is simpler and should be tried first |
@@ -502,4 +507,4 @@ Written down so nobody reads the recommendation above as settled fact.
 - [`01-module-map.md`](01-module-map.md) — where `lib/magik/jobs/backends/` sits and what it may require
 - [`06-observability.md`](06-observability.md) — the `job` log event and `magik jobs status`
 - [`../ops/README.md`](../ops/README.md) — the worker process, drain, and what scales how
-- [`10-performance-defaults.md`](10-performance-defaults.md) — the cost-is-opt-in rule this page's fiber trade-offs feed into
+- [`10-performance-defaults.md`](10-performance-defaults.md) — the cost-is-opt-in rule this page's concurrency trade-offs feed into

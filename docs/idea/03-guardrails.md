@@ -33,6 +33,28 @@ Every guardrail named in [`00-build-spec.md`](00-build-spec.md), plus the ones i
 | Timestamps need a zone | a `timestamp` rendered in a component with no `zone:` argument | boot | `MAGIK_RENDER_TIMESTAMP_NO_ZONE` | `magik check --render` |
 | Tenant scoping at scale | a query site with no `tenant_id` in its `WHERE` clause | `magik check --scale` (warning) | `MAGIK_SCALE_UNSCOPED_QUERY` | `magik check --scale --json` |
 
+### Authorization, layout and uploads
+
+The three the spec adds beside the list above. Each is derivable from the frozen registry,
+consequential, unambiguous and fixable — the four bars at the bottom of this page.
+
+| Guardrail | What fails | When | Code | `fix:` |
+|---|---|---|---|---|
+| **Every surface reaching a model names a policy verb** | a `screen`, `action`, `api resource`, `channel`, `job` or `admin_panel` with no `policy:` and no explicit `policy: :public` / `policy: :system` | boot | `MAGIK_POLICY_UNDECLARED` | `magik describe policy --json` |
+| A policy predicate performs no I/O | a `can` block issuing a query — `live` re-evaluates one per subscriber per change, so a query here is one round trip per row per open socket | boot | `MAGIK_POLICY_IO` | `magik errors explain MAGIK_POLICY_IO` |
+| A named verb exists | `policy: %i[Invoice publish]` where `policy :Invoice` declares no `:publish` | boot | `MAGIK_POLICY_UNKNOWN_VERB` | `magik registry --kind policy --json` |
+| Denial is the default | a `policy` block with no `default :deny` | boot | `MAGIK_POLICY_NO_DEFAULT` | `magik errors explain MAGIK_POLICY_NO_DEFAULT` |
+| A rule receiving a `nil` record denies | a row-level rule that would pass on an absent record | boot (static) | `MAGIK_POLICY_NULL_PASSES` | `magik errors explain MAGIK_POLICY_NULL_PASSES` |
+| Every screen has a layout | a `screen` with no `layout:` and no `layout: :None` | boot | `MAGIK_LAYOUT_MISSING` | `magik generate layout App` |
+| Navigation cannot rot | a `nav_item` naming a screen that does not exist | boot | `MAGIK_LAYOUT_UNKNOWN_SCREEN` | `magik registry --kind screen --json` |
+| Uploads are bounded | a `:file` field or an `attachment` with no `max_size` and no `content_types` — an unbounded upload field is an unbounded storage bill and a trivial DoS | boot | `MAGIK_MODEL_UNCONSTRAINED_UPLOAD` | `magik describe model.attachment --json` |
+
+`MAGIK_POLICY_UNDECLARED` is the load-bearing one. It makes authorization non-optional the way
+`tenant_id` is non-optional, which is the only mechanism that survives an agent in a hurry. An
+`admin_panel` with no `policy:` is **not** a separate rule — it is this one, and the catalogue
+deliberately carries one code rather than two, because the admin is a surface like any other and the
+guardrail that protects it is the guardrail that protects all of them.
+
 ### Implied by the non-negotiable architecture decisions
 
 | Guardrail | What fails | When | Code |

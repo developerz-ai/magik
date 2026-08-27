@@ -120,7 +120,7 @@ test/magik/<subsystem>/<concern>_test.rb
 | Module nesting | nested, not compact — `module Magik; module Model; class Definition` — so constant lookup is unambiguous. |
 | Naming | `CamelCase` classes and modules, `snake_case` methods and variables, `SCREAMING_SNAKE` constants, `?`/`!` used for their conventional meanings only. |
 | Keyword arguments | for anything with two or more parameters, and always for booleans. No positional flags. |
-| Frozen state | constants holding collections are `.freeze`d. The declaration registry is frozen when boot completes — that is what makes the stateless guardrail checkable, and what keeps a Ractor-parallel test run honest ([`04-testing-strategy.md`](04-testing-strategy.md)). |
+| Frozen state | constants holding collections are `.freeze`d. The declaration registry is frozen when boot completes — that is what makes the stateless guardrail checkable, and what keeps a thread-parallel test run honest ([`04-testing-strategy.md`](04-testing-strategy.md)). |
 | Mutable globals | none after boot. No `$globals`, no class-level mutable accumulators outside the registry. |
 | Comments | explain **why**. Never what. |
 | Lint | RuboCop plus `rubocop-minitest`, `rubocop-rake`, `rubocop-performance`. The config in the repo root is the arbiter; disabling a cop inline needs a comment naming the reason. |
@@ -131,8 +131,8 @@ test/magik/<subsystem>/<concern>_test.rb
 |---|---|
 | Production target | TruffleRuby. |
 | Development floor | CRuby ≥ 3.2 (`required_ruby_version = ">= 3.2"`). |
-| TruffleRuby-specific behaviour | verified in CI, never in a local hook — no TruffleRuby is assumed on a developer machine, `As of 2026-08-26`. |
-| Ractor discipline | anything intended to cross a Ractor boundary must be frozen or shareable. Do not add mutable shared state to a subsystem without saying how the test runner is meant to survive it. |
+| TruffleRuby-specific behaviour | verified by `ruby scripts/probes/runtime.rb` and in CI, never asserted from a laptop ([`12-runtime-verification.md`](12-runtime-verification.md)). |
+| Concurrency | real, parallel OS threads. TruffleRuby has no GVL, so **anything shared between threads must be frozen or synchronised**. Do not add mutable shared state to a subsystem without saying how the server and the test runner are meant to survive it. |
 
 ## YARD on every public method
 

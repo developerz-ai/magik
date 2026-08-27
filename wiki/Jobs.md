@@ -109,7 +109,8 @@ transaction. That trade is stated here rather than discovered later; see
 [`docs/idea/04-swap-points.md`](../docs/idea/04-swap-points.md).
 
 Which gem the Postgres backend wraps, why advisory locks rather than `SELECT … FOR UPDATE SKIP
-LOCKED`, what fibers cost a CPU-bound job, and where a Postgres queue stops being the right answer:
+LOCKED`, what a CPU-bound job costs its worker, and where a Postgres queue stops being the right
+answer:
 [`docs/architecture/11-jobs-backend.md`](../docs/architecture/11-jobs-backend.md).
 
 ## Guardrails

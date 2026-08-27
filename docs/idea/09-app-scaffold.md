@@ -321,7 +321,7 @@ feature parallelisable.
 | `action-author` | `app/actions/`, `jobs/`, `channels/`, `flows/`, `webhooks/`, `api/` | the whole write side. Keeping it in one agent is what keeps `ls app/actions/` the complete list of writes |
 | `screen-builder` | `app/screens/`, `app/components/`, `config/theme.rb`, `locales/` | the only agent that needs the component kit and the four-rung override ladder ([`08-component-overrides.md`](08-component-overrides.md)) |
 | `ledger-author` | `app/ledgers/` | one directory, deliberately. Everywhere else a wrong guess is a bug; here it is a wrong number in someone's accounts. Double-entry, append-only, no balance columns |
-| `test-writer` | `test/` | tests have their own rules — no shared state, no truncation, no wall clock — set by a parallel Ractor runner that does not exist yet and will not forgive tests written without it |
+| `test-writer` | `test/` | tests have their own rules — no shared state, no truncation, no wall clock — set by a parallel worker-thread runner that does not exist yet and will not forgive tests written without it |
 | `guardrail-reviewer` | **nothing. Read-only, no `Write` or `Edit`** | a reviewer that fixes what it finds stops reporting what it found. It is also the whole gate until `magik check` exists |
 
 | Command | Does | Reads |

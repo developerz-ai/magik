@@ -95,7 +95,7 @@ Named, because a page claiming reloading is solved would be the dishonest versio
 ## The dev server
 
 ```bash
-magik server                       # Falcon, dev mode, watching
+magik server                       # Puma, dev mode, watching
 magik server --port 3000
 magik server --report=reload       # reload timings
 magik server --restart-on-boot-change
@@ -103,7 +103,7 @@ magik server --restart-on-boot-change
 
 | Property | Detail |
 |---|---|
-| Server | Falcon in dev and in production — one server, so dev behaviour predicts production behaviour |
+| Server | Puma in dev and in production — one server, so dev behaviour predicts production behaviour |
 | Watching | the OS file-watch API where available, polling as a fallback; the watched set is `app/`, `domains/`, `config/locales/` |
 | Debounce | rapid saves coalesce into one rebuild |
 | Target | sub-second from save to served, measured by `--report=reload` |

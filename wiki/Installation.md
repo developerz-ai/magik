@@ -36,15 +36,15 @@ magik help                                             # the commands that exist
 
 | Runtime | Role | Required version |
 |---|---|---|
-| **TruffleRuby** | the **production target**. Concurrency is Ractors and Fibers, not a thread per request | the version CI pins — read `.github/workflows/` |
-| **CRuby** | supported for tooling and local development: editors, RuboCop, YARD, running the framework's own unit tests | `>= 3.2` |
+| **TruffleRuby** | the **production target**. Concurrency is real, parallel OS threads — TruffleRuby has no GVL | the version CI pins — read `.github/workflows/` |
+| **CRuby** | **development tooling only, never a production target**: editors, RuboCop, YARD, running the framework's own unit tests | `>= 3.2` |
 
 `required_ruby_version` in the gemspec is `>= 3.2`, which both satisfy. That is deliberately the
 looser of the two constraints: the gem installs anywhere modern, and the **runtime** decision is the
 app's deployment choice, not an install-time gate.
 
 **The framework is designed against TruffleRuby and will be measured on it.** CRuby is a development
-convenience. Where the two diverge — Ractor semantics most of all — TruffleRuby is the behaviour the
+convenience. Where the two diverge — thread parallelism most of all — TruffleRuby is the behaviour the
 docs describe, and a CRuby-only difference is a bug in the docs, not in TruffleRuby.
 
 Anything TruffleRuby-specific runs in CI, not in a local hook. Do not assume a contributor's machine

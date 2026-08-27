@@ -1,6 +1,6 @@
 # Operations
 
-The deployment shape a Magik app is designed for: stateless app servers behind a load balancer, Falcon, Postgres, and a worker process.
+The deployment shape a Magik app is designed for: stateless app servers behind a load balancer, Puma, Postgres, and a worker process.
 
 **Status:** spec only — **none of this runs yet.** There is no server, no worker, no Dockerfile, no chart, and no app to deploy. This page describes the intended topology so the framework is built toward it, not a runbook for anything that exists. Reviewed 2026-08-26.
 
@@ -14,7 +14,7 @@ The deployment shape a Magik app is designed for: stateless app servers behind a
             ┌────────────────┼────────────────┐
             ▼                ▼                ▼
       ┌──────────┐     ┌──────────┐     ┌──────────┐
-      │  app 1   │     │  app 2   │     │  app N   │   Falcon · stateless · identical
+      │  app 1   │     │  app 2   │     │  app N   │   Puma · stateless · identical
       └────┬─────┘     └────┬─────┘     └────┬─────┘
            └────────────────┼────────────────┘
                             ▼
@@ -49,8 +49,8 @@ The guardrail is what keeps the property true after month six. A stateless archi
 
 | Pressure | Add | Watch |
 |---|---|---|
-| More requests | app processes | p95 latency, Falcon accept queue |
-| More realtime subscribers | app processes | open sockets per process, `LISTEN` connections against Postgres |
+| More requests | app containers | p95 latency, Puma backlog depth, thread-pool saturation |
+| More realtime subscribers | app containers | open sockets per process, `LISTEN` connections against Postgres. **How many one process holds is unmeasured** ([`../architecture/12-runtime-verification.md`](../architecture/12-runtime-verification.md)) |
 | Deeper job queue | worker processes | oldest-queued age, attempts-per-job |
 | More data | Postgres first (vertical, then read replicas) | connection count, slow queries, index health |
 | More tenants | nothing yet — that is what `magik check --scale` pre-empts by keeping queries tenant-scoped ([`../architecture/06-observability.md`](../architecture/06-observability.md)) | unscoped query warnings |
@@ -61,9 +61,11 @@ The guardrail is what keeps the property true after month six. A stateless archi
 
 | Piece | Intent |
 |---|---|
-| Ruby | TruffleRuby in production; CRuby ≥ 3.2 supported for tooling and development |
-| Server | Falcon — async, fiber-based, no thread pool to size. The same server in dev and production |
-| Concurrency | Ractors and Fibers rather than threads-per-request |
+| Ruby | **TruffleRuby.** CRuby ≥ 3.2 is supported for development tooling — `magik check`, `magik generate`, the local test loop — and is **not a production target** |
+| Server | **Puma**, single mode: one process, one thread pool. The same server in dev and production. HTTP/1.1 from the app process; TLS, HTTP/2 and HTTP/3 terminate at the load balancer |
+| Concurrency | **real, parallel OS threads.** One request, one thread. TruffleRuby has no GVL, so a process uses the cores it is given — measured, [`../architecture/12-runtime-verification.md`](../architecture/12-runtime-verification.md) |
+| Scaling a process | you do not. `fork` is unavailable on TruffleRuby, so there is no clustered mode; more capacity is more containers, which is what the topology above already assumes |
+| Pool sizing | the database pool equals Puma's `max_threads`, per process ([`../architecture/10-performance-defaults.md`](../architecture/10-performance-defaults.md)) |
 | Database | Postgres, via Sequel. UUIDv7 primary keys, `tenant_id` on every table |
 | Client | htmx (~14kb), served as a static asset. No bundler, no `node_modules`, no build step |
 

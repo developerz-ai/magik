@@ -148,7 +148,7 @@ Permanent exclusions, not gaps. They are refusals with codes rather than silent 
 - [01-module-map.md](https://raw.githubusercontent.com/developerz-ai/magik/main/docs/architecture/01-module-map.md): twenty subsystems, one reason to change each.
 - [02-boundaries.md](https://raw.githubusercontent.com/developerz-ai/magik/main/docs/architecture/02-boundaries.md): what may depend on what. A violation is a failure, not a review comment.
 - [03-error-codes.md](https://raw.githubusercontent.com/developerz-ai/magik/main/docs/architecture/03-error-codes.md): how a code is declared, owned and kept unique.
-- [04-testing-strategy.md](https://raw.githubusercontent.com/developerz-ai/magik/main/docs/architecture/04-testing-strategy.md): Ractors versus forked workers, template-database cloning, and the honest risks.
+- [04-testing-strategy.md](https://raw.githubusercontent.com/developerz-ai/magik/main/docs/architecture/04-testing-strategy.md): thread-parallel workers, template-database cloning, and the honest risks.
 - [05-adding-a-feature.md](https://raw.githubusercontent.com/developerz-ai/magik/main/docs/architecture/05-adding-a-feature.md): the end-to-end loop with a command per step.
 - [06-observability.md](https://raw.githubusercontent.com/developerz-ai/magik/main/docs/architecture/06-observability.md): what a running app emits, and what it does not.
 - [07-configuration-and-secrets.md](https://raw.githubusercontent.com/developerz-ai/magik/main/docs/architecture/07-configuration-and-secrets.md): where config comes from, and how a secret reaches a process.

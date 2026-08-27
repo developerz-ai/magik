@@ -48,9 +48,11 @@ dates**, deliberately — a date on unstarted work is a guess wearing a suit.
 
 ### Why TruffleRuby?
 
-Concurrency. The spec's model is Ractors and Fibers, not a thread per request, and TruffleRuby is
-where that model actually performs — the JIT, the memory model, and the parallelism story are the
-reasons the choice was made rather than "it is faster on microbenchmarks".
+Concurrency. TruffleRuby has **no GVL**, so threads there run genuinely in parallel — and that is
+measured rather than assumed: `ruby scripts/probes/runtime.rb` reports 2.55–3.54× on 4 threads on
+TruffleRuby against 0.80–0.89× on CRuby, `As of 2026-08-26`
+([the evidence](../docs/architecture/12-runtime-verification.md)). Those are engine measurements, not
+Magik measurements — there is no framework to measure yet.
 
 CRuby `>= 3.2` is supported for tooling and development, so you can run RuboCop and the framework's
 own unit tests on a normal machine. **Where the two diverge, TruffleRuby is the documented
@@ -158,7 +160,7 @@ Same ambition — the full stack, opinionated, batteries included. Different ans
 
 | | Rails | Magik |
 |---|---|---|
-| Runtime | CRuby | **TruffleRuby**, with Ractors and Fibers rather than a thread per request |
+| Runtime | CRuby | **TruffleRuby**, where threads run in parallel because there is no GVL |
 | ORM | ActiveRecord, lazy by default | Sequel, explicit. An unloaded association raises |
 | UI | ERB/ViewComponent + Hotwire, or an SPA | one DSL compiling to HTML + htmx. No templates to write |
 | Routing | `config/routes.rb` | convention. `screen :Invoices` is `/invoices`. There is no routes file |

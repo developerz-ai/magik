@@ -87,7 +87,7 @@ cannot retrofit cheaply. This is the "nothing has to be undone" claim, itemised.
 | **Append-only migrations and a generated `db/schema.rb`** | `db/migrations/` is hand-written and never edited after it has run ([`../../wiki/Project-Layout.md`](../../wiki/Project-Layout.md)) | the schema is reproducible from the ledger of migrations rather than from someone's laptop | `MAGIK_SCHEMA_IRREVERSIBLE` (a `migrate` with no `down`) and `MAGIK_SCHEMA_DRIFT` |
 | **One predictable file per declaration** | the naming rule runs in both directions: a path tells you what it declares before you open it | the flat tree becomes a domained tree by changing a path prefix — see [the move](#the-flat-to-domains-move-exactly) | `MAGIK_FILE_MULTIPLE_DECLARATIONS` · `MAGIK_DECLARATION_MISPLACED` |
 | **A rate-limit store that is not in the process** | decision 9 forbids a counter living in a process, so the throttle store is a **seam by construction** ([`04-swap-points.md`](04-swap-points.md)) | the single-server app's throttling is already correct on the second server. Nobody had to notice | the throttle seam's conformance suite, on Postgres and on Redis |
-| **The same gate as the largest app** | `magik check` + `magik test`, with `--json`, at every size ([`../architecture/05-adding-a-feature.md`](../architecture/05-adding-a-feature.md)) | no tribal checklist to hand a new team, and no "strict mode" that a mature app turns on late | the checker existing at all — build-order step 12 ([`06-phases.md`](06-phases.md)) |
+| **The same gate as the largest app** | `magik check` + `magik test`, with `--json`, at every size ([`../architecture/05-adding-a-feature.md`](../architecture/05-adding-a-feature.md)) | no tribal checklist to hand a new team, and no "strict mode" that a mature app turns on late | the checker existing at all — build-order step 13 ([`06-phases.md`](06-phases.md)) |
 
 Two of those rows carry the argument: **the primary key type and the tenant column are the two
 things that genuinely cannot be retrofitted, and both are present in the smallest possible app at
@@ -228,7 +228,7 @@ product *for*.
 There is a quieter half of the same mechanism: **defaults its users would not know to choose.** A
 refusal catches the mistake you made; a default prevents the one you would never have known to
 consider — cursor pagination instead of `OFFSET`, an index the framework knows the query needs,
-bounded queries, a connection pool sized for a fiber server
+bounded queries, a connection pool sized for the server's thread count
 ([`../architecture/10-performance-defaults.md`](../architecture/10-performance-defaults.md)). Neither
 end of this axis types any of it, and only one end would have known to.
 
@@ -273,7 +273,7 @@ So every default is reachable and replaceable, at a cost proportional to how far
 
 | Reach | Ladder | Rungs |
 |---|---|---|
-| infrastructure | [`04-swap-points.md`](04-swap-points.md) | eleven seams, each a `use` line, each with its trade-offs documented at the point of choosing |
+| infrastructure | [`04-swap-points.md`](04-swap-points.md) | twelve seams, each a `use` line, each with its trade-offs documented at the point of choosing |
 | UI | [`08-component-overrides.md`](08-component-overrides.md) | tokens → `extends:` → a shadowing `component` in `app/components/` → `raw` HTML. **You never have to jump to the top**, and each rung costs strictly more than the one below |
 | behaviour on the page | [`05-limits.md`](05-limits.md) | your own JavaScript on server-rendered markup — a Stimulus controller, a date picker, a chart library — with no toolchain and no bundler |
 | the data layer | [`05-limits.md`](05-limits.md) | explicit Sequel. There is no lazy loading to fight and no callback chain to trace |
@@ -291,7 +291,7 @@ are part of the design rather than an oversight:
 
 | Not escapable | Why that is the right answer |
 |---|---|
-| **Authorization** | a second authorization backend is a second authorization system — the exact failure this design is organised against. If `policy` ships, it ships as one evaluator with no alternative |
+| **Authorization** | a second authorization backend is a second authorization system — the exact failure this design is organised against. `policy` is one evaluator with no alternative, and architecture decision 13 says so |
 | **Auth** | Rodauth is a structural dependency of the `auth` DSL, not a backend behind an interface. *"Saying so is more honest than pretending to a seam nobody could implement against"* ([`04-swap-points.md`](04-swap-points.md)) |
 | **Tenancy, the UUIDv7 key strategy, integer-cent money** | these are the reversal-impossible layer. Making them optional would delete the entire Axis 1 argument |
 | **The boot guardrails, even on a replaced component** | *"The escape hatch is from Magik's aesthetics, never from its invariants"* — a replacement still holds no state across requests and still renders no timestamp without a zone ([`08-component-overrides.md`](08-component-overrides.md)) |
@@ -349,11 +349,11 @@ evidence of it.
 | that anyone has shipped anything on Magik | no adoption, no deployments, no testimonials. [`../../README.md`](../../README.md) says so and will until they exist |
 | that the small end works | there is no `magik new`, no `App.define`, no server. [`../../dummy/`](../../dummy/README.md) parses and does not run; that is its only claim |
 | that a single swap has been proven | zero seams implemented, zero backends shipped. Every row of [`04-swap-points.md`](04-swap-points.md) is `planned`, and a candidate is labelled a candidate |
-| that the flat-to-domains move has been performed | the `domain` DSL is build-order step 12 — the last thing built |
+| that the flat-to-domains move has been performed | the `domain` DSL is build-order step 13 — the last thing built |
 | that any ceiling above has a number | no benchmark has been run. The signals are shapes, not thresholds, and they say so |
 | that the guardrails catch every mistake | they catch what is derivable from the frozen registry or from source. A wrong requirement, a bad trade-off and a mis-sized database are not in that set |
 | that a domain becomes a service | *"a plausible seam for a future service. Nothing here promises the extraction will be easy"* ([`../../wiki/Domains.md`](../../wiki/Domains.md)) |
-| that Magik fits every product | see [`05-limits.md`](05-limits.md), and [`10-saas-coverage.md`](10-saas-coverage.md) on whether the spec's "99% of SaaS" line survives an audit — the honest answer there is "not as stated" |
+| that Magik fits every product | see [`05-limits.md`](05-limits.md), and [`10-saas-coverage.md`](10-saas-coverage.md) for the measured distance between the grammar and its 99% target — under a fifth of 68 surveyed surfaces, `As of 2026-08-26` |
 
 ## Next
 

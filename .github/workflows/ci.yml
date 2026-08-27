@@ -187,7 +187,7 @@ jobs:
           - ruby: '3.3'
           - ruby: '3.4'
           # TruffleRuby is Magik's PRODUCTION runtime target (docs/idea/00-build-spec.md, decision
-          # 1: Ractors and Fibers, not threads-per-request) and it is ADVISORY here. That pairing is
+          # 1: concurrency is real parallel OS threads) and it is ADVISORY here. That pairing is
           # uncomfortable and deliberate. Why it cannot block today: the target is a decision about
           # a framework that is not implemented, so nothing in test/ exercises a TruffleRuby-specific
           # path — a red leg would be reporting on the nightly engine build, not on Magik. Blocking
@@ -369,7 +369,7 @@ jobs:
   # NO SPELLCHECK JOB, and this is a decision rather than an omission.
   #
   # A spellchecker over this repository's prose would be reading a spec whose vocabulary is mostly
-  # identifiers — TruffleRuby, htmx, Rodauth, Sequel, Que, Shrine, pgvector, Falcon, Ractor, Oj,
+  # identifiers — TruffleRuby, htmx, Rodauth, Sequel, Que, Shrine, pgvector, Puma, GraalVM,
   # Prawn, idempotent_by, tenant_id, UUIDv7 — and every one of them is a finding until somebody adds
   # it to a wordlist. That wordlist then needs a PR for each new dependency the docs mention, and the
   # failure mode is not a missed typo, it is a red gate on a correct sentence. A check that is wrong

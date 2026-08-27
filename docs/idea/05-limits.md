@@ -35,7 +35,7 @@ Two kinds, and the distinction matters: an **architectural** limit is a property
 
 ### Product scope
 
-Found by the coverage audit ([`10-saas-coverage.md`](10-saas-coverage.md)), which asked what a SaaS needs across its whole life and then asked which answers Magik should refuse to be. All five are **Documented** — no mechanism can detect them, so the docs say no plainly and the framework ships nothing that would help.
+Found by the coverage audit ([`10-saas-coverage.md`](10-saas-coverage.md)), which asked what a SaaS needs across its whole life and then asked which answers Magik should refuse to be. All six are **Documented** — no mechanism can detect them, so the docs say no plainly and the framework ships nothing that would help.
 
 | Limit | Why it is a second product |
 |---|---|
@@ -116,7 +116,7 @@ One piece of it **is** refused: a screen holding client-owned state that the ser
 | Why | |
 |---|---|
 | Boot cost is a feature of the test loop | the target is 1,000 tests under 10 seconds; a heavier runner spends the budget before the first assertion. |
-| A simple object model | a Minitest test is a method on a class. Ractor-parallel execution and transactional rollback are tractable against that; against a DSL-heavy runner with its own lifecycle they are not. |
+| A simple object model | a Minitest test is a method on a class. Running those in parallel worker threads with transactional rollback per test is tractable; against a DSL-heavy runner with its own lifecycle it is not. |
 | One test grammar | `test :Name do it "…" end` compiles down to Minitest, so `assert_*` is always available underneath. There is no second way to write a test. |
 
 **Documented, not refused.** An app that adds `rspec` to its own `Gemfile` can run it. What it will not get is `magik test`'s parallel runner, the transactional rollback, the inferred factories or the generated invariant tests — those are built on the Minitest layer.

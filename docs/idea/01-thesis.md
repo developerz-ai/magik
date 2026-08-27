@@ -172,7 +172,7 @@ Magik is for developers who want to write Ruby and specifically do not want a Ty
 | **Readability is a first-order property of generated code** | when an agent writes most of the lines, the scarce resource is a human's ability to audit a diff at a glance. Ruby optimises for exactly that reading. |
 | **No compile step in the edit loop** | edit, reload, see it. There is no bundler, no `tsconfig`, no type-check pass between a change and its result — which also means no build tooling for an agent to get wrong. |
 | **A small dependency graph** | one gem, a short list of wrapped libraries ([`00-build-spec.md`](00-build-spec.md)), and no `node_modules`. Fewer moving parts is fewer things that fail on a Tuesday. |
-| **TruffleRuby closes the gap** | the historical argument against Ruby for this workload was throughput. A JIT-compiled Ruby with Ractors and Fibers is a different performance conversation than MRI-with-threads was, and it is the one Magik targets. |
+| **TruffleRuby closes the gap** | the historical argument against Ruby for this workload was throughput, and it was two arguments wearing one coat: a slow interpreter, and a global lock that made a thread pool decorative. TruffleRuby answers both — a JIT, and threads that genuinely run in parallel (**3.54×** on four threads, measured; MRI's **0.94×** is the lock). A server-rendering framework is exactly the workload that pays off: rendering is CPU work, and thread-per-request turns a machine's cores into throughput instead of a queue ([`../architecture/12-runtime-verification.md`](../architecture/12-runtime-verification.md)). |
 
 What Magik gives up by choosing Ruby is the static type chain — Ultimate can make a renamed field a compile error across six artifacts, and Magik cannot. Magik's answer is boot-time enforcement rather than compile-time: the same class of mistake is caught, one stage later, by a guardrail that names the rule ([`03-guardrails.md`](03-guardrails.md)). Whether that trade holds is the single biggest open question in this design, and it will be answered by the guardrail catalogue actually existing — not by this paragraph.
 
@@ -181,9 +181,9 @@ What Magik gives up by choosing Ruby is the static type chain — Ultimate can m
 | Choice | Reason |
 |---|---|
 | Ruby | the DSL is the product. No other mainstream language lets `ledger :Payments do … end` read as language rather than as configuration. |
-| TruffleRuby | the production target: JIT throughput for a server-rendering framework, and Ractors/Fibers as the concurrency model instead of threads-per-request. |
-| CRuby ≥ 3.2 | supported for tooling and local development. TruffleRuby-specific behaviour is verified in CI, not on a laptop. |
-| Falcon + Rack | fiber-based, async, no thread pool to size. |
+| TruffleRuby | **the production target**, for one reason above the JIT: its threads are **real parallel OS threads**. That makes the ordinary, boring, gem-compatible concurrency model — a thread per request — actually deliver a machine's cores, which is what a server-rendering framework spends them on. Measured at **3.54×** on four threads, `As of 2026-08-26` ([`../architecture/12-runtime-verification.md`](../architecture/12-runtime-verification.md)). |
+| CRuby ≥ 3.2 | supported for **tooling and local development only** — the CLI, the linter, the docs build. It is not a production target: its threads do not parallelise CPU work (**0.94×** on the same probe), so the concurrency model above is not true there. TruffleRuby-specific behaviour is verified in CI, not on a laptop. |
+| Puma + Rack | thread-per-request, which is the correct server model precisely when threads are parallel. No second concurrency vocabulary for an app author to learn, and every gem in the wrap list is already thread-safe or already wrapped. |
 | Sequel | explicit SQL, no lazy-loading magic, a migration story that does not lie. |
 
 ## What "done" would look like

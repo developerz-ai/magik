@@ -80,11 +80,16 @@ not add a number to any document that no command in this table re-derives.
 
 ## Non-negotiables (from the spec — these override any instinct)
 
-1. **TruffleRuby is the production runtime.** Concurrency via Ractors and Fibers, never a thread per
-   request. CRuby ≥ 3.2 is supported for tooling and development only; `required_ruby_version` is
-   `">= 3.2"`. TruffleRuby is **not installed on the dev machine** — anything TruffleRuby-specific is
-   verified in CI, never in a local hook.
-2. **Rack + Falcon.** Async, fiber-based. No Puma-shaped assumptions anywhere.
+1. **TruffleRuby is the production runtime.** Concurrency is **real, parallel OS threads** —
+   TruffleRuby has no GVL, and this is measured, not assumed: `ruby scripts/probes/runtime.rb`
+   ([the evidence](docs/architecture/12-runtime-verification.md)). CRuby ≥ 3.2 is supported for
+   development tooling only and is **never a production target**; `required_ruby_version` is
+   `">= 3.2"`. There is one concurrency model, no fallback and no per-engine branch. Note also that
+   `fork` is **not available** on TruffleRuby, so nothing may be designed around forked workers.
+2. **Rack + Puma**, single mode: one process, one thread pool. More capacity is more containers.
+   Do not propose an async/fiber-scheduler server — TruffleRuby implements no fiber scheduler, and
+   `async` raises on its first block there. The one condition that would reopen this is recorded in
+   [`docs/architecture/12-runtime-verification.md`](docs/architecture/12-runtime-verification.md).
 3. **Sequel, never ActiveRecord.** Explicit queries, no lazy-loading magic.
 4. **No SPA framework, ever.** Server-rendered HTML + htmx attributes, compiled from the DSL. Never
    introduce React, Vue, Ember, a bundler, or a client build step.

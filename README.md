@@ -52,7 +52,7 @@ the author ever having to "graduate" to another stack. Fintech-grade money handl
 ledgers, audit trails, idempotent mutations) uses the same DSL grammar as everything else: there is
 no separate "fintech mode".
 
-Magik wraps rather than reinvents: Sequel, Que, Rodauth, Shrine, htmx, Falcon/Async, Minitest,
+Magik wraps rather than reinvents: Sequel, Que, Rodauth, Shrine, htmx, Puma, Minitest,
 the money gem. → [the full library list](docs/idea/00-build-spec.md)
 
 ## Everything, included
@@ -175,7 +175,7 @@ thesis, two populations.
 gem install magik          # installs 0.0.1 once it is pushed — a version constant and `magik help`
 magik new shop && cd shop  # planned
 bin/setup                  # planned — dependencies, database, migrations, seeds
-magik server               # planned — Falcon, hot reload
+magik server               # planned — Puma, hot reload
 ```
 
 The CLI surface the spec commits to: `magik new`, `magik generate model|screen|action|migration`,
@@ -251,7 +251,7 @@ The build order from [the spec](docs/idea/00-build-spec.md). One status column, 
 | 6 · API & Integration | `api` resources, incoming and outgoing `webhook`, bearer/api-key/JWT auth, rate limits | not implemented |
 | 7 · Auth, Billing, Admin | `auth` (Rodauth-backed), `billing`, `admin_panel`, `tenant_by :subdomain` | not implemented |
 | 8 · i18n, PWA, Notifications | `locales`, `translatable:`, timezone-safe timestamps, `pwa`, `notification` | not implemented |
-| 9 · Testing | a Minitest-compiling `test` DSL, inferred factories, Ractor-parallel runner, `magik test` | not implemented |
+| 9 · Testing | a Minitest-compiling `test` DSL, inferred factories, thread-parallel runner, `magik test` | not implemented |
 
 Re-derive the status of any subsystem rather than trusting this table: `ruby -Ilib exe/magik help`
 for the CLI's real surface, `rake test` for what is proven, and
@@ -267,8 +267,8 @@ repository exists in this order — changing one is a change to
 
 | Decision | The rule | Why it is not negotiable |
 |---|---|---|
-| **Runtime** | TruffleRuby. Concurrency via Ractors and Fibers, never a thread per request | the performance ceiling that makes a Ruby framework worth building now. CRuby ≥ 3.2 is supported for tooling and development only |
-| **Server** | Rack + Falcon, async and fiber-based | an async server is a precondition for opt-in realtime on the same process model |
+| **Runtime** | TruffleRuby. Concurrency is real, parallel OS threads — no GVL | the performance ceiling that makes a Ruby framework worth building now, and it is measured rather than assumed: `ruby scripts/probes/runtime.rb` ([the evidence](docs/architecture/12-runtime-verification.md)). CRuby ≥ 3.2 is supported for development tooling only, never as a production target |
+| **Server** | Rack + Puma, single mode: one process, one thread pool | TruffleRuby runs threads in parallel, so one process uses every core it is given. The same server in dev and production, and more capacity is more containers |
 | **Database** | Sequel, never ActiveRecord. Explicit queries, no lazy-loading magic | an N+1 you cannot see is an N+1 you cannot fix |
 | **No SPA framework** | server-rendered HTML plus htmx attributes, compiled from the DSL. No React, Vue or Ember — ever | one language, one render path, no client build step |
 | **Realtime is opt-in** | per screen, never global. `live` / `channel` turn it on; nothing costs anything until declared | global realtime is what made the previous generation of these frameworks unaffordable |

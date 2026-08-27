@@ -73,7 +73,7 @@ The lesson Magik takes: **balance on recorded runtime, and record it by default*
 
 **One worker *thread* per test file group, `workers: :auto` (all CPUs)** — parallelism inside one process rather than N forked processes.
 
-This page previously said *Ractor* rather than *thread*, on the strength of spec item 1. That was measured and falsified: `Ractor` does not exist on TruffleRuby, and threads there run genuinely in parallel — [`12-runtime-verification.md`](12-runtime-verification.md), `As of 2026-08-26`. The *shape* of the design is unchanged (one process, N workers, one database, transactional isolation); the primitive underneath it is a thread.
+That works because threads on TruffleRuby are genuinely parallel: 2.55–3.54× on 4 threads, measured, `As of 2026-08-26` ([`12-runtime-verification.md`](12-runtime-verification.md)). TruffleRuby has no GVL, so the usual Ruby reason for reaching past threads does not exist.
 
 | Property | Separate processes (Rails-shaped) | Threads (Magik's design) |
 |---|---|---|
@@ -82,7 +82,7 @@ This page previously said *Ractor* rather than *thread*, on the strength of spec
 | Databases | N copies | one database, one connection per worker thread, transactional isolation |
 | Demands | none on the framework | genuinely shared-nothing tests, and a thread-safe framework: frozen registries, no mutable globals |
 | Crash blast radius | one worker | potentially the process |
-| Actually parallel? | yes, on any engine | **on TruffleRuby yes; on CRuby no** — the GVL serialises CPU-bound work, measured at 0.8× on 4 threads |
+| Actually parallel? | yes, on any engine | **yes on TruffleRuby**, which is the production runtime and the engine that matters. 2.55–3.54× on 4 threads, measured |
 
 This is why [`00-conventions.md`](00-conventions.md) freezes the declaration registry at the end of boot and forbids mutable globals: the test runner's design depends on it, and a subsystem that stashes mutable state breaks parallelism rather than just being untidy.
 
@@ -97,27 +97,20 @@ Under threads, one test's mutation of process-global state is visible to every t
 
 **The discipline was right for a different reason than the one given.** That is worth saying plainly rather than quietly reclassifying it: these rules were written as a speed budget and they turn out to be the isolation model. What they do not cover, and what the runner must therefore add, is process-global Ruby state — memoised class variables, mutable constants, `ENV` writes, a stubbed global. Those are now a correctness rule for tests, not a style preference, and `magik check` should say so.
 
-### The parallel backend is still a seam
+### One worker model, not a matrix
 
-| Mitigation | Detail |
+The runner has **one** parallel backend: worker threads. There is no forked-worker mode, no per-engine strategy selection, and no `--workers=processes`. Two reasons, and the second is decisive:
+
+| | |
 |---|---|
-| The runner's parallel backend is a seam | `workers: :auto` selects a strategy; the strategy is not baked into the test DSL |
-| Selection is explicit and reported | `magik test --workers=auto` prints which strategy it chose and why, so nobody debugs a mystery |
-| The strategy is engine-dependent, and that is not a wart | on TruffleRuby, threads. On CRuby, where threads do not parallelise CPU-bound work, **forked workers** with one database per worker — the Rails-shaped model above, slower to start, known to work |
-| The decision is measurable | whichever backend hits the target on the framework's own suite wins, and the page says which one that was |
+| Threads are genuinely parallel on the production runtime | 2.55–3.54× on 4 threads, measured. The reason forked workers exist in Ruby is the GVL, and TruffleRuby does not have one |
+| **`fork` is not available on TruffleRuby anyway** | `Process.respond_to?(:fork)` is `false`; calling it raises `NotImplementedError: fork is not available`. Measured on both builds tested, [`12-runtime-verification.md`](12-runtime-verification.md). A forked fallback is not a thing that could be built here |
 
-### The constraint that removes the obvious fallback
+`magik test --workers=N` sets how many worker threads, and `auto` is all CPUs. It does not select a mechanism, because there is only one.
 
-**`fork` is not available on TruffleRuby.** `Process.respond_to?(:fork)` is `false` and calling it raises `NotImplementedError: fork is not available` — measured on both builds tested, [`12-runtime-verification.md`](12-runtime-verification.md).
+**What this costs on CRuby, stated plainly.** The local development loop runs on CRuby, where threads do not parallelise CPU-bound Ruby — the same probe measures 0.8×. The suite still runs, correctly, on worker threads; it just does not get the speedup. The 10-second target is a **TruffleRuby target**, and whoever first measures it must say which engine it was measured on. That is a cost of the decision, not a reason for a second mechanism: two runner backends would mean the suite that gates a change is not the suite that runs in CI.
 
-So "fall back to forked workers" is a CRuby answer, not a universal one. On the production runtime the options are:
-
-| Option | Cost |
-|---|---|
-| Worker threads | the design above. Requires the shared-nothing discipline to actually hold |
-| `Process.spawn`-ed workers | verified to work. A **full boot per worker** and no copy-on-write page sharing, so it is strictly more expensive than fork would have been. The escape hatch, not the plan |
-
-Neither is settled by measurement, because there is no suite to measure. Pretending otherwise would be the dishonest version of this document.
+Nothing here is settled by measurement, because there is no suite to measure. Pretending otherwise would be the dishonest version of this document.
 
 ## Isolation
 
@@ -146,7 +139,7 @@ Where the time actually goes in a Ruby suite, and what the design does about eac
 
 | Cost | Typical cause | Magik's answer |
 |---|---|---|
-| Boot | loading the framework and the app once per worker | boot once; worker threads share the image. Under the CRuby forked fallback, boot before forking; under spawned workers this cost is paid per worker and is the reason spawn is the escape hatch |
+| Boot | loading the framework and the app once per worker | boot **once**. Worker threads share the image, so this cost is paid a single time no matter how many workers run |
 | Schema setup | running every migration per worker database | load the schema **once** into a template database, clone per worker (`CREATE DATABASE … TEMPLATE`), never migrate in the test path |
 | Factory work | fixtures and factories that build object graphs nobody asserts on | factories inferred from field types build the **minimum** valid row; associations are built only when declared |
 | DB round trips | per-test setup and teardown chatter | transactional rollback replaces truncate + reseed |

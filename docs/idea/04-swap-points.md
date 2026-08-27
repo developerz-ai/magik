@@ -45,7 +45,7 @@ end
 
 ## The seams
 
-The five the spec requires, plus six the same rule catches by implication. The last three were found by the coverage audit ([`10-saas-coverage.md`](10-saas-coverage.md)): each is a backend an app cannot avoid needing and none had a row here.
+The five the spec names explicitly, plus seven the same rule catches by implication — each a backend an app cannot avoid needing, and each therefore a seam whether or not the sentence in item 11 lists it.
 
 | Seam | Default | Why this default | Alternatives | Status |
 |---|---|---|---|---|
@@ -59,6 +59,7 @@ The five the spec requires, plus six the same rule catches by implication. The l
 | **Mail transport** | SMTP | the one transport every provider speaks | Postmark, SES, Resend — candidates | not implemented |
 | **Throttle store** | Postgres | rate limits are counters, and decision 9 forbids a counter living in a process — so this is a seam by construction. [`../../wiki/API-And-Webhooks.md`](../../wiki/API-And-Webhooks.md) already names it; this page did not | Redis — candidate | not implemented |
 | **Bot challenge** | none — off by default | a CAPTCHA has a real accessibility and privacy cost, so imposing one on every app is the wrong opinion. The vendor space is volatile on both price and policy, which is exactly what item 11 exists to survive | Turnstile, hCaptcha, reCAPTCHA — candidates | not implemented |
+| **JSON codec** | `ruby/json` from the standard library | the fast path is engine-dependent: `ruby/json` selects a pure-Ruby generator under TruffleRuby, and the C-extension alternatives do not name TruffleRuby as a supported platform. A dependency that is a C extension, or that reaches for a runtime primitive, is a seam until a probe says otherwise on the production engine ([`../architecture/10-performance-defaults.md`](../architecture/10-performance-defaults.md)) | `use :json, :oj` — candidate, and only where a probe shows it loads and wins on the production engine | not implemented |
 | **Media processing** | a media service | transcoding, packaging and adaptive delivery are a specialist product. A framework that builds one has become a media company ([`10-saas-coverage.md`](10-saas-coverage.md)) | Mux, Cloudflare Stream, Bunny — candidates; `ffmpeg` in a job for teams that want no vendor, at the cost of a dedicated queue, a machine shape and the input-validation burden | not implemented |
 
 ## The UI seam
@@ -67,11 +68,11 @@ The component kit is an opinionated default too, and item 11's rule does not sto
 
 | Seam | Default | Swapped by | Status |
 |---|---|---|---|
-| **Component kit** | the built-in kit (`button`, `form`, `field`, `data_table`, `modal`, `toast`, `card`, `list`, `grid`, `tabs`, `stat`, `chart`) | tokens → `extends:` → a shadowing `component` in `app/components/` → `kit :name` for a house library | not implemented |
+| **Component kit** | the built-in kit (`button`, `form`, `field`, `data_table`, `modal`, `toast`, `card`, `list`, `grid`, `tabs`, `stat`, `chart`, `sidebar`, `topbar`, `nav_item`, `breadcrumbs`, `account_menu`, `dashboard_grid`) | tokens → `extends:` → a shadowing `component` in `app/components/` → `kit :name` for a house library | not implemented |
 
 Auth is deliberately **not** a swap point: Rodauth is a structural dependency of the `auth` DSL, not a backend behind an interface. Saying so is more honest than pretending to a seam nobody could implement against.
 
-Authorization would not be a swap point either, for a stronger reason: **a second authorization backend is a second authorization system**, which is the failure this whole design is organised against ([`01-thesis.md`](01-thesis.md)). If the proposed `policy` construct ships ([`02-dsl-surface.md`](02-dsl-surface.md)), it ships as one evaluator with no alternative — the same status as tenancy and the primary key strategy.
+Authorization is **not** a swap point either, for a stronger reason: **a second authorization backend is a second authorization system**, which is the failure this whole design is organised against ([`01-thesis.md`](01-thesis.md)). `policy` ([`02-dsl-surface.md`](02-dsl-surface.md#policy)) is one evaluator with no alternative — the same status as tenancy and the primary key strategy, and architecture decision 13 states it as a decision rather than as a preference.
 
 ## What a swap does not buy
 
@@ -80,6 +81,7 @@ Escape hatches that promise more than they deliver are the failure mode being av
 | Limit | Detail |
 |---|---|
 | Semantics are not identical | a Kafka job backend cannot offer transactional enqueue. Choosing it means accepting at-least-once delivery with app-visible consequences, and the seam's docs must say so at the point of choosing. |
+| The cheapest rung can be the one that breaks the guarantee | **a second Postgres dedicated to jobs loses transactional enqueue too.** It is the obvious first move when the job table's dead-tuple churn hurts, and it looks like staying on the default — but a cross-database enqueue cannot join the app's transaction any more than a Redis `LPUSH` can. Recovering the guarantee means the outbox pattern, which is machinery rather than configuration ([`../architecture/11-jobs-backend.md`](../architecture/11-jobs-backend.md)). |
 | Data does not migrate itself | swapping the cache backend is a restart; swapping the database is a data migration Magik does not perform. |
 | The narrow contract is the contract | code written against a backend-specific feature has left the seam and will not survive a swap. That is a supported choice, not a supported *portable* choice. |
 | Candidates are not fallbacks | an unshipped backend fails at boot rather than degrading to the default. Silent degradation is the thing guardrails exist to prevent ([`05-limits.md`](05-limits.md)). |
