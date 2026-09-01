@@ -10,7 +10,7 @@ group :development, :test do
   gem "rake", "~> 13.0"
 
   # Test framework. Minitest, never RSpec (docs/idea/00-build-spec.md, Phase 9).
-  gem "minitest", "~> 5.0"
+  gem "minitest", "~> 6.0"
   gem "minitest-reporters", "~> 1.6"
   gem "simplecov", "~> 0.22", require: false
 
