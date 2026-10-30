@@ -57,6 +57,15 @@ the repository being brought back into agreement with it.
 
 ### Changed
 
+- **`bin/stop` is the teardown half of the setup→dev→check cycle**, not a `true` stub. It runs
+  `docker compose -f docker/compose.yml --profile swap stop` — the Postgres of the default profile
+  that `bin/setup --services` started, plus any swap-profile Redis, which `--services` does not
+  start: `stop` names the profile so that one stops too. It prints a note and
+  exits 0 when docker or the compose plugin is absent, and exits 0 even if compose fails. It stops,
+  never `down`, and never removes data: the named volumes survive for the next session.
+  [`test/dev_scripts_test.rb`](test/dev_scripts_test.rb) pins the contract: every path exits 0, and
+  the only docker argv the script may produce is the probe and that one `stop`.
+
 - **`.claude/settings.json` is no longer committed**, and is now ignored. It is a permission
   allowlist and a post-edit hook — one operator's tolerance for what runs unprompted and one
   machine's tooling — so committing it handed every contributor those choices silently. Nothing in
@@ -172,6 +181,26 @@ the repository being brought back into agreement with it.
   reads and can never reach.
 
 ### Fixed
+
+- **The command tables no longer call `bin/dev` "the CLI against the demo app" or "a running
+  stack".** [`README.md`](README.md), [`CONTRIBUTING.md`](CONTRIBUTING.md), [`CLAUDE.md`](CLAUDE.md)
+  and [`.claude/skills/verify-change/SKILL.md`](.claude/skills/verify-change/SKILL.md) now say what
+  it is: the test watch loop — rerun `bin/check --only test` on every change, `--once` for a single
+  pass — which never touches [`dummy/`](dummy/) and, Magik being spec only, boots no stack.
+- **`bin/dev`'s watchexec branch now watches everything the script announces.** It hardcoded
+  `--exts rb,rake,gemspec --watch lib --watch exe --watch test`, but `--exts` is a whitelist filter
+  that drops extension-less files — `Rakefile` and `Gemfile` never triggered a rerun — and
+  `magik.gemspec` sits outside the watched directories. The branch derives its `--watch` arguments
+  from the same `WATCH_PATHS`/`WATCH_FILES` arrays the entr, fswatch and inotifywait branches use.
+  [`test/dev_scripts_test.rb`](test/dev_scripts_test.rb) runs the script against a stub watchexec
+  and asserts the exact argument list — one `--watch` per watched path and file, and no `--exts`.
+- **`bin/dev`'s entr branch now actually watches.** The old form piped an
+  endless `while` loop into `entr`, which reads its file list from stdin only
+  up to EOF and then starts watching — the loop never ended, so `entr` never
+  started. [`bin/dev`](bin/dev) now runs the regenerate-and-restart loop
+  entr's own manual prescribes, and the entr and fswatch branches hold
+  `exit 0` when their watcher ends instead of falling through to the
+  no-watcher refusal.
 
 - **`magik.gemspec` evaluates when its `require` lines are stripped.** Dependabot's Bundler
   sanitizer rewrites `require` calls to `nil` before evaluating a gemspec, so `Magik::Docs` was

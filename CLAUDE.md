@@ -143,7 +143,7 @@ Run from the repository root. `bin/check` is the gate before claiming done; neve
 | Documentation / coverage | `rake yard` · `rake docs:coverage` · <https://developerz-ai.github.io/magik/api/> |
 | Default / task list | `rake` · `rake -T` (`build`, `check`, `docs:coverage`, `rubocop`, `test`, `yard`). |
 | CLI from source | `ruby -Ilib exe/magik version --json` · `ruby -Ilib exe/magik help` |
-| Console / demo CLI | `bin/console` · `bin/dev` · [`dummy/`](dummy/) |
+| Console / dev loop | `bin/console` · `bin/dev` (test watch loop; `--once` for a single pass) |
 | Container services | `docker/compose.yml` · [`.devcontainer/`](.devcontainer/) |
 | Release pre-flight (prints, never publishes) | `bin/release` · [`PUBLISHING.md`](PUBLISHING.md) |
 | Hooks | [`lefthook.yml`](lefthook.yml) |
