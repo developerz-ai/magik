@@ -88,7 +88,9 @@ the repository being brought back into agreement with it.
   DSL, which is the spec's rule: *a drafted DSL spelling is not designed until it has been parsed.*
 - **The TruffleRuby pin in [`.devcontainer/Dockerfile`](.devcontainer/Dockerfile) is `34.0.1`**, and
   its header no longer describes the runtime's concurrency as "Ractors and Fibers" — it is real
-  parallel OS threads, verified on both 24.2.1 and 34.0.1.
+  parallel OS threads, verified on both 24.2.1 and 34.0.1. The devcontainer's `build.args` in
+  [`.devcontainer/devcontainer.json`](.devcontainer/devcontainer.json) now passes that same default
+  instead of overriding it with `24.2.1`.
 - **[`llms.txt`](llms.txt) and [`docs/README.md`](docs/README.md) map the pages that exist** —
   `docs/idea/10`–`12` and `docs/architecture/09`–`12` were missing from both, and `llms.txt` still
   described the spec as "kept verbatim", listed two working CLI commands where three run, and named
