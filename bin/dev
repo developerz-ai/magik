@@ -65,15 +65,32 @@ echo
 
 if command -v watchexec >/dev/null 2>&1; then
   echo "==> watcher: watchexec"
-  exec watchexec --clear --exts rb,rake,gemspec --watch lib --watch exe --watch test -- ./bin/check --only "$STEP"
+  # --exts is a whitelist filter that drops extension-less files (Rakefile and
+  # Gemfile would never trigger) and cannot reach magik.gemspec — derive --watch
+  # from the arrays above instead, exactly like the entr/fswatch/inotifywait
+  # branches. --watch accepts a file as well as a directory.
+  WATCH_ARGS=()
+  for path in "${WATCH_PATHS[@]}" "${WATCH_FILES[@]}"; do
+    WATCH_ARGS+=(--watch "$path")
+  done
+  exec watchexec --clear "${WATCH_ARGS[@]}" -- ./bin/check --only "$STEP"
 fi
 
 if command -v entr >/dev/null 2>&1; then
   echo "==> watcher: entr"
+  # entr reads its file list from stdin up to EOF and only then starts
+  # watching, and with -d it exits when a new file appears in a watched
+  # directory. So the list is regenerated and entr restarted by this loop —
+  # the pattern entr's own manual prescribes — instead of piping an endless
+  # list into a single entr that would never see EOF and never watch. The
+  # exit 0 holds the exit contract when the loop ends, instead of falling
+  # through to the next watcher or to the no-watcher refusal below.
   while true; do
-    find "${WATCH_PATHS[@]}" -type f -name '*.rb' 2>/dev/null
-    printf '%s\n' "${WATCH_FILES[@]}"
-  done | entr -c -d ./bin/check --only "$STEP"
+    { find "${WATCH_PATHS[@]}" -type f -name '*.rb' 2>/dev/null
+      printf '%s\n' "${WATCH_FILES[@]}"
+    } | entr -c -d ./bin/check --only "$STEP"
+  done
+  exit 0
 fi
 
 if command -v fswatch >/dev/null 2>&1; then
@@ -82,6 +99,10 @@ if command -v fswatch >/dev/null 2>&1; then
     clear
     ./bin/check --only "$STEP" || true
   done
+  # exit 0 holds the exit contract when the watcher ends, instead of falling
+  # through to the next watcher or to the no-watcher refusal below — the same
+  # guard the inotifywait branch carries.
+  exit 0
 fi
 
 if command -v inotifywait >/dev/null 2>&1; then
@@ -100,12 +121,12 @@ MAGIK_DEV_NO_WATCHER: no file watcher is installed, so there is nothing to watch
   Magik does not ship a watcher or depend on a gem for one — a watcher is a
   machine-local tool, not a project dependency. Install any one of these:
 
-    watchexec   cargo install watchexec-cli   |  brew install watchexec
-    entr        apt install entr              |  brew install entr
-    fswatch     apt install fswatch           |  brew install fswatch
-    inotifywait apt install inotify-tools     (Linux only)
+    watchexec   cargo install watchexec-cli          |  brew install watchexec
+    entr        sudo apt-get install -y entr          |  brew install entr
+    fswatch     sudo apt-get install -y fswatch       |  brew install fswatch
+    inotifywait sudo apt-get install -y inotify-tools (Linux only)
 
-  fix: apt install entr   # or any of the four above; then re-run bin/dev
+  fix: sudo apt-get install -y entr   # or any of the four above; then re-run bin/dev
 
   In the meantime, `bin/dev --once` runs the step a single time, and
   `bin/check` runs the whole gate.

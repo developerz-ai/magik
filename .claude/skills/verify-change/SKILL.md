@@ -23,9 +23,9 @@ description: Prove a change in developerz-ai/magik before committing or opening 
 | Step | Command | What it is |
 |------|---------|------------|
 | install | `bin/setup` | (dpkg -s postgresql-client redis-tools build-essential libyaml-dev libssl-dev zlib1g-dev entr >/dev/null 2>&1 \|\| (sudo -n apt-get update && sudo -n apt-get install -y --no-install-recommends postgresql-client redis-tools build-essential libyaml-dev libssl-dev zlib1g-dev entr)) && bin/setup --no-hooks |
-| run | `bin/dev` | PARALLEL_PROCESSOR_COUNT=2 bin/dev — on developerz.ai runs, start it with code_bash_background when you need a running stack |
-| prove | `bin/check` | PARALLEL_PROCESSOR_COUNT=2 bin/check |
-| stop | `bin/stop` | true — on developerz.ai runs, the platform runs this when your session ends — do not stop the stack yourself |
+| run | `bin/dev` | the test watch loop — a foreground watcher that reruns `bin/check --only test` on change (Magik is spec only: nothing here boots an app or a stack, and nothing connects to Postgres). A single pass on a coding box: `bin/dev --once` — no env prefix (nothing in this checkout reads `PARALLEL_PROCESSOR_COUNT` — `bin/check` reads only `MAGIK_YARD_MIN_COVERAGE` and `NO_COLOR`, and the Minitest suite runs serially) |
+| prove | `bin/check` | bin/check |
+| stop | `bin/stop` | `docker compose -f docker/compose.yml --profile swap stop` — stops the containers `bin/setup --services` started, keeps the named volumes (never removes data), exits 0 when nothing runs or docker is absent. On developerz.ai runs the platform still runs this when your session ends |
 
 ## Rules
 
