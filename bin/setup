@@ -30,15 +30,16 @@ Usage: bin/setup [--services] [--no-hooks] [--help]
 Prepares this checkout for development:
 
   1. checks the Ruby version against the gemspec's floor (>= 3.2)
-  2. bundle install
+  2. bundle install — the root workspace bundle and the apps/magik app bundle
   3. installs the git pre-commit / pre-push hooks (lefthook, or a plain
      .git/hooks fallback when lefthook is not installed)
-  4. optionally starts the local Postgres via docker/compose.yml
-  5. copies .env.example to .env if you have no .env, and lists the variables
-     still to fill in — by NAME only; it never prints a value
+  4. optionally starts the local Postgres via apps/magik/docker/compose.yml
+  5. copies apps/magik/.env.example to .env if you have no .env, and lists the
+     variables still to fill in — by NAME only; it never prints a value
 
 Options:
-  --services   Also run `docker compose -f docker/compose.yml up -d` (Postgres).
+  --services   Also run `docker compose -f apps/magik/docker/compose.yml up -d`
+               (Postgres).
                Skipped, with a note, if docker is not available.
   --no-hooks   Do not touch .git/hooks.
   -h, --help   Show this message.
@@ -48,7 +49,7 @@ Exit status:
   1   a required step failed; read the fix: line it printed
   64  bad usage
 
-Everything here is idempotent. Re-run it whenever the Gemfile changes.
+Everything here is idempotent. Re-run it whenever either Gemfile changes.
 TXT
 }
 
@@ -80,13 +81,13 @@ died() { FAILED+=("$1: $2"); bad "$2"; }
 say "Checking Ruby"
 if ! command -v ruby >/dev/null 2>&1; then
   echo "MAGIK_DEV_NO_RUBY: ruby is not on PATH" >&2
-  echo "  fix: install Ruby >= 3.2 (see .ruby-version), then re-run bin/setup" >&2
+  echo "  fix: install Ruby >= 3.2 (see apps/magik/.ruby-version), then re-run bin/setup" >&2
   exit 1
 fi
 note "$(ruby -v)"
 if ! ruby -e 'exit(Gem::Version.new(RUBY_VERSION) >= Gem::Version.new("3.2"))'; then
   echo "MAGIK_DEV_RUBY_TOO_OLD: magik requires Ruby >= 3.2, found $(ruby -e 'print RUBY_VERSION')" >&2
-  echo "  fix: install the version named in .ruby-version, then re-run bin/setup" >&2
+  echo "  fix: install the version named in apps/magik/.ruby-version, then re-run bin/setup" >&2
   exit 1
 fi
 did "ruby $(ruby -e 'print RUBY_VERSION') on $(ruby -e 'print RUBY_ENGINE')"
@@ -95,25 +96,40 @@ if [ "$(ruby -e 'print RUBY_ENGINE')" != "truffleruby" ]; then
   note "development; the TruffleRuby matrix runs in CI, not here."
 fi
 
-# --- 2. Bundle (required if bundler exists) --------------------------------
+# --- 2. Bundles (required if bundler exists) -------------------------------
 say "Installing gems"
 if ! command -v bundle >/dev/null 2>&1; then
   skip "bundle install" "bundler is not on PATH — fix: gem install bundler, then bin/setup"
-elif bundle check >/dev/null 2>&1; then
-  did "bundle already satisfied (bundle check passed) — nothing to install"
 else
-  note "bundle install"
-  if bundle install; then
-    # Verify the result rather than trusting the exit status: a partially
-    # installed bundle passes `bundle install` and fails everything after it.
-    if bundle check >/dev/null 2>&1; then
-      did "bundle install"
+  # Two bundles, both resolved from the checkout root cwd:
+  #   $ROOT/Gemfile             the bundler workspace entry — bin/check's bundled?,
+  #                             lefthook's `bundle exec` and CI's bundler-cache
+  #                             all resolve it
+  #   $ROOT/apps/magik/Gemfile  the app bundle — bin/rake and bin/console run
+  #                             inside the app tree
+  # Gemfile.lock is machine-local and never committed (see .gitignore), so
+  # `bundle check` is only true here after a real `bundle install`.
+  ensure_bundle() {
+    local label="$1" gemfile="$2"
+    if BUNDLE_GEMFILE="$gemfile" bundle check >/dev/null 2>&1; then
+      did "$label bundle already satisfied (bundle check passed) — nothing to install"
     else
-      died "bundle install" "bundle install exited 0 but \`bundle check\` still fails — fix: bundle install --verbose"
+      note "bundle install ($label: $gemfile)"
+      if BUNDLE_GEMFILE="$gemfile" bundle install; then
+        # Verify the result rather than trusting the exit status: a partially
+        # installed bundle passes `bundle install` and fails everything after it.
+        if BUNDLE_GEMFILE="$gemfile" bundle check >/dev/null 2>&1; then
+          did "$label bundle install ($gemfile)"
+        else
+          died "$label bundle install" "bundle install exited 0 but \`bundle check\` still fails — fix: BUNDLE_GEMFILE=$gemfile bundle install --verbose"
+        fi
+      else
+        died "$label bundle install" "bundle install failed — fix: BUNDLE_GEMFILE=$gemfile bundle install --verbose, and read the first error"
+      fi
     fi
-  else
-    died "bundle install" "bundle install failed — fix: bundle install --verbose, and read the first error"
-  fi
+  }
+  ensure_bundle workspace "$ROOT/Gemfile"
+  ensure_bundle app "$ROOT/apps/magik/Gemfile"
 fi
 
 # --- 3. Git hooks (optional) -----------------------------------------------
@@ -169,12 +185,12 @@ elif ! command -v docker >/dev/null 2>&1; then
 elif ! docker compose version >/dev/null 2>&1; then
   skip "docker services" "the docker compose plugin is not available — fix: install docker-compose-plugin"
 else
-  note "docker compose -f docker/compose.yml up -d"
-  if docker compose -f docker/compose.yml up -d; then
+  note "docker compose -f apps/magik/docker/compose.yml up -d"
+  if docker compose -f apps/magik/docker/compose.yml up -d; then
     did "docker compose up -d (postgres)"
-    note "connection string and troubleshooting: docker/README.md"
+    note "connection string and troubleshooting: apps/magik/docker/README.md"
   else
-    died "docker services" "docker compose failed — fix: see the 'When Postgres will not come up' section of docker/README.md"
+    died "docker services" "docker compose failed — fix: see the 'When Postgres will not come up' section of apps/magik/docker/README.md"
   fi
 fi
 
@@ -184,13 +200,13 @@ if [ -f "$ROOT/.env" ]; then
   note ".env already exists — left exactly as it was. This script never overwrites it."
   did ".env (pre-existing, untouched)"
 else
-  cp "$ROOT/.env.example" "$ROOT/.env"
+  cp "$ROOT/apps/magik/.env.example" "$ROOT/.env"
   did "copied .env.example -> .env"
 fi
 
 # Report which variables still need a value. NAMES ONLY — this prints no value
 # from .env, ever, and it is the reason this is a script and not a `diff`.
-ruby - "$ROOT/.env.example" "$ROOT/.env" <<'RUBY'
+ruby - "$ROOT/apps/magik/.env.example" "$ROOT/.env" <<'RUBY'
 def vars(path)
   return {} unless File.exist?(path)
 
@@ -215,7 +231,7 @@ puts "    ! still blank in .env, needs a value: #{blank.join(", ")}" unless blan
 puts "    ! generate a SECRET_KEY_BASE with: ruby -rsecurerandom -e 'puts SecureRandom.hex(64)'" if blank.include?("SECRET_KEY_BASE")
 puts "    (names only — this script never prints a value out of .env)"
 RUBY
-note "Nothing reads .env yet. See the banner at the top of .env.example."
+note "Nothing reads .env yet. See the banner at the top of apps/magik/.env.example."
 note ".env is development-only and gitignored. Production reads real environment"
 note "variables and config/credentials.yml.enc. Never commit .env or config/master.key."
 

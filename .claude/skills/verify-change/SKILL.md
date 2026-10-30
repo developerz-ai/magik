@@ -13,7 +13,7 @@ description: Prove a change in developerz-ai/magik before committing or opening 
 
 - It is the same script CI runs, so it covers the repo's own seven steps (RuboCop, Minitest,
   YARD with its documentation-coverage floor, gem build, CLI JSON smoke, Markdown links,
-  scripts/checks). It runs on local CRuby, and that does NOT prove the TruffleRuby lane:
+  apps/magik/scripts/checks). It runs on local CRuby, and that does NOT prove the TruffleRuby lane:
   CI's Ruby-engine matrix and installed-gem smoke test remain a separate requirement —
   never infer TruffleRuby correctness from a local CRuby pass (.dz/maintainer/reviewer.md).
 - In git, the full gate runs at pre-push, not pre-commit: pre-commit is fast changed-file
@@ -25,7 +25,7 @@ description: Prove a change in developerz-ai/magik before committing or opening 
 | install | `bin/setup` | (dpkg -s postgresql-client redis-tools build-essential libyaml-dev libssl-dev zlib1g-dev entr >/dev/null 2>&1 \|\| (sudo -n apt-get update && sudo -n apt-get install -y --no-install-recommends postgresql-client redis-tools build-essential libyaml-dev libssl-dev zlib1g-dev entr)) && bin/setup --no-hooks |
 | run | `bin/dev` | the test watch loop — a foreground watcher that reruns `bin/check --only test` on change (Magik is spec only: nothing here boots an app or a stack, and nothing connects to Postgres). A single pass on a coding box: `bin/dev --once` — no env prefix (nothing in this checkout reads `PARALLEL_PROCESSOR_COUNT` — `bin/check` reads only `MAGIK_YARD_MIN_COVERAGE` and `NO_COLOR`, and the Minitest suite runs serially) |
 | prove | `bin/check` | bin/check |
-| stop | `bin/stop` | `docker compose -f docker/compose.yml --profile swap stop` — stops the containers `bin/setup --services` started, keeps the named volumes (never removes data), exits 0 when nothing runs or docker is absent. On developerz.ai runs the platform still runs this when your session ends |
+| stop | `bin/stop` | `docker compose -f apps/magik/docker/compose.yml --profile swap stop` — stops the containers `bin/setup --services` started, keeps the named volumes (never removes data), exits 0 when nothing runs or docker is absent. On developerz.ai runs the platform still runs this when your session ends |
 
 ## Rules
 

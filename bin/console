@@ -5,14 +5,16 @@
 # you, not at whatever version happens to be in the gem path.
 set -euo pipefail
 
-cd "$(dirname "$0")/.."
+# The app tree: -Ilib below resolves apps/magik/lib, and the Gemfile check
+# finds apps/magik/Gemfile.
+cd "$(dirname "$0")/../apps/magik"
 
 if [ "${1:-}" = "-h" ] || [ "${1:-}" = "--help" ]; then
   cat <<'TXT'
 Usage: bin/console [irb args...]
 
-Starts IRB with -Ilib and `require "magik"` already done, against the working
-tree — not against an installed copy of the gem.
+Starts IRB with -Ilib and `require "magik"` already done, against the app tree
+under apps/magik/ — not against an installed copy of the gem.
 
 Try:
   Magik::VERSION            # => "0.0.1"

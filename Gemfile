@@ -2,8 +2,12 @@
 
 source "https://rubygems.org"
 
-# Runtime dependencies (currently none) come from magik.gemspec.
-gemspec
+# Bundler workspace entry. The Magik app/gem itself lives in apps/magik — its
+# own Gemfile and magik.gemspec moved there verbatim, and the member below
+# resolves them. This file stays at the checkout root because bin/check
+# (bundled?), bin/setup (`bundle install`), lefthook's `bundle exec` and CI's
+# ruby/setup-ruby bundler-cache all require a Gemfile at the checkout root.
+gemspec path: "apps/magik", name: "magik"
 
 group :development, :test do
   # Task runner — `rake -T` lists the gate.

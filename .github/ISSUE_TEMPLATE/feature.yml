@@ -10,7 +10,7 @@ body:
         **Magik is pre-alpha and spec-only.** As of 2026-08-26 nothing in
         [`docs/idea/00-build-spec.md`](https://github.com/developerz-ai/magik/blob/main/docs/idea/00-build-spec.md)
         is implemented, so almost everything anyone could ask for is **already planned and not yet
-        built**. Check [`ROADMAP.md`](https://github.com/developerz-ai/magik/blob/main/ROADMAP.md)
+        built**. Check [`ROADMAP.md`](https://github.com/developerz-ai/magik/blob/main/apps/magik/ROADMAP.md)
         before filing: if it is on the roadmap, the useful action is a
         [Discussion](https://github.com/developerz-ai/magik/discussions) about the shape of it, not
         an issue asking for it.
@@ -46,7 +46,7 @@ body:
     attributes:
       label: Which subsystem does this belong to?
       description: >-
-        The module names under `lib/magik/`, which are the spec's phases. If it fits none of them,
+        The module names under `apps/magik/lib/magik/`, which are the spec's phases. If it fits none of them,
         pick "none of these" and say why — a proposal that needs a new subsystem is a bigger change
         than one that extends an existing one.
       options:

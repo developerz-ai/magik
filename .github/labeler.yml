@@ -3,70 +3,71 @@
 # changed file matches at least one of these globs").
 #
 # The `area:*` names are the subsystem modules from docs/idea/00-build-spec.md, one label per
-# directory under lib/magik/. That correspondence is the reason this file is worth keeping: a
+# directory under apps/magik/lib/magik/. That correspondence is the reason this file is worth keeping: a
 # reviewer filtering for `area:ledger` gets the money code and nothing else, and a label that does
 # not map onto a directory would be a taxonomy somebody has to maintain by hand.
 #
 # Each rule matches the subsystem's own directory, its entry file, and its tests, because a change
-# to `test/magik/ledger/` is a change to the ledger even when no lib/ file moved.
+# to `apps/magik/test/magik/ledger/` is a change to the ledger even when no apps/magik/lib/ file
+# moved.
 #
-# ADDING A SUBSYSTEM: add the directory under lib/magik/, add the rule here, and create the label
-# in Settings → Labels. A rule whose label does not exist is silently dropped by the API, so the
-# missing half is the label, not the YAML.
+# ADDING A SUBSYSTEM: add the directory under apps/magik/lib/magik/, add the rule here, and
+# create the label in Settings → Labels. A rule whose label does not exist is silently dropped by
+# the API, so the missing half is the label, not the YAML.
 
 # ── Phase 1: foundation ───────────────────────────────────────────────────────────────────────
 'area:core':
   - changed-files:
       - any-glob-to-any-file:
-          - 'lib/magik/core/**'
-          - 'lib/magik/core.rb'
-          - 'lib/magik.rb'
-          - 'lib/magik/version.rb'
-          - 'test/magik/core/**'
+          - 'apps/magik/lib/magik/core/**'
+          - 'apps/magik/lib/magik/core.rb'
+          - 'apps/magik/lib/magik.rb'
+          - 'apps/magik/lib/magik/version.rb'
+          - 'apps/magik/test/magik/core/**'
 
 'area:cli':
   - changed-files:
       - any-glob-to-any-file:
-          - 'lib/magik/cli/**'
-          - 'lib/magik/cli.rb'
-          - 'exe/**'
-          - 'test/magik/cli/**'
+          - 'apps/magik/lib/magik/cli/**'
+          - 'apps/magik/lib/magik/cli.rb'
+          - 'apps/magik/exe/**'
+          - 'apps/magik/test/magik/cli/**'
 
 'area:model':
   - changed-files:
       - any-glob-to-any-file:
-          - 'lib/magik/model/**'
-          - 'lib/magik/model.rb'
-          - 'test/magik/model/**'
+          - 'apps/magik/lib/magik/model/**'
+          - 'apps/magik/lib/magik/model.rb'
+          - 'apps/magik/test/magik/model/**'
 
 'area:schema':
   - changed-files:
       - any-glob-to-any-file:
-          - 'lib/magik/schema/**'
-          - 'lib/magik/schema.rb'
-          - 'test/magik/schema/**'
+          - 'apps/magik/lib/magik/schema/**'
+          - 'apps/magik/lib/magik/schema.rb'
+          - 'apps/magik/test/magik/schema/**'
 
 # ── Phase 2: rendering and actions ────────────────────────────────────────────────────────────
 'area:render':
   - changed-files:
       - any-glob-to-any-file:
-          - 'lib/magik/render/**'
-          - 'lib/magik/render.rb'
-          - 'test/magik/render/**'
+          - 'apps/magik/lib/magik/render/**'
+          - 'apps/magik/lib/magik/render.rb'
+          - 'apps/magik/test/magik/render/**'
 
 'area:action':
   - changed-files:
       - any-glob-to-any-file:
-          - 'lib/magik/action/**'
-          - 'lib/magik/action.rb'
-          - 'test/magik/action/**'
+          - 'apps/magik/lib/magik/action/**'
+          - 'apps/magik/lib/magik/action.rb'
+          - 'apps/magik/test/magik/action/**'
 
 'area:router':
   - changed-files:
       - any-glob-to-any-file:
-          - 'lib/magik/router/**'
-          - 'lib/magik/router.rb'
-          - 'test/magik/router/**'
+          - 'apps/magik/lib/magik/router/**'
+          - 'apps/magik/lib/magik/router.rb'
+          - 'apps/magik/test/magik/router/**'
 
 # `policy` is a Phase 2 declaration whose evaluator sits at tier 1, below model, render and
 # realtime — see docs/architecture/01-module-map.md. It is filed here because that is the phase
@@ -74,107 +75,107 @@
 'area:policy':
   - changed-files:
       - any-glob-to-any-file:
-          - 'lib/magik/policy/**'
-          - 'lib/magik/policy.rb'
-          - 'test/magik/policy/**'
+          - 'apps/magik/lib/magik/policy/**'
+          - 'apps/magik/lib/magik/policy.rb'
+          - 'apps/magik/test/magik/policy/**'
 
 # ── Phase 3-4: realtime and jobs ──────────────────────────────────────────────────────────────
 'area:realtime':
   - changed-files:
       - any-glob-to-any-file:
-          - 'lib/magik/realtime/**'
-          - 'lib/magik/realtime.rb'
-          - 'test/magik/realtime/**'
+          - 'apps/magik/lib/magik/realtime/**'
+          - 'apps/magik/lib/magik/realtime.rb'
+          - 'apps/magik/test/magik/realtime/**'
 
 'area:jobs':
   - changed-files:
       - any-glob-to-any-file:
-          - 'lib/magik/jobs/**'
-          - 'lib/magik/jobs.rb'
-          - 'test/magik/jobs/**'
+          - 'apps/magik/lib/magik/jobs/**'
+          - 'apps/magik/lib/magik/jobs.rb'
+          - 'apps/magik/test/magik/jobs/**'
 
 # ── Phase 5: money and compliance ─────────────────────────────────────────────────────────────
 'area:ledger':
   - changed-files:
       - any-glob-to-any-file:
-          - 'lib/magik/ledger/**'
-          - 'lib/magik/ledger.rb'
-          - 'test/magik/ledger/**'
+          - 'apps/magik/lib/magik/ledger/**'
+          - 'apps/magik/lib/magik/ledger.rb'
+          - 'apps/magik/test/magik/ledger/**'
 
 # ── Phase 6: API and integration ──────────────────────────────────────────────────────────────
 'area:api':
   - changed-files:
       - any-glob-to-any-file:
-          - 'lib/magik/api/**'
-          - 'lib/magik/api.rb'
-          - 'test/magik/api/**'
+          - 'apps/magik/lib/magik/api/**'
+          - 'apps/magik/lib/magik/api.rb'
+          - 'apps/magik/test/magik/api/**'
 
 # ── Phase 7: batteries ────────────────────────────────────────────────────────────────────────
 'area:auth':
   - changed-files:
       - any-glob-to-any-file:
-          - 'lib/magik/auth/**'
-          - 'lib/magik/auth.rb'
-          - 'test/magik/auth/**'
+          - 'apps/magik/lib/magik/auth/**'
+          - 'apps/magik/lib/magik/auth.rb'
+          - 'apps/magik/test/magik/auth/**'
 
 'area:billing':
   - changed-files:
       - any-glob-to-any-file:
-          - 'lib/magik/billing/**'
-          - 'lib/magik/billing.rb'
-          - 'test/magik/billing/**'
+          - 'apps/magik/lib/magik/billing/**'
+          - 'apps/magik/lib/magik/billing.rb'
+          - 'apps/magik/test/magik/billing/**'
 
 'area:admin':
   - changed-files:
       - any-glob-to-any-file:
-          - 'lib/magik/admin/**'
-          - 'lib/magik/admin.rb'
-          - 'test/magik/admin/**'
+          - 'apps/magik/lib/magik/admin/**'
+          - 'apps/magik/lib/magik/admin.rb'
+          - 'apps/magik/test/magik/admin/**'
 
 # ── Phase 8: i18n, PWA, notifications ─────────────────────────────────────────────────────────
 'area:i18n':
   - changed-files:
       - any-glob-to-any-file:
-          - 'lib/magik/i18n/**'
-          - 'lib/magik/i18n.rb'
-          - 'test/magik/i18n/**'
+          - 'apps/magik/lib/magik/i18n/**'
+          - 'apps/magik/lib/magik/i18n.rb'
+          - 'apps/magik/test/magik/i18n/**'
 
 'area:pwa':
   - changed-files:
       - any-glob-to-any-file:
-          - 'lib/magik/pwa/**'
-          - 'lib/magik/pwa.rb'
-          - 'test/magik/pwa/**'
+          - 'apps/magik/lib/magik/pwa/**'
+          - 'apps/magik/lib/magik/pwa.rb'
+          - 'apps/magik/test/magik/pwa/**'
 
 'area:notify':
   - changed-files:
       - any-glob-to-any-file:
-          - 'lib/magik/notify/**'
-          - 'lib/magik/notify.rb'
-          - 'test/magik/notify/**'
+          - 'apps/magik/lib/magik/notify/**'
+          - 'apps/magik/lib/magik/notify.rb'
+          - 'apps/magik/test/magik/notify/**'
 
 # ── Phase 9, plus domains (spec item 12) and the boot-time guardrails ─────────────────────────
 'area:testing':
   - changed-files:
       - any-glob-to-any-file:
-          - 'lib/magik/testing/**'
-          - 'lib/magik/testing.rb'
-          - 'test/magik/testing/**'
-          - 'test/test_helper.rb'
+          - 'apps/magik/lib/magik/testing/**'
+          - 'apps/magik/lib/magik/testing.rb'
+          - 'apps/magik/test/magik/testing/**'
+          - 'apps/magik/test/test_helper.rb'
 
 'area:domains':
   - changed-files:
       - any-glob-to-any-file:
-          - 'lib/magik/domains/**'
-          - 'lib/magik/domains.rb'
-          - 'test/magik/domains/**'
+          - 'apps/magik/lib/magik/domains/**'
+          - 'apps/magik/lib/magik/domains.rb'
+          - 'apps/magik/test/magik/domains/**'
 
 'area:check':
   - changed-files:
       - any-glob-to-any-file:
-          - 'lib/magik/check/**'
-          - 'lib/magik/check.rb'
-          - 'test/magik/check/**'
+          - 'apps/magik/lib/magik/check/**'
+          - 'apps/magik/lib/magik/check.rb'
+          - 'apps/magik/test/magik/check/**'
 
 # ── cross-cutting ─────────────────────────────────────────────────────────────────────────────
 #
@@ -185,20 +186,20 @@ docs:
   - changed-files:
       - any-glob-to-any-file:
           - 'docs/**'
-          - 'wiki/**'
+          - 'apps/magik/wiki/**'
           - '**/*.md'
-          - 'llms.txt'
-          - '.yardopts'
+          - 'apps/magik/llms.txt'
+          - 'apps/magik/.yardopts'
 
 ci:
   - changed-files:
       - any-glob-to-any-file:
           - '.github/**'
           - 'bin/**'
-          - 'Rakefile'
-          - '.rubocop.yml'
+          - 'apps/magik/Rakefile'
+          - 'apps/magik/.rubocop.yml'
 
 dummy:
   - changed-files:
       - any-glob-to-any-file:
-          - 'dummy/**'
+          - 'apps/magik/dummy/**'

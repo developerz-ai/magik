@@ -32,7 +32,7 @@ out of. That is forced, not chosen:
 | Axiom 1 — the primary developer is an AI agent ([`01-thesis.md`](01-thesis.md)) | a second path is a choice, and a choice is where an agent guesses. A lite mode is a second path by construction |
 | Axiom 2 — one DSL grammar for everything | `ledger` reads like `model` reads like `screen`. There is no second dialect for the hard parts, so there is nothing to graduate *into* |
 | The spec's mission sentence ([`00-build-spec.md`](00-build-spec.md)) | *"without the user needing to 'graduate' to another stack"* — the whole point of the framework, stated as a requirement |
-| The spec's success criteria | *"no separate 'fintech mode'"* — and [`../../ROADMAP.md`](../../ROADMAP.md) makes the absence of one a **gate step**: a grep for such a mode is part of the 1.0 proof |
+| The spec's success criteria | *"no separate 'fintech mode'"* — and [`../../apps/magik/ROADMAP.md`](../../apps/magik/ROADMAP.md) makes the absence of one a **gate step**: a grep for such a mode is part of the 1.0 proof |
 
 That last row is the only part of the no-lite-mode claim that is verifiable by a command rather than
 by reading, and it is verifiable against the framework's own source rather than against a benchmark.
@@ -79,12 +79,12 @@ cannot retrofit cheaply. This is the "nothing has to be undone" claim, itemised.
 
 | The small app already has | Because | What it is worth at size | Verification owed |
 |---|---|---|---|
-| **UUIDv7 primary keys** | injected by `model`; `primary_key :id` in the first migration is already a UUIDv7 ([`../../dummy/db/migrations/`](../../dummy/db/migrations/20260826120000_create_customers_and_invoices.rb)) | changing a primary key type across a live, referenced schema is the migration nobody survives. Sortable ids are also what make cursor pagination and a future shard possible at all | a Phase 1 test that every generated table's `id` is UUIDv7, and that the strategy is **not** a swap point ([`../../wiki/Models.md`](../../wiki/Models.md)) |
+| **UUIDv7 primary keys** | injected by `model`; `primary_key :id` in the first migration is already a UUIDv7 ([`../../apps/magik/dummy/db/migrations/`](../../apps/magik/dummy/db/migrations/20260826120000_create_customers_and_invoices.rb)) | changing a primary key type across a live, referenced schema is the migration nobody survives. Sortable ids are also what make cursor pagination and a future shard possible at all | a Phase 1 test that every generated table's `id` is UUIDv7, and that the strategy is **not** a swap point ([`../../apps/magik/wiki/Models.md`](../../apps/magik/wiki/Models.md)) |
 | **`tenant_id` on every model** | injected, not written — the dummy migration declares no `tenant_id` column and gets one, with its index and foreign key | retrofitting tenancy means auditing every query ever written. This is the single most expensive thing on the page to add late | `MAGIK_MODEL_NO_TENANT` at boot, plus `magik check --scale` reporting unscoped query sites ([`03-guardrails.md`](03-guardrails.md)) |
 | **Integer-cent money, floats refused at the type level** | `:money` is a type, not a convention (axiom 10) | a float that reached the database is already wrong; no later fix recovers the precision | `MAGIK_MODEL_FLOAT_MONEY` at boot **and** at runtime |
 | **Append-only ledgers, `audited`, `immutable_after:`, `idempotent_by:`** | Phase 5 constructs in the same grammar as `model` — there is no fintech mode to migrate into | history you did not record cannot be reconstructed. In a regulated context that is a compliance failure, not an inconvenience | `MAGIK_LEDGER_UNBALANCED` at boot; the ROADMAP's grep-for-a-mode gate step |
 | **Stateless app servers** | a boot guardrail, not a discipline: a screen or action holding state across requests fails to start ([`03-guardrails.md`](03-guardrails.md)) | "add another server" is a config change. This is precisely what LiveView's stateful socket costs and what Magik refuses in exchange | `MAGIK_RENDER_SCREEN_STATEFUL` · `MAGIK_ACTION_STATEFUL`, plus a two-server test that interleaves one `flow`'s steps across both |
-| **Append-only migrations and a generated `db/schema.rb`** | `db/migrations/` is hand-written and never edited after it has run ([`../../wiki/Project-Layout.md`](../../wiki/Project-Layout.md)) | the schema is reproducible from the ledger of migrations rather than from someone's laptop | `MAGIK_SCHEMA_IRREVERSIBLE` (a `migrate` with no `down`) and `MAGIK_SCHEMA_DRIFT` |
+| **Append-only migrations and a generated `db/schema.rb`** | `db/migrations/` is hand-written and never edited after it has run ([`../../apps/magik/wiki/Project-Layout.md`](../../apps/magik/wiki/Project-Layout.md)) | the schema is reproducible from the ledger of migrations rather than from someone's laptop | `MAGIK_SCHEMA_IRREVERSIBLE` (a `migrate` with no `down`) and `MAGIK_SCHEMA_DRIFT` |
 | **One predictable file per declaration** | the naming rule runs in both directions: a path tells you what it declares before you open it | the flat tree becomes a domained tree by changing a path prefix — see [the move](#the-flat-to-domains-move-exactly) | `MAGIK_CHECK_FILE_MULTIPLE_DECLARATIONS` · `MAGIK_CHECK_DECLARATION_MISPLACED` |
 | **A rate-limit store that is not in the process** | decision 9 forbids a counter living in a process, so the throttle store is a **seam by construction** ([`04-swap-points.md`](04-swap-points.md)) | the single-server app's throttling is already correct on the second server. Nobody had to notice | the throttle seam's conformance suite, on Postgres and on Redis |
 | **The same gate as the largest app** | `magik check` + `magik test`, with `--json`, at every size ([`../architecture/05-adding-a-feature.md`](../architecture/05-adding-a-feature.md)) | no tribal checklist to hand a new team, and no "strict mode" that a mature app turns on late | the checker existing at all — build-order step 13 ([`06-phases.md`](06-phases.md)) |
@@ -111,16 +111,16 @@ declared, so the small app is not paying for the large app's shape.
 
 ## The flat-to-domains move, exactly
 
-The claim in [`../../wiki/Project-Layout.md`](../../wiki/Project-Layout.md) and
-[`../../wiki/Domains.md`](../../wiki/Domains.md) is that a domain contains **the same `app/` tree a
+The claim in [`../../apps/magik/wiki/Project-Layout.md`](../../apps/magik/wiki/Project-Layout.md) and
+[`../../apps/magik/wiki/Domains.md`](../../apps/magik/wiki/Domains.md) is that a domain contains **the same `app/` tree a
 flat app has, one level in** — so growing into domains is a path-prefix change, not a rewrite. That
 claim was checked against the sources rather than assumed:
 
 | Source | Says | Agrees? |
 |---|---|---|
-| [`../../wiki/Project-Layout.md`](../../wiki/Project-Layout.md) | `domains/billing/app/{models,screens,actions,jobs}/` plus `domains/billing/test/` | yes |
-| [`../../wiki/Domains.md`](../../wiki/Domains.md) | the same tree, with `components/` visible only inside the domain | yes |
-| [`../../dummy/`](../../dummy/README.md) — the reference app | `domains/billing/app/models/subscription.rb` on disk beside a flat `app/` | yes — this is the only place the shape exists as files rather than prose |
+| [`../../apps/magik/wiki/Project-Layout.md`](../../apps/magik/wiki/Project-Layout.md) | `domains/billing/app/{models,screens,actions,jobs}/` plus `domains/billing/test/` | yes |
+| [`../../apps/magik/wiki/Domains.md`](../../apps/magik/wiki/Domains.md) | the same tree, with `components/` visible only inside the domain | yes |
+| [`../../apps/magik/dummy/`](../../apps/magik/dummy/README.md) — the reference app | `domains/billing/app/models/subscription.rb` on disk beside a flat `app/` | yes — this is the only place the shape exists as files rather than prose |
 | [`../architecture/02-boundaries.md`](../architecture/02-boundaries.md) | **fixed.** It sketched `domains/billing/models/`, without the `app/` level, and disagreed with three sources and with the reference app's own files | **no longer.** Kept as a row because it is the cheapest example of the failure this table exists to catch: one prose sketch, drifting quietly from the layout it illustrates |
 
 **The canonical shape is `domains/<name>/app/<kind>/`.** The disagreement above is a documentation
@@ -159,13 +159,13 @@ be the kind of claim this page exists to avoid:
 | Also true | Why |
 |---|---|
 | **The boundary violations you did not know you had become boot failures** | each one is `MAGIK_DOMAIN_BOUNDARY` naming both domains and the exact constant. Fixing them means adding an `exposes`, or converting a direct read into an event subscription — real design work, in an unknown quantity, discovered at the moment of the move |
-| **The amount of that work is proportional to entanglement, not to app size** | which is why [`../../dummy/README.md`](../../dummy/README.md) says *"Do not move a slice because the app got big. Size is not the trigger; entanglement is."* A 200-model app with one team and one vocabulary is fine flat |
+| **The amount of that work is proportional to entanglement, not to app size** | which is why [`../../apps/magik/dummy/README.md`](../../apps/magik/dummy/README.md) says *"Do not move a slice because the app got big. Size is not the trigger; entanglement is."* A 200-model app with one team and one vocabulary is fine flat |
 | **Shared things stay put** | app-wide components and cross-domain screens remain in the top-level `app/`. The move is per-slice, not a re-parenting of the tree |
-| **A boundary is not free once drawn** | *"every boundary is a place where a change now needs two edits"* ([`../../wiki/Domains.md`](../../wiki/Domains.md)). That cost is the reason not to draw one early, and it is permanent |
+| **A boundary is not free once drawn** | *"every boundary is a place where a change now needs two edits"* ([`../../apps/magik/wiki/Domains.md`](../../apps/magik/wiki/Domains.md)). That cost is the reason not to draw one early, and it is permanent |
 | **Nothing here promises a later service extraction** | a domain is *"a compile-time wall, not a network hop"*, and a **plausible** seam for a future service — no page may imply the extraction is easy |
 
-The signals for making the move are in [`../../wiki/Project-Layout.md`](../../wiki/Project-Layout.md#when-to-move)
-and [`../../dummy/README.md`](../../dummy/README.md). The framework's contribution is that the move
+The signals for making the move are in [`../../apps/magik/wiki/Project-Layout.md`](../../apps/magik/wiki/Project-Layout.md#when-to-move)
+and [`../../apps/magik/dummy/README.md`](../../apps/magik/dummy/README.md). The framework's contribution is that the move
 is available at any time and costs nothing until taken — not that it is trivial when taken.
 
 ## Where the range ends: the seams and their signals
@@ -180,8 +180,8 @@ and the number that would make it a rule is a debt in [the last table](#what-mus
 
 | Default | The signal you have outgrown it | You move to | What the move costs |
 |---|---|---|---|
-| **In-process memory cache** | a second app server, plus a measured cross-server miss. *"A cache that silently goes wrong across two servers is worse than no cache"* ([`../../dummy/config/backends.rb`](../../dummy/config/backends.rb)) | Redis or Memcached, by `use` | a restart, and a piece of infrastructure to run. Cached data does not migrate |
-| **Postgres job queue (Que-style)** | **not the `SELECT`, which is where people look.** Dead-tuple ratio on the job table that aggressive autovacuum cannot hold down, job-table WAL as a material fraction of total WAL, or `LWLock:MultiXact*` waits appearing ([`../architecture/11-jobs-backend.md`](../architecture/11-jobs-backend.md)) | **first a second Postgres dedicated to jobs**, not a broker. Kafka only when the queue is the wrong primitive — independent consumers with independent progress, replay, other services ([`../../wiki/Jobs.md`](../../wiki/Jobs.md)) | **the transactional enqueue, at the very first step.** A second Postgres is a different database, so a cross-database enqueue cannot join the app's transaction any more than a Redis `LPUSH` can. The cheapest rung is the one that silently breaks the guarantee the default was chosen for; recovering it means the outbox pattern, which is machinery, not config |
+| **In-process memory cache** | a second app server, plus a measured cross-server miss. *"A cache that silently goes wrong across two servers is worse than no cache"* ([`../../apps/magik/dummy/config/backends.rb`](../../apps/magik/dummy/config/backends.rb)) | Redis or Memcached, by `use` | a restart, and a piece of infrastructure to run. Cached data does not migrate |
+| **Postgres job queue (Que-style)** | **not the `SELECT`, which is where people look.** Dead-tuple ratio on the job table that aggressive autovacuum cannot hold down, job-table WAL as a material fraction of total WAL, or `LWLock:MultiXact*` waits appearing ([`../architecture/11-jobs-backend.md`](../architecture/11-jobs-backend.md)) | **first a second Postgres dedicated to jobs**, not a broker. Kafka only when the queue is the wrong primitive — independent consumers with independent progress, replay, other services ([`../../apps/magik/wiki/Jobs.md`](../../apps/magik/wiki/Jobs.md)) | **the transactional enqueue, at the very first step.** A second Postgres is a different database, so a cross-database enqueue cannot join the app's transaction any more than a Redis `LPUSH` can. The cheapest rung is the one that silently breaks the guarantee the default was chosen for; recovering it means the outbox pattern, which is machinery, not config |
 | **Postgres `LISTEN`/`NOTIFY` realtime** | `LISTEN` connection count against Postgres, and open sockets per app process ([`../ops/README.md`](../ops/README.md)) | Redis pub/sub or NATS, by `use` | infrastructure, plus a fanout path whose failure modes differ from the database's |
 | **Postgres full-text search + `pgvector`** | index maintenance cost, or ranking and analysis the database cannot express | Elasticsearch, Meilisearch, Typesense | a second datastore to keep in sync, and an index that can be stale |
 | **Local-disk storage (Shrine)** | more than one app server, or a filesystem that does not survive a restart | S3 or a compatible, by configuration | nothing structural — this is the cheapest seam to cross, which is why it is the default |
@@ -322,19 +322,19 @@ row here is green, and each row names what would make it so.
 |---|---|---|
 | the small end needs one Postgres and nothing else | boot a generated app with only `DATABASE_URL` set; assert no other service is contacted | `magik new`, Phase 1 |
 | the small end asks no questions and supplies no env values before the first boot | `magik new --dry-run` flag inventory; a count of required `.env` keys at first boot | `magik new`, Phase 1 |
-| a CRUD slice is under 30 lines with zero HTML/JS/CSS | a committed example whose line count is asserted by a test, not counted by hand ([`../../ROADMAP.md`](../../ROADMAP.md)) | Phase 2 |
-| there is no lite mode and no fintech mode | a grep for such a mode, as a gate step ([`../../ROADMAP.md`](../../ROADMAP.md)) | the gate step existing |
+| a CRUD slice is under 30 lines with zero HTML/JS/CSS | a committed example whose line count is asserted by a test, not counted by hand ([`../../apps/magik/ROADMAP.md`](../../apps/magik/ROADMAP.md)) | Phase 2 |
+| there is no lite mode and no fintech mode | a grep for such a mode, as a gate step ([`../../apps/magik/ROADMAP.md`](../../apps/magik/ROADMAP.md)) | the gate step existing |
 | realtime costs nothing until declared | a screen with no `live` opens **no socket and issues no realtime query** — a test, not a paragraph ([`06-phases.md`](06-phases.md)) | Phase 3 |
 | a swap changes config and zero app code | the seam's conformance suite green on **every** backend, plus an example app booting on each with a zero-line diff ([`04-swap-points.md`](04-swap-points.md)) | one seam with two shipped backends |
 | stateless means "add a server" | two app processes behind a load balancer, serving interleaved steps of one `flow` | Phase 2 + Phase 5 |
-| flat → domains is a path-prefix move | script the move over [`../../dummy/`](../../dummy/README.md), assert **zero diff inside the moved files**, then boot and count the boundary failures | Phase 12 (`domain` DSL) |
+| flat → domains is a path-prefix move | script the move over [`../../apps/magik/dummy/`](../../apps/magik/dummy/README.md), assert **zero diff inside the moved files**, then boot and count the boundary failures | Phase 12 (`domain` DSL) |
 | domains cost nothing until declared | boot an app with no `domains/` and assert the boundary rules are inert | Phase 12 |
 | **the Postgres job queue's ceiling** | a benchmark against real Magik code. [`../architecture/11-jobs-backend.md`](../architecture/11-jobs-backend.md) already carries third-party numbers with full attribution and states plainly that **no number on it is one Magik produced** — that page's debt is the same as this one's | Phase 4, plus a benchmark harness that commits its results |
 | **the `LISTEN`/`NOTIFY` realtime ceiling** | subscribers per app process, and `LISTEN` connections per database, before latency degrades | Phase 3 |
 | the guardrails actually fire | one failing fixture per `MAGIK_*` code in the catalogue ([`03-guardrails.md`](03-guardrails.md)) | each phase, as its guardrails land |
 | `magik check --scale` is useful rather than noisy | its true-positive and false-positive rate on the reference app | Phase 12 |
 | 1,000 tests, all cores, under 10s | `magik test --workers=auto --report=timing` ([`../architecture/04-testing-strategy.md`](../architecture/04-testing-strategy.md)) | Phase 9, built fifth |
-| a generated app is safe on its first run | a cross-tenant actor denied by **every** generated surface; the shell rendering at 375px; the signup form throttling and not revealing whether an account exists ([`../../ROADMAP.md`](../../ROADMAP.md)) | Phase 7 |
+| a generated app is safe on its first run | a cross-tenant actor denied by **every** generated surface; the shell rendering at 375px; the signup form throttling and not revealing whether an account exists ([`../../apps/magik/ROADMAP.md`](../../apps/magik/ROADMAP.md)) | Phase 7 |
 | TruffleRuby closes the throughput gap | a server-rendering benchmark on TruffleRuby against the CRuby baseline, in CI | a running framework |
 | the harness makes an author faster | **unmeasurable today, and possibly for a long time.** No app has ever been built with Magik by anyone ([`09-app-scaffold.md`](09-app-scaffold.md)) | adoption |
 
@@ -347,12 +347,12 @@ evidence of it.
 | Not claimed | State `As of 2026-08-26` |
 |---|---|
 | that anyone has shipped anything on Magik | no adoption, no deployments, no testimonials. [`../../README.md`](../../README.md) says so and will until they exist |
-| that the small end works | there is no `magik new`, no `App.define`, no server. [`../../dummy/`](../../dummy/README.md) parses and does not run; that is its only claim |
+| that the small end works | there is no `magik new`, no `App.define`, no server. [`../../apps/magik/dummy/`](../../apps/magik/dummy/README.md) parses and does not run; that is its only claim |
 | that a single swap has been proven | zero seams implemented, zero backends shipped. Every row of [`04-swap-points.md`](04-swap-points.md) is `planned`, and a candidate is labelled a candidate |
 | that the flat-to-domains move has been performed | the `domain` DSL is build-order step 13 — the last thing built |
 | that any ceiling above has a number | no benchmark has been run. The signals are shapes, not thresholds, and they say so |
 | that the guardrails catch every mistake | they catch what is derivable from the frozen registry or from source. A wrong requirement, a bad trade-off and a mis-sized database are not in that set |
-| that a domain becomes a service | *"a plausible seam for a future service. Nothing here promises the extraction will be easy"* ([`../../wiki/Domains.md`](../../wiki/Domains.md)) |
+| that a domain becomes a service | *"a plausible seam for a future service. Nothing here promises the extraction will be easy"* ([`../../apps/magik/wiki/Domains.md`](../../apps/magik/wiki/Domains.md)) |
 | that Magik fits every product | see [`05-limits.md`](05-limits.md), and [`10-saas-coverage.md`](10-saas-coverage.md) for the measured distance between the grammar and its 99% target — under a fifth of 68 surveyed surfaces, `As of 2026-08-26` |
 
 ## Next
@@ -362,5 +362,5 @@ evidence of it.
 - [`05-limits.md`](05-limits.md) — where the range ends by design rather than by capacity.
 - [`08-component-overrides.md`](08-component-overrides.md) — the expert end's ladder, rung by rung.
 - [`09-app-scaffold.md`](09-app-scaffold.md) — the non-technical end's entry point.
-- [`../../wiki/Project-Layout.md`](../../wiki/Project-Layout.md) — the two tree shapes and the move between them.
+- [`../../apps/magik/wiki/Project-Layout.md`](../../apps/magik/wiki/Project-Layout.md) — the two tree shapes and the move between them.
 - [`../ops/README.md`](../ops/README.md) — the deployment shape, and the scale ladder that is not written yet.

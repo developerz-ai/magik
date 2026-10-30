@@ -11,11 +11,11 @@ body:
         [`docs/idea/00-build-spec.md`](https://github.com/developerz-ai/magik/blob/main/docs/idea/00-build-spec.md)
         is **entirely unimplemented**. `model`, `screen`, `action`, `channel`, `job`, `ledger`,
         `api`, `auth`, `billing`, `admin_panel`, the router, the renderer — none of them exist.
-        Every subsystem under `lib/magik/` is a documented stub that raises `NotImplementedError`.
+        Every subsystem under `apps/magik/lib/magik/` is a documented stub that raises `NotImplementedError`.
 
         So **"feature X does not work" is not a bug here — it is the current state.** Those belong
         in [Discussions](https://github.com/developerz-ai/magik/discussions) or against
-        [`ROADMAP.md`](https://github.com/developerz-ai/magik/blob/main/ROADMAP.md), and an issue
+        [`ROADMAP.md`](https://github.com/developerz-ai/magik/blob/main/apps/magik/ROADMAP.md), and an issue
         filed for one will be moved there.
 
         What **is** a bug, and what this form is for:

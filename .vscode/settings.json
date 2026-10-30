@@ -58,7 +58,7 @@
     ],
     "https://json.schemastore.org/lefthook.json": ["lefthook.yml"],
     "https://raw.githubusercontent.com/compose-spec/compose-spec/master/schema/compose-spec.json": [
-      "docker/compose.yml"
+      "apps/magik/docker/compose.yml"
     ]
   },
   "yaml.format.enable": true,

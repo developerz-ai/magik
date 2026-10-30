@@ -47,7 +47,7 @@
 - still missing (14): MAGIK_MASTER_KEY, SECRET_KEY_BASE, DATABASE_URL, REDIS_URL, MAGIK_REALTIME_BACKEND, MAGIK_CACHE_BACKEND, MAGIK_JOBS_BACKEND, MAGIK_SEARCH_BACKEND, MAGIK_ENV, MAGIK_LOG_FORMAT, MAGIK_LOG_LEVEL, PORT, GITHUB_TOKEN, GH_TOKEN
 - unnecessary — do not provision (2 of the 16 asked): RUBYGEMS_API_KEY, GEM_HOST_API_KEY.
   Releases publish over OIDC trusted publishing and no long-lived RubyGems key is stored
-  here or should be added (see [PUBLISHING.md](PUBLISHING.md), .github/workflows/release.yml),
+  here or should be added (see [PUBLISHING.md](../../apps/magik/PUBLISHING.md), .github/workflows/release.yml),
   so there is no publishing credential in this gap
 
 ## `layout` — gap

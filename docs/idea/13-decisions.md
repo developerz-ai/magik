@@ -4,7 +4,7 @@
 > about the framework. It is about who decides what the framework is.
 >
 > `As of 2026-08-26` every decision below is a decision about a design. None of it is implemented —
-> re-derive what runs with `ruby -Ilib exe/magik help` and `rake test`.
+> re-derive what runs with `ruby -Iapps/magik/lib apps/magik/exe/magik help` and `rake -C apps/magik test`.
 
 ## The premise, taken seriously
 
@@ -88,7 +88,7 @@ argument.
 | **Authorization is not a swap point** | a pluggable authorization backend, like the DB and cache seams | a second authorization backend is a second authorization system, which is the failure the design is organised against | — |
 | **Media is its own phase (4b)** | spreading it across phases 1, 2, 4 and 7 | a capability whose value arrives only when all four have landed is a phase; otherwise each phase ships a quarter and the app still cannot store a photo | — |
 | **Shipped error codes were renamed to fit the format** | grandfathering them under "stable forever once shipped" | the stability promise protects consumers' error handling and `fix:` scripts, and a name-reservation release has none. The window to fix a convention closes the moment someone depends on it | the first real release — after which the promise binds for good |
-| **`scripts/checks/*.rb` runs in `bin/check`** | leaving them as scripts a contributor runs by hand | two of the eight had been red for an unknown number of commits and nobody noticed, because nothing ran them. A check that is not in the gate is a check that does not exist | — |
+| **`apps/magik/scripts/checks/*.rb` runs in `bin/check`** | leaving them as scripts a contributor runs by hand | two of the eight had been red for an unknown number of commits and nobody noticed, because nothing ran them. A check that is not in the gate is a check that does not exist | — |
 
 ## The failure mode this page is guarding against
 

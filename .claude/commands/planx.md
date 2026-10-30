@@ -17,7 +17,7 @@ $ARGUMENTS
 Every plan names the section of [`docs/idea/00-build-spec.md`](../../docs/idea/00-build-spec.md) it
 serves. No section means no plan — propose a spec amendment instead
 ([`CONTRIBUTING.md`](../../CONTRIBUTING.md)). Say which of spec-phase or delivery-order numbering you
-mean; they differ, and spec Phase 9 ships third ([`ROADMAP.md`](../../ROADMAP.md)).
+mean; they differ, and spec Phase 9 ships third ([`apps/magik/ROADMAP.md`](../../apps/magik/ROADMAP.md)).
 
 ## 2. Resolve the path
 
@@ -46,15 +46,16 @@ check` — because that is also the file lock an executing hive will use. House 
 `overview.md`: **Goal** (what + why, two sentences) · **Spec section** (the traceability line) ·
 **Context** (only the stack facts this plan needs — TruffleRuby, real parallel threads, Rack+Puma,
 Sequel, Minitest, htmx, `tenant_id`, UUIDv7, integer cents — plus reference patterns as
-`lib/magik/<x>.rb:12 — follow this for Z`) · **Plan files** (ordered, one line each) · **Done when**
+`apps/magik/lib/magik/<x>.rb:12 — follow this for Z`) · **Plan files** (ordered, one line each) · **Done when**
 (verifiable criteria spanning the whole change) · **Risks / open questions**.
 
 Each `<NN>-<aspect>.md`: a `> Part of overview.md. Depends on: <NN or none>.` line · **Files to
 change** (`path:line` — what, why) · **Steps** (ordered, concrete, referencing `Class#method`, not
 restating code) · **Guardrail** (the boot-time refusal the spec names for this, its `MAGIK_*` code
-and its runnable `fix:` — or "none required, because …") · **Tests** (Minitest in `test/`, failing
-first; `rake test TEST=test/magik/<x>_test.rb`) · **Docs** (YARD on every public method; the wiki or
-`docs/architecture/` page; the `CHANGELOG.md` entry) · **Done when**.
+and its runnable `fix:` — or "none required, because …") · **Tests** (Minitest in
+`apps/magik/test/`, failing first; `rake -C apps/magik test TEST=test/magik/<x>_test.rb`) ·
+**Docs** (YARD on every public method; the `apps/magik/wiki/` or `docs/architecture/` page; the
+`CHANGELOG.md` entry) · **Done when**.
 
 ## 5. Write `status.yml` beside `overview.md`
 
@@ -88,7 +89,7 @@ structured data. Reference code, never paste it. No checkboxes outside `status.y
 the executor reads `overview.md`, its slice, and the files those cite — nothing else.
 
 The plan inherits every house non-negotiable and must not plan around one: **Sequel never
-ActiveRecord · Minitest in `test/`, never RSpec or `spec/` · no ActiveSupport · SOLID, SRP hardest —
+ActiveRecord · Minitest in `apps/magik/test/`, never RSpec or `spec/` · no ActiveSupport · SOLID, SRP hardest —
 new behaviour is a new registered object, never another branch in a `case` · integer-cents money ·
 UUIDv7 and `tenant_id` on every model · htmx, never an SPA or a build step · `policy` at tier 1, one
 evaluator, no second door · one gem, no second gemspec · the guardrail ships in the same change as

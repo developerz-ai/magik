@@ -10,7 +10,7 @@ name: release
 # commands. This workflow is the automated half of the same procedure, not a second one.
 #
 # ── how a release happens ─────────────────────────────────────────────────────────────────────
-#   1. bump Magik::VERSION in lib/magik/version.rb and add the CHANGELOG.md section
+#   1. bump Magik::VERSION in apps/magik/lib/magik/version.rb and add the CHANGELOG.md section
 #   2. merge that to main (`bin/release` checks you are ready; it publishes nothing)
 #   3. tag `vX.Y.Z` and publish a GitHub Release for it — publishing is what fires this workflow
 #
@@ -106,7 +106,7 @@ jobs:
           persist-credentials: false
       - uses: ./.github/actions/setup
         with:
-          # lib/magik/version.rb is dependency-free, and this job only reads it.
+          # apps/magik/lib/magik/version.rb is dependency-free, and this job only reads it.
           bundler-cache: 'false'
 
       # THREE sources have to agree, and none is derived from another:
@@ -144,9 +144,9 @@ jobs:
           esac
 
           tag_version="${tag#v}"
-          gem_version="$(ruby -Ilib -e 'require "magik/version"; print Magik::VERSION')"
+          gem_version="$(ruby -Iapps/magik/lib -e 'require "magik/version"; print Magik::VERSION')"
           if [ "$tag_version" != "$gem_version" ]; then
-            echo "::error title=Tag does not match Magik::VERSION::The tag says ${tag_version} and lib/magik/version.rb says ${gem_version}. RubyGems would register ${gem_version} under a release announced as ${tag_version}. fix: set VERSION in lib/magik/version.rb to ${tag_version} and re-cut the release, or delete this tag and cut a new one for ${gem_version}. bin/release checks this before you tag."
+            echo "::error title=Tag does not match Magik::VERSION::The tag says ${tag_version} and apps/magik/lib/magik/version.rb says ${gem_version}. RubyGems would register ${gem_version} under a release announced as ${tag_version}. fix: set VERSION in apps/magik/lib/magik/version.rb to ${tag_version} and re-cut the release, or delete this tag and cut a new one for ${gem_version}. bin/release checks this before you tag."
             exit 1
           fi
 
@@ -220,7 +220,11 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p pkg
-          gem build magik.gemspec --output "pkg/magik-${VERSION}.gem"
+          # RubyGems resolves a gemspec's file list against the CURRENT directory, not the
+          # gemspec's own (see bin/check's build step), so the build runs inside apps/magik —
+          # with --output anchored to $GITHUB_WORKSPACE so pkg/magik-${VERSION}.gem stays at
+          # the checkout root, where the publish job's download and `gem push` read it.
+          (cd apps/magik && gem build magik.gemspec --output "$GITHUB_WORKSPACE/pkg/magik-${VERSION}.gem")
           ls -l pkg
           echo "::group::packaged files"
           gem specification "pkg/magik-${VERSION}.gem" files

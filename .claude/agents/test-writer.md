@@ -16,7 +16,7 @@ confirmed for each test. A test whose mutation you did not run is a guess — sa
 
 ## Write for the runner that is coming
 
-Phase 9 ([`ROADMAP.md`](../../ROADMAP.md) calls it Phase 3, delivered third) brings **one thread per
+Phase 9 ([`apps/magik/ROADMAP.md`](../../apps/magik/ROADMAP.md) calls it Phase 3, delivered third) brings **one thread per
 test file group** and **transactional rollback per test, never truncation**. A worker is a thread and
 there is exactly one worker model: TruffleRuby's threads are genuinely parallel, and it has no
 `fork`, so there is no forked worker to fall back to. Tests written without that in mind get
@@ -53,15 +53,15 @@ block that configures four subsystems — see
 
 ## Layout and commands
 
-Tests mirror the source, one file to one file — `lib/magik/ledger/entry.rb` →
-`test/magik/ledger/entry_test.rb`.
+Tests mirror the source, one file to one file — `apps/magik/lib/magik/ledger/entry.rb` →
+`apps/magik/test/magik/ledger/entry_test.rb`.
 
 ```bash
-rake test TEST=test/magik/ledger/entry_test.rb   # yours, while iterating
+rake -C apps/magik test TEST=test/magik/ledger/entry_test.rb   # yours, while iterating
 bin/check                                          # the gate, before you report
 ```
 
-`rake test` runs on bare Ruby with no bundler installed. RuboCop and YARD may be absent on a given
+`rake -C apps/magik test` runs on bare Ruby with no bundler installed. RuboCop and YARD may be absent on a given
 machine — a missing tool is a **skip**, not a red gate, and never something you claim you ran.
 
 Today the suite covers the stubs, not the framework: a test asserting that

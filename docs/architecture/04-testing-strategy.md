@@ -97,7 +97,7 @@ The lesson Magik takes: **balance on recorded runtime, and record it by default*
 
 **One worker *thread* per test file group, `workers: :auto` (all CPUs)** — parallelism inside one process rather than N forked processes.
 
-That works because threads on TruffleRuby are genuinely parallel — measured, not assumed: `ruby scripts/probes/runtime.rb`, results recorded in [`12-runtime-verification.md`](12-runtime-verification.md) `As of 2026-08-26`. **Cite the probe, never the ratio:** the speedup moves run to run with machine load, and a number copied into prose here is a number a re-run contradicts. TruffleRuby has no GVL, so the usual Ruby reason for reaching past threads does not exist.
+That works because threads on TruffleRuby are genuinely parallel — measured, not assumed: `ruby apps/magik/scripts/probes/runtime.rb`, results recorded in [`12-runtime-verification.md`](12-runtime-verification.md) `As of 2026-08-26`. **Cite the probe, never the ratio:** the speedup moves run to run with machine load, and a number copied into prose here is a number a re-run contradicts. TruffleRuby has no GVL, so the usual Ruby reason for reaching past threads does not exist.
 
 | Property | Separate processes (Rails-shaped) | Threads (Magik's design) |
 |---|---|---|
@@ -106,7 +106,7 @@ That works because threads on TruffleRuby are genuinely parallel — measured, n
 | Databases | N copies | one database, one connection per worker thread, transactional isolation |
 | Demands | none on the framework | genuinely shared-nothing tests, and a thread-safe framework: frozen registries, no mutable globals |
 | Crash blast radius | one worker | potentially the process |
-| Actually parallel? | yes, on any engine | **yes on TruffleRuby**, which is the production runtime and the engine that matters — `ruby scripts/probes/runtime.rb` |
+| Actually parallel? | yes, on any engine | **yes on TruffleRuby**, which is the production runtime and the engine that matters — `ruby apps/magik/scripts/probes/runtime.rb` |
 
 This is why [`00-conventions.md`](00-conventions.md) freezes the declaration registry at the end of boot and forbids mutable globals: the test runner's design depends on it, and a subsystem that stashes mutable state breaks parallelism rather than just being untidy.
 
@@ -127,7 +127,7 @@ The runner has **one** parallel backend: worker threads. There is no forked-work
 
 | | |
 |---|---|
-| Threads are genuinely parallel on the production runtime | measured by `ruby scripts/probes/runtime.rb`. The reason forked workers exist in Ruby is the GVL, and TruffleRuby does not have one |
+| Threads are genuinely parallel on the production runtime | measured by `ruby apps/magik/scripts/probes/runtime.rb`. The reason forked workers exist in Ruby is the GVL, and TruffleRuby does not have one |
 | **`fork` is not available on TruffleRuby anyway** | `Process.respond_to?(:fork)` is `false`; calling it raises `NotImplementedError: fork is not available`. Measured on both builds tested, [`12-runtime-verification.md`](12-runtime-verification.md). A forked fallback is not a thing that could be built here |
 
 `magik test --workers=N` sets how many worker threads, and `auto` is all CPUs. It does not select a mechanism, because there is only one.
@@ -244,4 +244,4 @@ Six kinds, in cost order. The gate runs them in this order so the cheapest failu
 | 5 | `integration` | realtime, worker execution, committed-data paths | database with `isolation: :committed`, a worker, `LISTEN`/`NOTIFY` | `magik test`, CI |
 | 6 | `conformance` | a swap point's backends all satisfy one contract ([`../idea/04-swap-points.md`](../idea/04-swap-points.md)) | each backend, real | CI only |
 
-App-facing usage, helper reference and worked examples live in [`../../wiki/Testing.md`](../../wiki/Testing.md).
+App-facing usage, helper reference and worked examples live in [`../../apps/magik/wiki/Testing.md`](../../apps/magik/wiki/Testing.md).

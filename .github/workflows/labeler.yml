@@ -40,7 +40,7 @@ jobs:
         with:
           configuration-path: .github/labeler.yml
           # Labels come OFF again when the files that earned them leave the diff. Without this, a
-          # PR that started in lib/magik/ledger/ and ended up touching only docs keeps `area:ledger`
+          # PR that started in apps/magik/lib/magik/ledger/ and ended up touching only docs keeps `area:ledger`
           # forever, and the label stops meaning anything.
           #
           # It only ever touches labels this configuration knows about: a `bug` or `pinned` label a

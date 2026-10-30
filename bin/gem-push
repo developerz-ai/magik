@@ -2,7 +2,7 @@
 # bin/gem-push — publish pkg/magik-<version>.gem to rubygems.org.
 #
 # THIS ONE IS IRREVERSIBLE. A published version can be yanked but never
-# replaced, and the name is permanently taken. Read PUBLISHING.md first and run
+# replaced, and the name is permanently taken. Read apps/magik/PUBLISHING.md first and run
 # `bin/release` to confirm the version, the tag and the CHANGELOG agree.
 #
 # Requires `bin/gem-build` (for the artifact) and `bin/gem-login` (for the key).
@@ -31,7 +31,7 @@ if [ $# -gt 1 ]; then
   exit 64
 fi
 
-version="$(ruby -Ilib -e 'require "magik/version"; print Magik::VERSION')"
+version="$(ruby -Iapps/magik/lib -e 'require "magik/version"; print Magik::VERSION')"
 gemfile="pkg/magik-${version}.gem"
 
 if [ ! -f "$gemfile" ]; then

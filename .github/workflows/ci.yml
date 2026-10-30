@@ -12,7 +12,7 @@ name: ci
 # So CI adds exactly two things `bin/check` cannot do on a laptop, and nothing else:
 #   * the ENGINE MATRIX — 3.2, 3.3, 3.4 and TruffleRuby, which no dev machine has all of
 #   * the INSTALLED GEM — building the artifact and running the binary out of an empty GEM_HOME,
-#     which is a different question from running `exe/magik` off the load path
+#     which is a different question from running `apps/magik/exe/magik` off the load path
 #
 # `bin/check --only <step>` is what splits it across jobs rather than running it once: a red step
 # then names itself in the job list instead of hiding inside one log. `bin/check --list` prints the
@@ -20,7 +20,7 @@ name: ci
 # checking nothing.
 #
 # HONESTY NOTE, because it governs what may be added: as of 2026-08-26 Magik is spec-only —
-# docs/idea/00-build-spec.md is the product and lib/ is documented stubs. No job in this file
+# docs/idea/00-build-spec.md is the product and apps/magik/lib/ is documented stubs. No job in this file
 # proves framework behaviour, because there is none. What it proves is that the repository is
 # well-formed and that the gem installs, which is worth proving from the first commit.
 
@@ -78,28 +78,30 @@ jobs:
         uses: dorny/paths-filter@v4
         with:
           filters: |
-            # Anything RuboCop lints, Minitest loads, or the gemspec packages. `.rubocop.yml` is in
-            # here rather than under `ci` because a rule change can turn a green tree red without
-            # touching a single .rb file, and the job that would catch it is `lint`.
+            # Anything RuboCop lints, Minitest loads, or the gemspec packages. The app tree lives
+            # under apps/magik/; `bin/**` and the workspace `Gemfile`/`Gemfile.lock` stay at the
+            # checkout root. `.rubocop.yml` is in here rather than under `ci` because a rule change
+            # can turn a green tree red without touching a single .rb file, and the job that would
+            # catch it is `lint`.
             ruby:
-              - 'lib/**'
-              - 'exe/**'
-              - 'test/**'
+              - 'apps/magik/lib/**'
+              - 'apps/magik/exe/**'
+              - 'apps/magik/test/**'
               - 'bin/**'
-              - '*.gemspec'
+              - 'apps/magik/*.gemspec'
               - 'Gemfile'
               - 'Gemfile.lock'
-              - 'Rakefile'
-              - '.rubocop.yml'
-              - '.ruby-version'
+              - 'apps/magik/Rakefile'
+              - 'apps/magik/.rubocop.yml'
+              - 'apps/magik/.ruby-version'
             # `.yardopts` decides what `yard doc` reads and where it writes, so it belongs to the
-            # docs half even though the objects it documents live in lib/.
+            # docs half even though the objects it documents live in apps/magik/lib/.
             docs:
               - 'docs/**'
-              - 'wiki/**'
+              - 'apps/magik/wiki/**'
               - '**/*.md'
-              - 'llms.txt'
-              - '.yardopts'
+              - 'apps/magik/llms.txt'
+              - 'apps/magik/.yardopts'
             # A change to the gate re-runs the whole gate. The alternative is a workflow edit whose
             # only proof is the run of the workflow it edited, on the diff shape it happened to have.
             ci:
@@ -107,7 +109,7 @@ jobs:
             # The reference app. Ruby that RuboCop lints and that the gemspec deliberately excludes
             # from `spec.files`, so it gates `lint` and nothing else.
             dummy:
-              - 'dummy/**'
+              - 'apps/magik/dummy/**'
 
       - id: gate
         shell: bash
@@ -147,7 +149,7 @@ jobs:
   # Whole tree, never a changed-files subset. Cops such as `Style/Documentation` and the
   # rubocop-minitest set read files a diff did not touch, and a lint restricted to the diff reports
   # green on a `.rubocop.yml` change that broke fifty other files. The economy is skipping the JOB,
-  # not narrowing it — which is also why `dummy` gates this job and nothing else: dummy/ is Ruby
+  # not narrowing it — which is also why `dummy` gates this job and nothing else: apps/magik/dummy/ is Ruby
   # RuboCop lints but the gem does not package.
   lint:
     name: lint
@@ -237,7 +239,7 @@ jobs:
   # This is the second thing a laptop cannot usefully do, and the reason it is a separate job from
   # `bin/check --only build --only cli`.
   #
-  # Those two steps build the gem into a temp directory and run `ruby -Ilib exe/magik` — the source
+  # Those two steps build the gem into a temp directory and run `ruby -Iapps/magik/lib apps/magik/exe/magik` — the source
   # tree, on the load path. That combination cannot see the classic packaging bugs, because every
   # one of them is invisible until the gem is INSTALLED: a file missing from `spec.files`, an
   # executable absent from `spec.bindir`, a runtime dependency that only ever resolved because the
@@ -259,9 +261,13 @@ jobs:
         id: build
         run: |
           set -euo pipefail
-          version="$(ruby -Ilib -e 'require "magik/version"; print Magik::VERSION')"
+          version="$(ruby -Iapps/magik/lib -e 'require "magik/version"; print Magik::VERSION')"
           mkdir -p pkg
-          gem build magik.gemspec --output "pkg/magik-${version}.gem"
+          # RubyGems resolves a gemspec's file list against the CURRENT directory, not the
+          # gemspec's own (see bin/check's build step), so the build runs inside apps/magik —
+          # with --output anchored to $GITHUB_WORKSPACE so pkg/magik-<version>.gem stays where
+          # the `gem specification` call and the upload step below read it.
+          (cd apps/magik && gem build magik.gemspec --output "$GITHUB_WORKSPACE/pkg/magik-${version}.gem")
           echo "version=${version}" >> "$GITHUB_OUTPUT"
           echo "gem=pkg/magik-${version}.gem" >> "$GITHUB_OUTPUT"
           # What actually went into the artifact, in the log. A file missing from `spec.files` is
@@ -288,7 +294,7 @@ jobs:
           gem install --no-document "$GEM"
 
           command -v magik > /dev/null || {
-            echo "::error title=magik binary not installed::gem install placed no 'magik' executable on PATH. fix: check that magik.gemspec sets spec.bindir = 'exe' and spec.executables = ['magik'], and that exe/magik is committed with its executable bit (git ls-files -s exe/magik should show mode 100755)."
+            echo "::error title=magik binary not installed::gem install placed no 'magik' executable on PATH. fix: check that magik.gemspec sets spec.bindir = 'exe' and spec.executables = ['magik'], and that apps/magik/exe/magik is committed with its executable bit (git ls-files -s apps/magik/exe/magik should show mode 100755)."
             exit 1
           }
 
@@ -360,7 +366,7 @@ jobs:
           args: >-
             --no-progress --max-retries 2 --timeout 20 --exclude-all-private
             --scheme https --scheme http
-            --exclude-path doc --exclude-path vendor --exclude-path node_modules
+            --exclude-path apps/magik/doc --exclude-path vendor --exclude-path node_modules
             '**/*.md'
           fail: false
           output: lychee/external.md
@@ -368,7 +374,7 @@ jobs:
 
   # ── the repo's own conventions, as assertions ─────────────────────────────────────────────
   #
-  # `scripts/checks/*.rb` asserts the things this repository promises in prose: every shipped error
+  # `apps/magik/scripts/checks/*.rb` asserts the things this repository promises in prose: every shipped error
   # code is documented, every documented command exists, dummy/ parses, the manifest is current, the
   # subsystem tiers agree, the CHANGELOG has an [Unreleased]. They existed for a while WITHOUT being
   # in the gate, and two of them — error-codes and doc-commands — were red for an unknown number of

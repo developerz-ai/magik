@@ -12,7 +12,7 @@ name: docs
 #
 # The API reference is generated from the source and nowhere else. A hand-written copy of a method
 # signature goes stale the first time somebody renames a parameter and does not think to look.
-# `docs/` is narrative prose reviewed in PRs and `wiki/` is mirrored separately; this ships the
+# `docs/` is narrative prose reviewed in PRs and `apps/magik/wiki/` is mirrored separately; this ships the
 # generated half only.
 #
 # HONESTY NOTE: as of 2026-08-26 lib/ is documented stubs, so what this publishes is a documented
@@ -29,12 +29,12 @@ on:
     # run is never created at all. ci.yml needs a filter job because a pull request's answer has to
     # be computed once and then handed to six `if:` conditions.
     paths:
-      - 'lib/**'
-      - 'exe/**'
+      - 'apps/magik/lib/**'
+      - 'apps/magik/exe/**'
       - 'docs/**'
       - '**/*.md'
-      - '.yardopts'
-      - 'Gemfile'
+      - 'apps/magik/.yardopts'
+      - 'apps/magik/Gemfile'
       - 'Gemfile.lock'
       - '.github/workflows/docs.yml'
   workflow_dispatch:
@@ -62,24 +62,25 @@ jobs:
 
       - uses: actions/configure-pages@v6
 
-      # `rake yard`, the same task `bin/check --only yard` runs, so the docs on the website and the
-      # docs the gate measures are one build. Publishing is not the place to discover a YARD parse
-      # error — if this can go red it should already have gone red on the pull request.
-      - name: rake yard
-        run: bundle exec rake yard
+      # `rake -C apps/magik yard`, the same task `bin/check --only yard` runs, so the docs on the
+      # website and the docs the gate measures are one build. Publishing is not the place to
+      # discover a YARD parse error — if this can go red it should already have gone red on the
+      # pull request.
+      - name: rake -C apps/magik yard
+        run: bundle exec rake -C apps/magik yard
 
       - name: assemble the site — YARD at /api/, a redirect at /
         run: |
           set -euo pipefail
-          # Asserted rather than assumed: `.yardopts` owns `--output-dir`, and if it moves, the
-          # failure without this check is an empty site rather than a red step.
-          if [ ! -f doc/index.html ]; then
-            echo "::error title=YARD produced no doc/index.html::The Pages artifact would be empty. fix: run 'bundle exec rake yard' locally and check --output-dir in .yardopts — if it is no longer 'doc', update this step in .github/workflows/docs.yml to match."
+          # Asserted rather than assumed: apps/magik/.yardopts owns `--output-dir`, and if it
+          # moves, the failure without this check is an empty site rather than a red step.
+          if [ ! -f apps/magik/doc/index.html ]; then
+            echo "::error title=YARD produced no apps/magik/doc/index.html::The Pages artifact would be empty. fix: run 'bundle exec rake -C apps/magik yard' locally and check --output-dir in apps/magik/.yardopts — if it is no longer 'doc', update this step in .github/workflows/docs.yml to match."
             exit 1
           fi
 
           mkdir -p _site/api
-          cp -R doc/. _site/api/
+          cp -R apps/magik/doc/. _site/api/
 
           # The bare domain has to go somewhere. A redirect rather than a second landing page: this
           # repository has exactly one generated site, and a hand-written index here would be a

@@ -2,7 +2,7 @@
 
 The gem carries its own manual, and the CLI serves it locally. `magik docs` is the command an agent runs instead of a web search.
 
-**Status:** implemented. This is one of the few pages in `docs/architecture/` that describes running code — `Magik::Docs`, `magik docs` and the packaging rule in `magik.gemspec` all exist and are tested. Verify with `ruby -Ilib exe/magik docs list` and `rake test`. Reviewed 2026-08-26.
+**Status:** implemented. This is one of the few pages in `docs/architecture/` that describes running code — `Magik::Docs`, `magik docs` and the packaging rule in `apps/magik/magik.gemspec` all exist and are tested. Verify with `ruby -Iapps/magik/lib apps/magik/exe/magik docs list` and `rake -C apps/magik test`. Reviewed 2026-08-26.
 
 ## The problem
 
@@ -28,11 +28,11 @@ Three pieces:
 
 | Piece | Where | Does |
 |---|---|---|
-| The packaging rule | [`../../magik.gemspec`](../../magik.gemspec) | `spec.files` includes `docs/**/*.md`, `wiki/**/*.md` and `llms.txt`, from `Magik::Docs::PACKAGED_GLOBS` |
-| The resolver | [`../../lib/magik/docs.rb`](../../lib/magik/docs.rb) | finds the tree, derives the catalogue from the files, finds and searches pages |
-| The command | [`../../lib/magik/cli/docs_command.rb`](../../lib/magik/cli/docs_command.rb) | `magik docs list` · `magik docs <slug>` · `magik docs search <term>` · `magik docs path` |
+| The packaging rule | [`../../apps/magik/magik.gemspec`](../../apps/magik/magik.gemspec) | `spec.files` is the allowlist `exe/**`, `lib/**/*`, `sig/**/*` plus `Magik::Docs::PACKAGED_GLOBS` — `llms.txt`, `wiki/**/*.md`, and the checkout-only `../../docs/**/*.md` spelling |
+| The resolver | [`../../apps/magik/lib/magik/docs.rb`](../../apps/magik/lib/magik/docs.rb) | finds the tree, derives the catalogue from the files, finds and searches pages |
+| The command | [`../../apps/magik/lib/magik/cli/docs_command.rb`](../../apps/magik/lib/magik/cli/docs_command.rb) | `magik docs list` · `magik docs <slug>` · `magik docs search <term>` · `magik docs path` |
 
-The glob list lives in exactly one place. `magik.gemspec` reads `Magik::Docs::PACKAGED_GLOBS` to decide what to package, and `Magik::Docs.pages` reads the same constant to build the catalogue, so `magik docs list` cannot advertise a page `gem build` left out. `test/magik/docs_test.rb` asserts the two agree anyway, because a constant shared today is a constant somebody forks tomorrow.
+The glob list lives in exactly one place. `magik.gemspec` reads `Magik::Docs::PACKAGED_GLOBS` to decide what to package, and `Magik::Docs.pages` reads the same constant to build the catalogue, so `magik docs list` cannot advertise a page `gem build` left out. `apps/magik/test/magik/docs_test.rb` asserts the packaging split anyway, because a constant shared today is a constant somebody forks tomorrow.
 
 ## What ships, and what does not
 
@@ -43,15 +43,14 @@ Shipping everything by reflex is not a decision. This is the decision.
 | Tree | Why |
 |---|---|
 | `wiki/**/*.md` | the app author's reference manual. The whole point of the exercise. |
-| `docs/idea/**/*.md` | the DSL surface, the guardrails, the limits, the phases. `docs/idea/00-build-spec.md` in particular is named verbatim by `Magik::Error::DEFAULT_FIX` and by every spec-only stub's `NotImplementedError`. A `fix:` line pointing at a file the installed gem does not contain is a broken `fix:` line, and [`03-error-codes.md`](03-error-codes.md) forbids advice nobody can follow. |
-| `docs/architecture/**/*.md` | contributor-facing, and it ships anyway — see below. |
-| `docs/ops/**/*.md` | how to run the app you just built. |
 | `llms.txt` | the machine-readable map, the first thing an agent reads. Its links are absolute `raw.githubusercontent.com` URLs, so it never dangles. |
+| `exe/**`, `lib/**/*`, `sig/**/*` | the code itself — in the same allowlist as the doc globs, not documentation, and the reason `spec.files` is one list rather than two. |
 
-`docs/architecture/**` was the close call. It documents how to build *this repository* — tier rules between `lib/magik/<subsystem>/`, `bin/check`, the YARD gate — none of which exists in a user's app, and an agent that follows those instructions inside an app is following the wrong loop. Two arguments carried it anyway:
+### Does not ship: the repo-root `docs/` trees
 
-1. **Dangling links are worse than surplus pages.** [`../README.md`](../README.md) and several `idea/` pages link into `architecture/` with relative paths. A shipped index whose links resolve to nothing teaches the reader that the tree is unreliable, which is a more expensive lesson than one extra directory.
-2. **[`03-error-codes.md`](03-error-codes.md) is the design of the `MAGIK_*` catalogue** — the first thing anyone reads after hitting a code, in an app or in the framework.
+`docs/idea/`, `docs/architecture/` and `docs/ops/` stay at the checkout root, two levels above the gemspec, and out of the package. They are the design record of *this repository* — `docs/idea/00-build-spec.md` is named verbatim by `Magik::Error::DEFAULT_FIX` and by every spec-only stub's `NotImplementedError`, which makes the spec a promise about the tree a contributor clones, not a page a user installs.
+
+`docs/architecture/**` was the close call, on the argument that an agent who hits a `MAGIK_*` code wants [`03-error-codes.md`](03-error-codes.md) wherever it lives. The workspace split retired that argument by moving the whole app tree under `apps/magik/`: these pages document a repository whose code now sits at `apps/magik/lib/`, so they stay with the repository root — and a checkout catalogue still serves them. `PACKAGED_GLOBS` carries `../../docs/**/*.md`, which resolves in a checkout and is dropped by the gemspec's `../` reject, so an installed gem neither ships nor advertises those pages; [`apps/magik/test/magik/docs_test.rb`](../../apps/magik/test/magik/docs_test.rb) asserts both halves of that split.
 
 "Not for you" belongs in the catalogue, not in the packaging. `Magik::Docs.pages` gives every page an `:audience`, and `magik docs list` groups by it.
 
@@ -61,7 +60,7 @@ Shipping everything by reflex is not a decision. This is the decision.
 |---|---|
 | `.claude/**` | subagents and slash commands for implementing *this framework*. Dropped into a user's app they are confidently wrong. An app gets its own `.claude/` from `lib/magik/cli/templates/app/.claude/`, which does ship. |
 | `CONTRIBUTING.md`, `PUBLISHING.md`, `ROADMAP.md`, `SECURITY.md`, `CODE_OF_CONDUCT.md`, `CLAUDE.md`/`AGENTS.md` | this repository's process, not the DSL. `llms.txt` links to them absolutely, so nothing dangles. |
-| `dummy/**` | the demonstration app: large, and the rule it demonstrates is already written down in [`../../wiki/Project-Layout.md`](../../wiki/Project-Layout.md). |
+| `dummy/**` | the demonstration app: large, and the rule it demonstrates is already written down in [`../../apps/magik/wiki/Project-Layout.md`](../../apps/magik/wiki/Project-Layout.md). |
 | `test/`, `bin/`, `scripts/`, `docker/`, `.github/` | development machinery. |
 
 `spec.files` is built as an **allowlist**, not a reject list, so a new top-level directory cannot reach a published gem until somebody names it in the gemspec on purpose.
@@ -72,9 +71,9 @@ Derived from the tree a page lives in — a rule, not a hand-maintained list, so
 
 | Prefix | Audience | Label in `magik docs list` |
 |---|---|---|
-| `wiki/`, `docs/ops/` | `app` | Building an app with Magik |
-| `docs/idea/` | `both` | Both audiences — the design and the reference |
-| `docs/architecture/` | `framework` | Contributing to Magik itself |
+| `wiki/`, `docs/ops/` — and, from a checkout, `../../docs/ops/` | `app` | Building an app with Magik |
+| `docs/idea/`, `../../docs/idea/` | `both` | Both audiences — the design and the reference |
+| `docs/architecture/`, `../../docs/architecture/` | `framework` | Contributing to Magik itself |
 | anything else (`llms.txt`, `docs/README.md`) | `both` | — |
 
 This is the same A/B split [`../idea/07-ai-first.md`](../idea/07-ai-first.md) draws between the agent implementing Magik and the agent building an app with it, made machine-readable.
@@ -134,33 +133,33 @@ Results are ordered deterministically: pages with a matching **heading** first, 
 
 ## Root resolution
 
-`Magik::Docs.root` is the directory that has `docs/`, `wiki/` and `llms.txt` inside it. Candidates, in order:
+`Magik::Docs.root` is the directory that has `wiki/` and `llms.txt` inside it — and, in a repository checkout, the repo-root `docs/` trees one `../../` step above it. Candidates, in order:
 
 1. `MAGIK_DOCS_ROOT`, if set — for a vendored copy or a test fixture.
-2. `Magik.root`, the parent of `lib/`. This is the checkout root when Magik is loaded from source and the gem root when it is installed, which is why one candidate covers both layouts.
+2. `Magik.root`, the parent of `lib/`: `apps/magik` when Magik is loaded from this checkout, the gem root when it is installed. One candidate covers both layouts.
 3. The path RubyGems recorded for the loaded `magik` gem, for the cases where `lib/` was symlinked in.
 
-The first candidate that actually contains a packaged page wins, so a layout with no docs is skipped rather than returned empty and confusing. Both layouts are tested in `test/magik/docs_test.rb`; the installed one against a throwaway tree built in `Dir.mktmpdir`.
+The first candidate that actually contains a packaged page wins, so a layout with no docs is skipped rather than returned empty and confusing. Both layouts are tested in `apps/magik/test/magik/docs_test.rb`; the installed one against a throwaway tree built in `Dir.mktmpdir`.
 
 ## What this costs
 
 Two real costs. Neither is hidden.
 
-**Gem size.** Building the same gemspec with and without the documentation globs, `As of 2026-08-26`: **72 KB → 232 KB**, about **160 KB of compressed markdown**, roughly tripling the archive. The tree keeps growing, so re-derive rather than trusting the number:
+**Gem size.** Whether the manual travels with the gem is the difference between a code-only archive and a documented one — measure it rather than trusting a number here, especially since the workspace split moved the repo-root `docs/` trees out of the package entirely, and they were the largest share of the prose:
 
 ```bash
-gem build magik.gemspec && ls -l magik-*.gem
-ruby -Ilib -e 'require "magik"; puts Magik::Docs.pages.size'
-ruby -Ilib exe/magik docs list --json | ruby -rjson -e 'puts JSON.parse($stdin.read)["count"]'
+(cd apps/magik && gem build magik.gemspec) && ls -l apps/magik/magik-*.gem
+ruby -Iapps/magik/lib -e 'require "magik"; puts Magik::Docs.pages.size'
+ruby -Iapps/magik/lib apps/magik/exe/magik docs list --json | ruby -rjson -e 'puts JSON.parse($stdin.read)["count"]'
 ```
 
-It is worth it. That is one small image, downloaded once at install, in exchange for removing the failure mode that produces wrong code silently. The alternative is not "a smaller gem" — it is an agent inventing a DSL. `docs/architecture/**` is about a fifth of the raw doc bytes, which is what the close call above was actually worth.
+It is worth it. That is one small image, downloaded once at install, in exchange for removing the failure mode that produces wrong code silently. The alternative is not "a smaller gem" — it is an agent inventing a DSL.
 
-**A doc change is now part of a release.** Editing `wiki/` on `main` does not reach anybody's installed gem. Every reader on `0.3` keeps reading the `0.3` manual until `0.4` ships. That is the trade, and it is the right way round: **a reader can never be shown a page that does not match the code they are running.** In practice it means [`PUBLISHING.md`](../../PUBLISHING.md)'s release checklist covers documentation, and a documentation fix is a patch release rather than a push to `main`.
+**A doc change is now part of a release.** Editing `wiki/` on `main` does not reach anybody's installed gem. Every reader on `0.3` keeps reading the `0.3` manual until `0.4` ships. That is the trade, and it is the right way round: **a reader can never be shown a page that does not match the code they are running.** In practice it means [`PUBLISHING.md`](../../apps/magik/PUBLISHING.md)'s release checklist covers documentation, and a documentation fix is a patch release rather than a push to `main`.
 
 ## See also
 
 - [`../idea/07-ai-first.md`](../idea/07-ai-first.md) — the argument this page implements, and the two-audience table the `:audience` field encodes.
 - [`03-error-codes.md`](03-error-codes.md) — the `MAGIK_*` convention the four `MAGIK_DOCS_*` codes follow.
 - [`../idea/09-app-scaffold.md`](../idea/09-app-scaffold.md) — the generated app harness, which points every subagent at `magik docs path`.
-- [`../../wiki/CLI-Reference.md`](../../wiki/CLI-Reference.md) — the CLI surface as a whole.
+- [`../../apps/magik/wiki/CLI-Reference.md`](../../apps/magik/wiki/CLI-Reference.md) — the CLI surface as a whole.

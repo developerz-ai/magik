@@ -4,10 +4,10 @@
 # bin/rake — rake, without the bundler ceremony.
 #
 # `bundle exec rake` when the bundle is installed, plain `rake` when it is not.
-# Magik's Rakefile is written so that `rake test` runs on a bare Ruby with no
-# bundler at all, and this wrapper keeps that true: a contributor who has not
-# run `bin/setup` yet still gets a working `bin/rake test` instead of a
-# Bundler::GemNotFound.
+# The Rakefile lives in the app tree (apps/magik/Rakefile) and is written so
+# that `rake test` runs on a bare Ruby with no bundler at all, and this wrapper
+# keeps that true: a contributor who has not run `bin/setup` yet still gets a
+# working `bin/rake test` instead of a Bundler::GemNotFound.
 #
 #   bin/rake -T           list the tasks
 #   bin/rake test         the unit suite
@@ -20,7 +20,9 @@ if ARGV.first == "--help" && ARGV.size == 1
   exit 0
 end
 
-root = File.expand_path("..", __dir__)
+# The app tree: bundler/setup below must pick up apps/magik/Gemfile, and the
+# Rakefile it loads uses cwd-relative paths.
+root = File.expand_path("../apps/magik", __dir__)
 Dir.chdir(root)
 
 if File.exist?("Gemfile")
