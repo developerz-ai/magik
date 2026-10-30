@@ -5,7 +5,7 @@
     "context": "..",
     "args": {
       "RUBY_VERSION": "3.2",
-      "TRUFFLERUBY_VERSION": "24.2.1"
+      "TRUFFLERUBY_VERSION": "34.0.1"
     }
   },
   "features": {
