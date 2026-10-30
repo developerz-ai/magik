@@ -1,178 +1,101 @@
 # CLAUDE.md
 
-The working contract for Claude Code inside this repository. Read this once before your first edit;
-it is the whole of your footing.
+Read this contract before editing. Trace every change to the spec; write the failing test first;
+ship the guardrail with the feature; run `bin/check` before claiming done. Never invent DSL or claim planned behaviour works.
 
 ## What this repo is, today
 
-**Magik** — an AI-first, full-stack Ruby framework on TruffleRuby. One DSL for models, screens,
-actions, realtime, jobs, ledgers, APIs and admin. Server-rendered HTML plus htmx; no frontend
-framework. Its sibling is [Ultimate](https://github.com/developerz-ai/ultimate), the same thesis in
-TypeScript on Bun — Magik is that thesis for people who want Ruby and no TS toolchain.
-
+**Magik** — an AI-first, full-stack Ruby framework planned for TruffleRuby: one DSL for models,
+screens, actions, realtime, jobs, ledgers, APIs and admin; server-rendered HTML + htmx, no frontend framework.
+Sibling: [Ultimate](https://github.com/developerz-ai/ultimate), the TypeScript-on-Bun counterpart.
 Gem `magik` · module `Magik` · binary `magik` · GitHub `developerz-ai/magik` · MIT.
 
-**The framework is not implemented.** `As of 2026-08-26` this tree is boilerplate: the spec, the
-docs, the gem skeleton, the CI, the release plumbing. `0.0.1` is a RubyGems name reservation
-([CHANGELOG.md](CHANGELOG.md)).
+**The framework is not implemented.** `As of 2026-08-26`: spec, docs, gem skeleton, CI and release plumbing;
+`0.0.1` reserves the RubyGems name ([CHANGELOG.md](CHANGELOG.md)). Only this plumbing may be described as implemented:
+- Zero runtime dependencies; standard library only. Planned libraries remain comments in [`magik.gemspec`](magik.gemspec) until their phase needs them.
+- `lib/magik.rb`: plain `autoload` over `Magik::SUBSYSTEMS`.
+- `Magik::Error`: tested stable `MAGIK_*` code, cause, runnable `fix:` and `to_h` for `--json`; no error catalogue yet.
+- `magik version`, `magik help`, `magik docs`, all with `--json`; help labels commands `ready` or `planned`; docs serves packaged documentation.
+- 20 spec-only subsystem stubs: `SPEC_PHASE`, `DSL_SURFACE`, `STATUS`, and `.define` raising `NotImplementedError`.
+- Minitest suite runnable on bare Ruby without a bundle: `rake test`.
 
-**What actually exists** — the whole of it, and the only thing you may describe in the present tense:
-
-- **zero runtime dependencies**; the gem loads nothing but the standard library. The gems Magik
-  intends to wrap sit in [`magik.gemspec`](magik.gemspec) as comments, added by the phase that needs
-  each one.
-- `lib/magik.rb` — plain `autoload` over the `Magik::SUBSYSTEMS` map.
-- `Magik::Error` — real and tested: a stable `MAGIK_*` code, a cause, a runnable `fix:`, and `to_h`
-  for `--json`. The convention working before any catalogue exists.
-- `magik version`, `magik help` and `magik docs`, all with `--json`; `help` marks every spec'd command
-  `ready` or `planned`. `magik docs` serves the documentation packaged inside the gem — see
-  [Where the DSL reference is](#where-the-dsl-reference-is).
-- **20 spec-only subsystem stubs**, one per planned subsystem, each exposing `SPEC_PHASE`,
-  `DSL_SURFACE`, `STATUS` and a `.define` that raises `NotImplementedError`.
-- a Minitest suite that passes **on bare Ruby with no bundle** — `rake test`.
-
-There is no `App.define`, no `model`, no `screen`, no `action`, no `policy`, no `layout`, no router,
-no server and no database code.
-
-Your job, in almost every session here, is to **implement a phase of
-[`docs/idea/00-build-spec.md`](docs/idea/00-build-spec.md)** — starting from Phase 1.
+No `App.define`, `model`, `screen`, `action`, `policy`, `layout`, router, server or database code exists.
+The usual work is implementing a phase of [`docs/idea/00-build-spec.md`](docs/idea/00-build-spec.md), starting with Phase 1.
 
 ## Read these first, in this order
 
-| # | File | Why |
+| Order | Read | Rule |
 |---|---|---|
-| 1 | [`docs/idea/00-build-spec.md`](docs/idea/00-build-spec.md) | the source of truth. Everything else elaborates on it and nothing contradicts it. If your change is not traceable to a section of it, stop |
-| 2 | [`docs/idea/07-ai-first.md`](docs/idea/07-ai-first.md) | why the guardrails, the uniform grammar and the `fix:` lines exist. Read before arguing with a default |
-| 3 | [Guesses this repo will punish](#guesses-this-repo-will-punish) | the short list of things you would otherwise get wrong — below, in this file |
-| 4 | [`.claude/README.md`](.claude/README.md) | the agents and slash commands this repo ships — use them instead of improvising a workflow |
-| 5 | [`docs/architecture/`](docs/architecture/) | how each subsystem is meant to be built |
-| 6 | [`ROADMAP.md`](ROADMAP.md) | the sequencing, and what a phase must demonstrate before it closes |
+| 1 | [`docs/idea/00-build-spec.md`](docs/idea/00-build-spec.md) | Source of truth; no traceable section, no change. |
+| 2 | [`docs/idea/07-ai-first.md`](docs/idea/07-ai-first.md) | Rationale for guardrails, uniform grammar and `fix:` lines. |
+| 3 | [Guesses this repo will punish](#guesses-this-repo-will-punish) | Avoid plausible but wrong inferences. |
+| 4 | [`.claude/README.md`](.claude/README.md) | Use the shipped agents and workflows. |
+| 5 | [`docs/architecture/`](docs/architecture/) | Subsystem implementation designs. |
+| 6 | [`ROADMAP.md`](ROADMAP.md) | Delivery order and phase exit criteria. |
 
-Then run `bin/setup` and `bin/check` before touching anything, so you know what green looks like on
-an untouched tree.
+Then run `bin/setup` and `bin/check` before editing to establish the baseline.
 
 ## Status, with one runnable check per row
 
-**Never quote the left column — run the right one.** A status written into a file goes stale on the
-next commit; the command does not. `As of 2026-08-26`, every row below answers "not implemented",
-and each row's command is how you find out that it no longer does.
+**Run checks; do not quote stale status.** Date claims (`As of 2026-08-26`) and pair them with a re-deriving command.
+The framework remains spec only; the commands below inspect plumbing, not proof of planned features.
 
-| Claim | Read it yourself |
+| Inspect | Check |
 |---|---|
-| the version this tree is stamped at | `ruby -Ilib -e 'require "magik/version"; puts Magik::VERSION'` |
-| what RubyGems actually serves | `gem list -r magik --all` · `gem info magik -r` |
-| the CLI's real surface, and which commands are `planned` | `ruby -Ilib exe/magik help` · `ruby -Ilib exe/magik version --json` |
-| what is proven to work | `rake test` — a claim with no test behind it is not a claim |
-| every task this repo offers | `rake -T` — `build`, `check`, `docs:coverage`, `rubocop`, `test`, `yard` |
-| every public method is documented | `rake yard` · `rake docs:coverage` |
-| the tree is lint-clean | `rake rubocop` |
-| the whole gate, as CI runs it | `bin/check` · one step: `bin/check --only test` · as data: `bin/check --json` |
-| which subsystems are still stubs | `grep -rln NotImplementedError lib/magik` — a file on that list is a placeholder, not a feature |
-| what CI does | [`.github/workflows/ci.yml`](.github/workflows/ci.yml) |
+| Stamped version | `ruby -Ilib -e 'require "magik/version"; puts Magik::VERSION'` |
+| RubyGems release | `gem list -r magik --all` · `gem info magik -r` |
+| CLI / tests / tasks / docs / lint / gate | Exact commands in [Commands](#commands); never claim a check you did not complete. |
+| Remaining stubs | `grep -rln NotImplementedError lib/magik` — placeholders, not features. |
+| CI | [`.github/workflows/ci.yml`](.github/workflows/ci.yml) |
 
-**`rake test` runs on bare Ruby; RuboCop and YARD do not.** Both are development dependencies and
-are not necessarily installed — the tasks abort with an install hint rather than passing vacuously.
-Run `bin/setup` first, and **never report a lint or docs-coverage run you did not actually
-complete.**
-
-**Nothing in this repository has been benchmarked, deployed, or run against a real database.** Do
-not add a number to any document that no command in this table re-derives.
+`rake test` needs no bundle; RuboCop and YARD are development dependencies. Run `bin/setup` first;
+missing tools abort with an install hint, not a vacuous pass. Nothing here has been benchmarked,
+deployed or run against a real database. Add no number without a command that re-derives it.
 
 ## Non-negotiables (from the spec — these override any instinct)
 
-1. **TruffleRuby is the production runtime.** Concurrency is **real, parallel OS threads** —
-   TruffleRuby has no GVL, and this is measured, not assumed: `ruby scripts/probes/runtime.rb`
-   ([the evidence](docs/architecture/12-runtime-verification.md)). CRuby ≥ 3.2 is supported for
-   development tooling only and is **never a production target**; `required_ruby_version` is
-   `">= 3.2"`. There is one concurrency model, no fallback and no per-engine branch. Note also that
-   `fork` is **not available** on TruffleRuby, so nothing may be designed around forked workers.
-2. **Rack + Puma**, single mode: one process, one thread pool. More capacity is more containers.
-   Do not propose an async/fiber-scheduler server — TruffleRuby implements no fiber scheduler, and
-   `async` raises on its first block there. The one condition that would reopen this is recorded in
-   [`docs/architecture/12-runtime-verification.md`](docs/architecture/12-runtime-verification.md).
-3. **Sequel, never ActiveRecord.** Explicit queries, no lazy-loading magic.
-4. **No SPA framework, ever.** Server-rendered HTML + htmx attributes, compiled from the DSL. Never
-   introduce React, Vue, Ember, a bundler, or a client build step.
-5. **Realtime is opt-in per screen.** Default is plain request/response. Nothing costs anything
-   until a `live` or `channel` declaration asks for it.
-6. **No offline support.** The server is the single source of truth. Say so in docs; never
-   half-build it.
-7. **No heavy client-side compute.** Canvas editors, games — out of scope. Refuse and say so.
-8. **Multi-tenant by default.** Every model auto-scoped by `tenant_id`; UUIDv7 primary keys from day
-   one.
-9. **Stateless app servers.** No in-process session or UI state across requests.
-10. **Money is integer cents.** A `:money` field type; floats refused **at the type level**, never
-    by review. No `Float` anywhere near currency.
-11. **Every opinionated default has a swap point** — DB, cache, jobs, search, realtime — switchable
-    by config with no app code change, and the swap must be **proven by a test before merge**, never
-    promised in prose.
-12. **Domain modules enforce boundaries at boot.** Cross-domain direct model access fails the boot,
-    not a review.
-13. **Authorization is evaluated in exactly one place.** Every surface that reaches a model — a
-    `screen`, `action`, `api resource`, `channel`, `job` and `admin_panel` — names a verb in a
-    `policy` and the framework evaluates it. There is no second door to the data and no per-surface
-    check. The evaluator sits at **tier 1** (below `render` and `realtime`, which must call it) and
-    takes the actor as an opaque value; `auth` at tier 3 supplies that value and never decides.
-    Authorization is **not** a swap point — a second authorization backend is a second authorization
-    system. Predicates are pure: no queries, no I/O.
-14. **SOLID, and SRP hardest** — for Magik's own internals *and* for the code Magik generates or
-    asks a user's app to write. One class, one reason to change. Small objects with one job; no god
-    objects, and no module that grows a new responsibility because it was convenient. New behaviour
-    arrives as a **new registered object**, never as another branch in a growing `case`. Depend on
-    the narrow role you actually use, not on the neighbouring module.
-    → [`docs/architecture/00-conventions.md`](docs/architecture/00-conventions.md) for the full
-    treatment.
-
-**The app file tree is part of the product.** Separation of concerns is opinionated on purpose:
-generated code goes where [`wiki/Project-Layout.md`](wiki/Project-Layout.md) says it goes, and
-[`dummy/`](dummy/) — an invoicing/billing SaaS — is the demonstration. A generator that invents a
-path is a bug.
-
-The boot-time guardrails in the spec's "Guardrails to Enforce at Boot" section **are the product**.
-When implementing a subsystem, the guardrail ships in the same change as the feature — not after.
+| Area | Required rule |
+|---|---|
+| Runtime | **TruffleRuby production; CRuby ≥ 3.2 for development tooling only**, never production; `required_ruby_version` is `">= 3.2"`. Real parallel OS threads, no GVL, one concurrency model, no fallback or per-engine branch. No `fork` or forked workers. Evidence: `ruby scripts/probes/runtime.rb`; [runtime verification](docs/architecture/12-runtime-verification.md). |
+| Server | **Rack + Puma, single mode**: one process, one thread pool; scale with containers. No async/fiber-scheduler server: TruffleRuby has no fiber scheduler and `async` raises on its first block. Reopening condition: [runtime verification](docs/architecture/12-runtime-verification.md). |
+| Database | **Sequel, never ActiveRecord**. Explicit queries, no implicit lazy loading; wrap Sequel, never hide it. No `ApplicationRecord`, Rails `has_many` semantics or `includes`-style magic. |
+| UI | Server-rendered HTML + htmx attributes compiled from DSL. **No SPA**, React, Vue, Ember, bundler or client build step. |
+| Realtime | **Opt-in per screen** via `live` or `channel`; default plain request/response, no cost until declared. |
+| Permanent limits | **No offline support**: server is the single source of truth; state this in docs, never half-build it. **No heavy client compute** (canvas editors, games): refuse and say out of scope. |
+| Data | Every model auto-scoped by `tenant_id`; **UUIDv7** primary keys from day one. Stateless app servers: no in-process session/UI state across requests. |
+| Money | Integer cents via `:money`; refuse floats **at the type level**, including fixtures and examples. No `Float` near currency. |
+| Swap points | Every opinionated default — DB, cache, jobs, search, realtime — config-switchable without app code changes; **prove each swap by test before merge**, not prose. |
+| Domains | Cross-domain direct model access **fails boot**, not review. |
+| Authorization | Exactly one evaluator. Every model-reaching `screen`, `action`, `api resource`, `channel`, `job`, `admin_panel` names a verb in a `policy`; no second door or per-surface check. Evaluator at **tier 1**, below `render`/`realtime` (tier 2), which must call it; imports strictly down. Opaque actor supplied by `auth` at tier 3, which never decides. **Not a swap point**; pure predicates, no queries or I/O. `policy` lands in phase 2, not phase 7. |
+| SOLID / SRP | Applies to internals, generated code and app code we ask users to write. One class, one reason to change; small single-job objects, no god objects or convenience responsibilities. New behaviour is a **new registered object**, not another branch in a growing `case`; depend on the narrow role used. [Full conventions](docs/architecture/00-conventions.md). |
+| App layout | Generated paths follow [`wiki/Project-Layout.md`](wiki/Project-Layout.md), demonstrated by [`dummy/`](dummy/), the invoicing/billing SaaS. Inventing a path is a generator bug. |
+| Guardrails | The spec's “Guardrails to Enforce at Boot” **are the product**; ship each boot-time refusal in the same change as its feature. |
 
 ## Who decides
 
-**This is an AI-first project in the strong sense: the agent decides, not only types.** A design
-question that arrives mid-task — which construct absorbs a missing capability, what a code is called,
-which of two spellings survives — is **answered and recorded**, not queued for a human. Direction is
-the owner's input; judgement inside that direction is yours.
-
-That is safe here for three reasons, and only while all three hold: **the spec frames the decision**
-(every change traces to a section of it), **the gate catches a wrong one** (`bin/check`, seven steps,
-four engines in CI), and **nothing is shipped**, so almost everything is reversible for free now and
-permanent later. Deciding late is the expensive option.
-
-**Reserved to the owner, always** — decisions whose cost an edit cannot undo:
-
-- publishing a gem, cutting a tag, or anything else outward-facing and immutable
-- spending money, or committing in the owner's name
-- changing what the product is *for* — the mission, the permanent limits, the audiences
-- anything the spec does not frame, where deciding would be invention rather than derivation
-- destructive operations on anything not reconstructible from this repository
-
+**Decide and record spec-framed, reversible design questions; do not queue them for a human.**
+Owner supplies direction; agent exercises judgement only while the spec frames it, `bin/check` catches
+mistakes (seven steps, four engines in CI), and nothing shipped makes reversal costly.
 *If being wrong costs an edit, decide it. If being wrong costs a release, bring it back.*
 
-Every non-obvious decision owes four things: what was decided, what the alternative was, why — in
-terms of a constraint that already existed rather than taste — and **what would reopen it**. Record
-it in [`docs/idea/13-decisions.md`](docs/idea/13-decisions.md), which is also the log of the
-decisions already taken this way.
+**Always reserved to the owner:** publishing gems, tags or other outward-facing immutable actions;
+spending money or committing in the owner's name; changing mission, permanent limits or audiences;
+unframed invention outside the spec; destructive operations on anything not reconstructible from this repository.
+Record each non-obvious decision in [`docs/idea/13-decisions.md`](docs/idea/13-decisions.md):
+**decision, alternative, reason grounded in an existing constraint, and what would reopen it**.
 
 ## House rules
 
-| Rule | Detail |
+| Rule | Requirement |
 |---|---|
-| **Minitest, never RSpec** | a spec decision, not a preference. There is no `spec/` directory; tests live in `test/` as `*_test.rb` and run under `rake test` |
-| **Sequel, never ActiveRecord** | no `ApplicationRecord`, no `has_many` semantics borrowed from Rails. Wrap Sequel; do not hide it |
-| **YARD on every public method** | `@param`, `@return`, `@raise` and at least one `@example` on anything a user calls. `rake yard` must be clean. A public method with no docs is an incomplete change |
-| **`MAGIK_*` error codes** | `MAGIK_<SUBSYSTEM>_<CONDITION>`, `SCREAMING_SNAKE`, stable forever once shipped and never reused. Every one carries a concrete cause and a **runnable** `fix:` — a command, never advice |
-| **Never claim unimplemented behaviour** | in code comments, docs, commit messages or a README. The vocabulary is `planned`, `not implemented`, `spec only`. Prefer a stub raising `NotImplementedError` with a clear message over a fake implementation |
-| **One gem, subsystem modules** | `lib/magik/<subsystem>/`, mirroring the spec phases. Not a multi-gem monorepo. Later extraction stays possible — do not promise it in prose |
-| **Date-stamp what can rot** | `As of 2026-08-26`, and pair it with the command that re-derives it |
-| **No new dependency without a reason in the PR** | the spec's "libraries to wrap" list is the default answer; anything outside it needs an argument |
+| Tests | **Minitest, never RSpec**; `test/*_test.rb`, no `spec/` now or later. Red before green. |
+| Public API | YARD: `@param`, `@return`, `@raise`, at least one `@example`; `rake yard` clean. Undocumented public methods are incomplete. |
+| Errors | `MAGIK_<SUBSYSTEM>_<CONDITION>`, `SCREAMING_SNAKE`; stable forever once shipped, never reused. Concrete cause and runnable `fix:` command, never advice. |
+| Honest status | Comments, docs, README and commit messages must say `planned`, `not implemented` or `spec only` for unbuilt behaviour. Stubs raise `NotImplementedError`, naming the implementing phase; never plausible `nil`/empty results. |
+| Packaging | One gem, `lib/magik/<subsystem>/` mirroring phases; no second `.gemspec` or multi-gem monorepo. Keep extraction possible, never promise it. |
+| Dependencies | Explain each new dependency in the PR; spec's “libraries to wrap” list is the default, deviations need an argument. |
 
-The error shape, which is the convention only — **no catalogue is implemented**:
-
+Error shape is convention only, **not an implemented catalogue**:
 ```
 MAGIK_LEDGER_UNBALANCED: ledger :Payouts does not balance
   cause: entry :capture debits 1200 and credits 1150
@@ -183,144 +106,82 @@ MAGIK_LEDGER_UNBALANCED: ledger :Payouts does not balance
 
 `core` `cli` `model` `schema` `render` `action` `router` `policy` `realtime` `jobs` `ledger` `api`
 `auth` `billing` `admin` `i18n` `pwa` `notify` `testing` `domains` `check`
-
-`schema` is migrations. `render` is component/screen/HTML+htmx. Do not invent a synonym for one of
-these, and do not add a new subsystem without a spec section to point at.
+`schema` means migrations; `render` means component/screen/HTML+htmx. No synonyms or new subsystem without a spec section.
 
 ## Where the DSL reference is
 
-Magik's DSL — `model`, `screen`, `action`, `policy`, `layout`, `ledger`, `channel`, `flow` — is in
-no model's training
-data, so **never write it from memory and never web-search for it.** Read it.
-
-- **Working on Magik** (this repo): the reference is in-tree. `docs/` is the design and the spec,
-  `wiki/` is the app-author manual. Grep and read them directly; they are always current here.
-- **Working on an app built with Magik**: the reference ships inside the installed gem.
-  `magik docs path` prints the directory — point your normal grep/glob/read at it. `magik docs list`
-  is the catalogue, `magik docs <slug>` prints a page, `magik docs search <term>` finds one.
-  An installed gem carries exactly the docs for its own version, so there is no drift between what
-  you read and what you run. Design note: [`docs/architecture/09-shipped-docs.md`](docs/architecture/09-shipped-docs.md).
+**Read DSL, never recall it from training data or web-search for it** (`model`, `screen`, `action`, `policy`, `layout`, `ledger`, `channel`, `flow`).
+In this repo, grep/read `docs/` (design/spec) and `wiki/` (app-author manual).
+In an app, use the installed gem's version-matched docs: `magik docs path` gives the directory,
+`magik docs list` the catalogue, `magik docs <slug>` a page, `magik docs search <term>` a search.
+Design: [`docs/architecture/09-shipped-docs.md`](docs/architecture/09-shipped-docs.md).
 
 ## Guesses this repo will punish
 
-Hand-written, and the highest-value paragraphs in this file: the things you would otherwise get
-wrong by reasonable inference. **Nothing is implemented** — `docs/idea/00-build-spec.md` reads
-like documentation for a working framework and is a *plan*. Do not describe any of it in the
-present tense, in code, in a comment, in a commit message or in a doc.
+**The build spec is a plan, not working-framework documentation.** Apply the stack and house rules above; also:
 
-| You would guess | It is actually |
+| Plausible guess | Required correction |
 |---|---|
-| `spec/` and RSpec, because it is Ruby | **Minitest** in `test/`, files named `*_test.rb`, run by `rake test`. There is no `spec/` and there never will be — it is a spec decision, not a preference |
-| ActiveRecord, or an AR-shaped wrapper | **Sequel**, wrapped but never hidden. No `ApplicationRecord`, no implicit lazy loading, no `includes`-style magic |
-| `bin/magik` is the binary | `exe/magik` is the binary. `bin/` holds developer scripts (`setup`, `check`, `dev`, `console`) and ships to nobody |
-| a monorepo of gems, like the TypeScript sibling | **one gem**. Subsystems are modules under `lib/magik/<subsystem>/`. Do not add a second `.gemspec`. Extraction stays possible later; never promise it in prose |
-| the version lives in the gemspec | `lib/magik/version.rb` is the only place a version is stated. The gemspec reads it |
-| you can test TruffleRuby behaviour locally | you cannot — TruffleRuby is the production runtime and is **not installed** on the dev machine. CRuby ≥ 3.2 is what you have. TruffleRuby-only work is verified in CI, never in a local hook |
-| a `Float` is fine for money in a test fixture | it is not, anywhere. Integer cents, always, including in fixtures and examples |
-| an unimplemented method should return `nil` or an empty result | it should `raise NotImplementedError` with a message naming the phase that will implement it. A plausible-looking empty answer is the failure mode this whole repo is designed against |
-| a drafted DSL spelling is fine because it reads well | **it is not designed until a parser has seen it.** `retry` is a Ruby keyword, so the job declaration is `retries times: 5, backoff: :exponential`; and `computed :name, :type { … }` binds the brace block to the symbol, so the spelling is `computed(:name, :type) { … }`. Both bugs survived every reading and died to `ruby -c`. Extract the ` ```ruby ` blocks and parse them |
-| authorization belongs with `auth` in phase 7 | `policy` lands in **phase 2**, and its evaluator sits at **tier 1** — `render` and `realtime` are tier 2 and must call it, and imports go strictly down. `auth` at tier 3 supplies the actor and never decides. Adding a `policy:` argument to six constructs after all six exist is the migration nobody survives |
-| a screen is a whole page | a screen is rendered **into a `layout`** — the application shell, also phase 2. `magik new` generates a working `:App` layout, so a generated app has a sidebar on its first run. A screen with no layout and no `layout: :None` does not boot |
-| a new generator can pick its own file paths | the app layout is prescribed — [`wiki/Project-Layout.md`](wiki/Project-Layout.md), demonstrated by [`dummy/`](dummy/) |
-
-Error codes are `MAGIK_<SUBSYSTEM>_<CONDITION>`. Every one carries a cause and a `fix:` that is a
-command someone can run — advice in a `fix:` line is a defect, not a style difference.
+| `bin/magik` is the binary | `exe/magik`; `bin/` contains developer scripts (`setup`, `check`, `dev`, `console`) and does not ship. |
+| Version lives in gemspec | Only `lib/magik/version.rb` states it; gemspec reads it. |
+| Local CRuby proves TruffleRuby | No. Dev-machine contract is CRuby ≥ 3.2, not an installed TruffleRuby; verify TruffleRuby-only work in CI, never a local hook. |
+| Readable DSL is designed DSL | Parse extracted ` ```ruby ` blocks with `ruby -c`. `retry` is a keyword: use `retries times: 5, backoff: :exponential`. Brace binding requires `computed(:name, :type) { … }`, not `computed :name, :type { … }`. |
+| Authorization can wait for `auth` | Phase-2 `policy`, tier-1 evaluator; see [Non-negotiables](#non-negotiables-from-the-spec--these-override-any-instinct). Do not retrofit `policy:` after six surfaces exist. |
+| A screen is a whole page | Planned phase-2 `layout` is the shell. `magik new` must generate working `:App` with sidebar on first run; screen without layout or explicit `layout: :None` must fail boot. |
+| Generators choose paths | Follow [`wiki/Project-Layout.md`](wiki/Project-Layout.md) and [`dummy/`](dummy/). |
 
 ## Commands
 
-Run everything from the repository root.
+Run from the repository root. `bin/check` is the gate before claiming done; never claim unrun lint/docs coverage.
 
-| Task | Command |
+| Task | Exact command / reference |
 |---|---|
-| fresh clone to working | `bin/setup` — idempotent, safe after every pull |
-| **the gate** | `bin/check` — what CI runs. Green means the tree is shippable |
-| tests | `rake test` |
-| one test file | `ruby -Ilib -Itest test/magik/version_test.rb` |
-| lint | `rake rubocop` · fix: `bundle exec rubocop -A` |
-| docs | `rake yard` · coverage: `rake docs:coverage` · published to <https://developerz-ai.github.io/magik/api/> |
-| the default task | `rake` · the task list: `rake -T` |
-| the CLI, from source | `ruby -Ilib exe/magik version --json` · `ruby -Ilib exe/magik help` |
-| a console with the gem loaded | `bin/console` |
-| the CLI against the demo app | `bin/dev` · [`dummy/`](dummy/) |
-| services in containers | `docker/compose.yml` · [`.devcontainer/`](.devcontainer/) |
-| release pre-flight (prints, never publishes) | `bin/release` · [`PUBLISHING.md`](PUBLISHING.md) |
-| git hooks | [`lefthook.yml`](lefthook.yml) |
-
-`bin/check` before you claim a change is done. Nothing else counts as done.
+| Setup | `bin/setup` — idempotent, safe after every pull. |
+| Full gate / one step / data | `bin/check` · `bin/check --only test` · `bin/check --json` |
+| Tests / one test file | `rake test` · `ruby -Ilib -Itest test/magik/version_test.rb` |
+| Lint / autofix | `rake rubocop` · `bundle exec rubocop -A` |
+| Documentation / coverage | `rake yard` · `rake docs:coverage` · <https://developerz-ai.github.io/magik/api/> |
+| Default / task list | `rake` · `rake -T` (`build`, `check`, `docs:coverage`, `rubocop`, `test`, `yard`). |
+| CLI from source | `ruby -Ilib exe/magik version --json` · `ruby -Ilib exe/magik help` |
+| Console / demo CLI | `bin/console` · `bin/dev` · [`dummy/`](dummy/) |
+| Container services | `docker/compose.yml` · [`.devcontainer/`](.devcontainer/) |
+| Release pre-flight (prints, never publishes) | `bin/release` · [`PUBLISHING.md`](PUBLISHING.md) |
+| Hooks | [`lefthook.yml`](lefthook.yml) |
 
 ## The loop
 
-1. **Find the spec section.** Every change traces to one section of
-   [`docs/idea/00-build-spec.md`](docs/idea/00-build-spec.md). No section, no change — propose a
-   spec amendment instead ([CONTRIBUTING.md](CONTRIBUTING.md)).
-2. **Write the test first.** Minitest, in `test/` as `<subject>_test.rb`, red before green. Auto-generated and inferred
-   tests are a phase-9 feature and are not an excuse to skip writing one now.
-3. **Implement the smallest slice**, in the right `lib/magik/<subsystem>/` module.
-4. **Ship the guardrail with the feature.** If the spec names a boot-time refusal for what you built,
-   it lands in the same change, with its `MAGIK_*` code, cause and `fix:`.
-5. **Document it.** YARD on every public method; a wiki or `docs/architecture/` page when the shape
-   is new.
-6. **Update [`CHANGELOG.md`](CHANGELOG.md)** under `## [Unreleased]`, and correct any status table —
-   here, in [`README.md`](README.md), in [`ROADMAP.md`](ROADMAP.md) — that has just become wrong.
-   A status row outliving its fact is the defect this file exists to prevent.
-7. **`bin/check`.**
+1. Find the spec section in [`docs/idea/00-build-spec.md`](docs/idea/00-build-spec.md); otherwise propose an amendment ([CONTRIBUTING.md](CONTRIBUTING.md)).
+2. Write failing Minitest in `test/` as `<subject>_test.rb`. Phase-9 generated/inferred tests are no excuse to skip today's test.
+3. Implement the smallest slice in `lib/magik/<subsystem>/`; ship its boot guardrail, `MAGIK_*` code, cause and runnable `fix:` together.
+4. Document public API with YARD; add wiki or `docs/architecture/` documentation for a new shape.
+5. Update [`CHANGELOG.md`](CHANGELOG.md) under `## [Unreleased]`; correct newly stale status here, in [`README.md`](README.md) and [`ROADMAP.md`](ROADMAP.md).
+6. Run `bin/check`.
 
 ## The agents and commands in this repo
 
-[`.claude/`](.claude/README.md) carries the workflow — use it rather than improvising:
-
-| Where | What |
-|---|---|
-| [`.claude/agents/`](.claude/agents/) | `spec-implementer`, `dsl-designer`, `cli-author`, `guardrail-author`, `swap-point-prover`, `test-writer`, `docs-keeper`, `spec-auditor` |
-| [`.claude/commands/`](.claude/commands/) | `/implement-phase`, `/next-task`, `/check`, `/new-dsl`, `/spec-audit`, `/dummy-app`, `/release` |
-
-Read [`.claude/README.md`](.claude/README.md) for what each one is for and when to reach for it.
-`/implement-phase` is the entry point for the work this repository exists to do.
+Use [`.claude/README.md`](.claude/README.md), not an improvised workflow; `/implement-phase` is the entry point.
+[Agents](.claude/agents/): `spec-implementer`, `dsl-designer`, `cli-author`, `guardrail-author`, `swap-point-prover`, `test-writer`, `docs-keeper`, `spec-auditor`.
+[Commands](.claude/commands/): `/implement-phase`, `/next-task`, `/check`, `/new-dsl`, `/spec-audit`, `/dummy-app`, `/release`.
 
 ## Layout
 
-```
-lib/magik/            the gem — one directory per subsystem, mirroring the spec phases
-lib/magik/version.rb  the ONLY place a version is stated
-exe/magik             the CLI entry point (bin/ is dev scripts, not the binary)
-test/                 Minitest suites, run by `rake test`
-docs/idea/            what and why — 00-build-spec.md is the source of truth
-docs/architecture/    how each subsystem is built
-docs/ops/             running an app for real
-wiki/                 the reference manual
-dummy/                the demo app — an invoicing/billing SaaS, and the layout reference
-docker/               compose services for development
-.claude/              agents and slash commands for working in this repo
-.github/workflows/    ci.yml, release.yml, docs.yml
-llms.txt              the machine-readable repo map
-```
+| Path | Purpose |
+|---|---|
+| `lib/magik/` · `lib/magik/version.rb` · `exe/magik` · `test/` | Subsystem gem code · sole version · CLI entry point · Minitest. |
+| `docs/idea/` · `docs/architecture/` · `docs/ops/` · `wiki/` | What/why (build spec authoritative) · how · running apps · reference manual. |
+| `dummy/` · `docker/` · `.claude/` | Invoicing/billing SaaS and app-layout reference · dev compose services · agents/commands. |
+| `.github/workflows/` · `llms.txt` | `ci.yml`, `release.yml`, `docs.yml` · machine-readable repo map. |
 
 ## Where to read next
 
-| Need | Go |
-|---|---|
-| what Magik is, authoritatively | [`docs/idea/00-build-spec.md`](docs/idea/00-build-spec.md) |
-| why AI-first shapes the design | [`docs/idea/07-ai-first.md`](docs/idea/07-ai-first.md) |
-| who decides what, and the log of decisions taken | [`docs/idea/13-decisions.md`](docs/idea/13-decisions.md) |
-| the DSL surface, phase by phase | [`docs/idea/02-dsl-surface.md`](docs/idea/02-dsl-surface.md) |
-| the boot-time guardrails | [`docs/idea/03-guardrails.md`](docs/idea/03-guardrails.md) |
-| the swap points, and what proving one means | [`docs/idea/04-swap-points.md`](docs/idea/04-swap-points.md) |
-| the limits — no offline, no heavy client compute | [`docs/idea/05-limits.md`](docs/idea/05-limits.md) |
-| the phases | [`docs/idea/06-phases.md`](docs/idea/06-phases.md) |
-| the rest of the rationale | [`docs/idea/`](docs/idea/) |
-| how a subsystem is built | [`docs/architecture/`](docs/architecture/) |
-| the coding contract, SOLID in full | [`docs/architecture/00-conventions.md`](docs/architecture/00-conventions.md) |
-| where generated code goes in an app | [`wiki/Project-Layout.md`](wiki/Project-Layout.md) · [`dummy/`](dummy/) |
-| running an app in production | [`docs/ops/README.md`](docs/ops/README.md) |
-| the reference manual | [`wiki/Home.md`](wiki/Home.md) |
-| what is planned, in order | [`ROADMAP.md`](ROADMAP.md) |
-| conventions an agent cannot infer | [above, in this file](#guesses-this-repo-will-punish) |
-| contributing, and changing the spec | [`CONTRIBUTING.md`](CONTRIBUTING.md) |
-| cutting a release | [`PUBLISHING.md`](PUBLISHING.md) |
-| the whole repo as one link map | [`llms.txt`](llms.txt) |
+Rationale: [`docs/idea/`](docs/idea/), especially [DSL surface](docs/idea/02-dsl-surface.md),
+[boot guardrails](docs/idea/03-guardrails.md), [swap points](docs/idea/04-swap-points.md),
+[permanent limits](docs/idea/05-limits.md), [phases](docs/idea/06-phases.md).
+Implementation: [SOLID/conventions](docs/architecture/00-conventions.md), [production ops](docs/ops/README.md).
+Navigation: [manual](wiki/Home.md), [roadmap](ROADMAP.md), [contributing](CONTRIBUTING.md),
+[release](PUBLISHING.md), [repo link map](llms.txt); decisions and ordered reading are linked above.
 
 ## Note
 
-Do not use git worktrees — work directly in this checkout. If a task needs subagents, run them as a
-team in this same checkout and split the work so no two agents touch the same files. Only the
-top-level agent spawns subagents; a subagent that finds its scope too large says so and returns.
+No git worktrees: work in this checkout. Teams share it with disjoint file ownership; only the top-level
+agent spawns subagents. A subagent whose scope is too large reports that and returns, never delegates.
