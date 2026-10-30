@@ -9,8 +9,16 @@ description: Prove a change in developerz-ai/magik before committing or opening 
 
 ## The one gate
 
-`bin/check` is the gate. CI runs it and the pre-commit hook runs it, so a change that
-passes it locally passes everywhere.
+`bin/check` is the gate, and a green run here is local proof — not every proof:
+
+- It is the same script CI runs, so it covers the repo's own seven steps (RuboCop, Minitest,
+  YARD with its documentation-coverage floor, gem build, CLI JSON smoke, Markdown links,
+  scripts/checks). It runs on local CRuby, and that does NOT prove the TruffleRuby lane:
+  CI's Ruby-engine matrix and installed-gem smoke test remain a separate requirement —
+  never infer TruffleRuby correctness from a local CRuby pass (.dz/maintainer/reviewer.md).
+- In git, the full gate runs at pre-push, not pre-commit: pre-commit is fast changed-file
+  checks and pre-push is `bin/check` (lefthook.yml; the bin/setup fallback writes
+  .git/hooks/pre-push).
 
 | Step | Command | What it is |
 |------|---------|------------|

@@ -1,4 +1,9 @@
 # Toolchain — established by dz-runner setup mode from the version this repo already pinned.
-# The box provides `mise` and nothing per-language; `bin/setup` runs `mise install`.
+# Corrected `As of 2026-10-30` (re-derive with `mise ls`): this box's mise has no
+# core:ruby@3.2.3 — the .ruby-version pin — so every `ruby` through the shim stalled in a
+# from-source build and bin/setup died with MAGIK_DEV_RUBY_TOO_OLD. Pin a version `mise ls`
+# shows installed (3.4.10), still above the gemspec floor of >= 3.2. CI installs its own
+# Ruby-engine matrix and never reads this file: it is dev-box-only. (bin/setup does not run
+# `mise install`; the pin has to name a version that is already installed.)
 [tools]
-ruby = "3.2.3"
+ruby = "3.4.10"
