@@ -9,10 +9,12 @@ name: ci
 # When the two disagree, the loop for finding out becomes "push and wait", which is the slowest
 # loop there is.
 #
-# So CI adds exactly two things `bin/check` cannot do on a laptop, and nothing else:
-#   * the ENGINE MATRIX — 3.2, 3.3, 3.4 and TruffleRuby, which no dev machine has all of
-#   * the INSTALLED GEM — building the artifact and running the binary out of an empty GEM_HOME,
-#     which is a different question from running `exe/magik` off the load path
+# So CI's own addition to the gate is the ENGINE MATRIX — 3.2, 3.3, 3.4 and TruffleRuby, which no
+# dev machine has all of. The gem-build job below proves the installed-gem smoke — build the
+# artifact, install it into an empty GEM_HOME, run the binary from there, a different question from
+# running `exe/magik` off the load path — and `bin/check` now runs the same smoke locally as its
+# `install` step (offline today: magik.gemspec declares no runtime dependencies); what CI adds on
+# top is only the clean runner and the four engines.
 #
 # `bin/check --only <step>` is what splits it across jobs rather than running it once: a red step
 # then names itself in the job list instead of hiding inside one log. `bin/check --list` prints the

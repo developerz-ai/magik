@@ -244,6 +244,146 @@ STEPS = [
     }
   ),
 
+  # ci.yml's gem-build job (.github/workflows/ci.yml, "gem install, into an empty GEM_HOME") is
+  # the definition this step mirrors, and `build` + `cli` between them cannot see what it sees.
+  # `build` makes the artifact and throws it away; `cli` runs the source tree off the load path.
+  # Every classic packaging bug is invisible until the gem is INSTALLED into an empty GEM_HOME the
+  # way a stranger would: a file missing from spec.files, an executable absent from spec.bindir,
+  # a runtime dependency that only ever resolved because the development bundle carried it.
+  #
+  # As of 2026-08-26 magik.gemspec declares zero runtime dependencies, so this step is local and
+  # offline; the day Phase 1 adds sequel and puma, `gem install` resolves them for real, the
+  # ENGINE MATRIX in CI is where the network belongs, and this step needs one to pass. That
+  # caveat is prose on purpose — the step's behaviour must not silently change with it.
+  #
+  # `gem` stays plain, never bundled(): a stranger does not have our bundle, and neither does
+  # the empty GEM_HOME below. Both temp directories are subprocess-scoped: this process's
+  # RubyGems state is never touched, and nothing is written into the checkout.
+  Step.new(
+    name: "install",
+    title: "gem install — the packaged gem installed into an empty GEM_HOME and run from there",
+    command: -> { "gem build && gem install --no-document && magik version --json   # temp dirs, empty GEM_HOME" },
+    body: lambda {
+      unless File.exist?("magik.gemspec")
+        next fail_with(reason: "gemspec_missing", command: "gem build magik.gemspec", exit_code: nil,
+                       expected: "magik.gemspec at the repo root",
+                       got: "there is no magik.gemspec here (cwd: #{ROOT})",
+                       fix: "restore magik.gemspec — the gem cannot be packaged without it")
+      end
+
+      require "tmpdir"
+
+      # The version the artifact claims, read the same way ci.yml's gem-build job reads it, so
+      # the installed binary can be held to the artifact it came out of.
+      version_cmd = ["ruby", "-Ilib", "-e", 'require "magik/version"; print Magik::VERSION']
+      version_ok, version_out, version_code = sh(*version_cmd)
+      unless version_ok
+        next fail_with(reason: "version_unreadable", command: version_cmd.join(" "), exit_code: version_code,
+                       expected: "`Magik::VERSION` prints from the source tree",
+                       got: version_out,
+                       fix: "ruby -Ilib -e \"require 'magik/version'; print Magik::VERSION\"   " \
+                            "# then read lib/magik/version.rb")
+      end
+      version = version_out.strip
+
+      # `sh` with an environment: ci.yml runs the install and the binary with GEM_HOME and
+      # GEM_PATH exported for the subprocess only, and that is the property being proven — the
+      # empty GEM_HOME, not this process's RubyGems, is what the artifact has to survive.
+      scoped = lambda do |env, *cmd|
+        out, status = Open3.capture2e(env, *cmd)
+        [status.success?, out, status.exitstatus]
+      end
+
+      Dir.mktmpdir("magik-gem-install") do |build_dir|
+        target = File.join(build_dir, "magik-#{version}.gem")
+        build_cmd = ["gem", "build", "magik.gemspec", "--output", target]
+        ok, out, code = sh(*build_cmd)
+        unless ok
+          next fail_with(reason: "gem_build_failed", command: build_cmd.join(" "), exit_code: code,
+                         expected: "`gem build` packages magik.gemspec without error",
+                         got: out, fix: "gem build magik.gemspec   # read the errors and warnings it prints")
+        end
+
+        Dir.mktmpdir("magik-gem-home") do |gem_home|
+          # The smoke has to see the environment ci.yml's runner sees, not this process's bundler.
+          # RubyGems itself requires ENV["BUNDLER_SETUP"] at boot (rubygems.rb, via gem_prelude),
+          # and `bundle exec` — which is how the test suite reaches this step — sets that alongside
+          # RUBYOPT; pointed at an empty GEM_HOME, that setup dies with Bundler::GemNotFound before
+          # `gem install` even starts. A nil value unsets the variable in the subprocess only
+          # (Process.spawn semantics); this process is untouched.
+          env = {
+            "GEM_HOME" => gem_home, "GEM_PATH" => gem_home,
+            "BUNDLER_SETUP" => nil, "RUBYOPT" => nil, "BUNDLE_GEMFILE" => nil,
+            "BUNDLE_BIN_PATH" => nil, "BUNDLER_VERSION" => nil
+          }
+          install_cmd = ["gem", "install", "--no-document", target]
+          ok, out, code = scoped.call(env, *install_cmd)
+          unless ok
+            next fail_with(reason: "gem_install_failed", command: install_cmd.join(" "), exit_code: code,
+                           expected: "`gem install --no-document` installs the artifact into an empty GEM_HOME",
+                           got: out,
+                           fix: "#{install_cmd.join(" ")}   # with GEM_HOME pointing at an empty directory")
+          end
+
+          magik = File.join(gem_home, "bin", "magik")
+          unless File.executable?(magik)
+            next fail_with(reason: "install_no_executable", command: install_cmd.join(" "), exit_code: 0,
+                           expected: "gem install to place a `magik` executable in the GEM_HOME's bin directory",
+                           got: "#{out}\n\n#{magik} does not exist or is not executable",
+                           fix: "set spec.bindir = \"exe\" and spec.executables = [\"magik\"] in magik.gemspec")
+          end
+
+          printed = "GEM_HOME=#{gem_home} #{magik} version --json"
+          ok, out, code = scoped.call(env, magik, "version", "--json")
+          unless ok
+            next fail_with(reason: "install_nonzero_exit", command: printed, exit_code: code,
+                           expected: "the installed binary exits 0",
+                           got: out,
+                           fix: "bin/check --only cli   # the source tree runs the same code; " \
+                                "diff the two if they disagree")
+          end
+
+          begin
+            data = JSON.parse(out)
+          rescue JSON::ParserError => e
+            next fail_with(reason: "install_json_unparseable", command: printed, exit_code: 0,
+                           expected: "a single JSON object on stdout from the installed binary",
+                           got: "#{e.message}\n\nstdout was:\n#{out}",
+                           fix: "bin/check --only cli   # the source tree prints the same shape; " \
+                                "read lib/magik/cli.rb if they differ")
+          end
+
+          missing = %w[name version status] - data.keys
+          unless missing.empty?
+            next fail_with(reason: "install_json_missing_keys", command: printed, exit_code: 0,
+                           expected: "keys name, version, status in the installed CLI's JSON object",
+                           got: "missing: #{missing.join(", ")}\n\n#{out}",
+                           fix: "add the missing keys in Magik::CLI.version (lib/magik/cli.rb)")
+          end
+
+          unless data["name"] == "magik"
+            next fail_with(reason: "install_json_wrong_name", command: printed, exit_code: 0,
+                           expected: %(name == "magik"),
+                           got: "name is #{data["name"].inspect}\n\n#{out}",
+                           fix: "fix the name field in Magik::CLI.version (lib/magik/cli.rb)")
+          end
+
+          unless data["version"] == version
+            next fail_with(reason: "install_json_version_mismatch", command: printed, exit_code: 0,
+                           expected: "the installed CLI to report version #{version}, the one just built",
+                           got: "installed gem reports version #{data["version"].inspect}, " \
+                                "built #{version.inspect}\n\n#{out}",
+                           fix: "ruby scripts/checks/version_consistency.rb   # lib/magik/version.rb, " \
+                                "magik.gemspec and the artifact disagree")
+          end
+
+          pass("installed magik #{data["version"]} (#{data["status"]}) runs from an empty GEM_HOME",
+               command: printed)
+        end
+      end
+    }
+  ),
+
   Step.new(
     name: "cli",
     title: "CLI smoke test — `magik version --json` from source",

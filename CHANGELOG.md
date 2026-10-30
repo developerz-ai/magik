@@ -55,6 +55,14 @@ the repository being brought back into agreement with it.
   worktree, the file set as the only lock, and `bin/check` run by the coordinator alone. Both are
   adapted from the TypeScript sibling's harness; neither claims any framework behaviour.
 
+- **The `install` step in `bin/check`** — the installed-gem smoke CI's gem-build job runs
+  ([.github/workflows/ci.yml](.github/workflows/ci.yml)): build the gem, install it into an empty
+  `GEM_HOME`, run the installed binary from that home, and assert exit 0, JSON that parses, and
+  name/version/status matching the artifact just built — so the local gate now covers every gate
+  CI runs. The smoke is offline today only because `magik.gemspec` declares zero runtime
+  dependencies; the first runtime dependency makes `gem install` network-dependent, unlike every
+  other step of the gate.
+
 ### Changed
 
 - **`.claude/settings.json` is no longer committed**, and is now ignored. It is a permission
