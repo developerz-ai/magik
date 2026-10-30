@@ -12,7 +12,7 @@ group :development, :test do
   # Test framework. Minitest, never RSpec (docs/idea/00-build-spec.md, Phase 9).
   gem "minitest", "~> 5.0"
   gem "minitest-reporters", "~> 1.6"
-  gem "simplecov", "~> 0.22", require: false
+  gem "simplecov", "~> 1.2", require: false
 
   # Lint.
   gem "rubocop", "~> 1.0", require: false
