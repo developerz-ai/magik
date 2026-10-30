@@ -11,11 +11,13 @@ set -euo pipefail
 cd "$(dirname "$0")/.."
 
 if ! command -v docker >/dev/null 2>&1; then
-  echo "bin/stop: docker is not on PATH — nothing was started here to stop; fix: install Docker before bin/setup --services"
+  echo "bin/stop: docker is not on PATH — nothing was started here to stop"
+  echo "  fix: sudo apt-get install -y docker.io docker-compose-v2   # Debian/Ubuntu; macOS: brew install --cask docker"
   exit 0
 fi
 if ! docker compose version >/dev/null 2>&1; then
-  echo "bin/stop: the docker compose plugin is not available — nothing to stop; fix: install docker-compose-plugin"
+  echo "bin/stop: the docker compose plugin is not available — nothing to stop"
+  echo "  fix: sudo apt-get install -y docker-compose-v2   # Debian/Ubuntu; macOS: brew install docker-compose"
   exit 0
 fi
 

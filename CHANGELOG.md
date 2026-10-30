@@ -182,6 +182,22 @@ the repository being brought back into agreement with it.
 
 ### Fixed
 
+- **`bin/stop`'s two missing-tool messages now print a command instead of advising one.** They said
+  *"install Docker before `bin/setup --services`"* and *"install docker-compose-plugin"* — an
+  instruction and a package name, neither of them something a reader can paste, against the repo's
+  own rule that a `fix:` is a runnable command. They now print
+  `sudo apt-get install -y docker.io docker-compose-v2` (Debian/Ubuntu) or
+  `brew install --cask docker` (macOS), and `sudo apt-get install -y docker-compose-v2` or
+  `brew install docker-compose` when only the compose plugin is missing.
+  [`test/dev_scripts_test.rb`](test/dev_scripts_test.rb) pins both.
+- **`bin/dev --once` and the no-watcher refusal are exercised at last.** Every dev-script case
+  stubbed a watcher, so the two paths a coding box actually takes — one pass with no watcher
+  installed, and the refusal that says one is missing — were never run. `run_script` now forwards
+  arguments, and the suite asserts that `--once` runs the check exactly once and never asks for a
+  watcher, and that the refusal exits 69 with `MAGIK_DEV_NO_WATCHER` and a `fix:` that is a command.
+  That `fix:` is now `sudo apt-get install -y entr`; the message used to say `apt install entr`,
+  which needs root and does not work as pasted.
+
 - **The command tables no longer call `bin/dev` "the CLI against the demo app" or "a running
   stack".** [`README.md`](README.md), [`CONTRIBUTING.md`](CONTRIBUTING.md), [`CLAUDE.md`](CLAUDE.md)
   and [`.claude/skills/verify-change/SKILL.md`](.claude/skills/verify-change/SKILL.md) now say what

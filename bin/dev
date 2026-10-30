@@ -121,12 +121,12 @@ MAGIK_DEV_NO_WATCHER: no file watcher is installed, so there is nothing to watch
   Magik does not ship a watcher or depend on a gem for one — a watcher is a
   machine-local tool, not a project dependency. Install any one of these:
 
-    watchexec   cargo install watchexec-cli   |  brew install watchexec
-    entr        apt install entr              |  brew install entr
-    fswatch     apt install fswatch           |  brew install fswatch
-    inotifywait apt install inotify-tools     (Linux only)
+    watchexec   cargo install watchexec-cli          |  brew install watchexec
+    entr        sudo apt-get install -y entr          |  brew install entr
+    fswatch     sudo apt-get install -y fswatch       |  brew install fswatch
+    inotifywait sudo apt-get install -y inotify-tools (Linux only)
 
-  fix: apt install entr   # or any of the four above; then re-run bin/dev
+  fix: sudo apt-get install -y entr   # or any of the four above; then re-run bin/dev
 
   In the meantime, `bin/dev --once` runs the step a single time, and
   `bin/check` runs the whole gate.

@@ -27,6 +27,7 @@ class DevScriptsTest < Minitest::Test
   BASH = find_tool("bash", "/bin/bash").freeze
   DIRNAME = find_tool("dirname", "/usr/bin/dirname", "/bin/dirname").freeze
   FIND = find_tool("find", "/usr/bin/find", "/bin/find").freeze
+  CAT = find_tool("cat", "/usr/bin/cat", "/bin/cat").freeze
 
   # What `bin/dev` must exec watchexec with: `--clear`, then one `--watch` per
   # WATCH_PATHS entry and per WATCH_FILES entry — the same set the entr,
@@ -56,7 +57,8 @@ class DevScriptsTest < Minitest::Test
   FSWATCH_ARGS = %w[-o -r lib exe test Rakefile Gemfile magik.gemspec].freeze
 
   def setup
-    skip "bash, dirname and find are required to run the dev scripts" if BASH.nil? || DIRNAME.nil? || FIND.nil?
+    skip "bash, dirname, find and cat are required to run the dev scripts" if
+      BASH.nil? || DIRNAME.nil? || FIND.nil? || CAT.nil?
   end
 
   # --- bin/stop ----------------------------------------------------------------
@@ -67,6 +69,8 @@ class DevScriptsTest < Minitest::Test
 
       assert_equal 0, status, "docker absent is 'nothing was started here to stop':\n#{output}"
       assert_includes output, "docker is not on PATH"
+      assert_includes output, "fix: sudo apt-get install -y docker.io docker-compose-v2",
+                      "the fix: is a command a reader can paste, not advice:\n#{output}"
     end
   end
 
@@ -79,6 +83,8 @@ class DevScriptsTest < Minitest::Test
 
       assert_equal 0, status, "a missing compose plugin is 'nothing to stop':\n#{output}"
       assert_includes output, "compose plugin is not available"
+      assert_includes output, "fix: sudo apt-get install -y docker-compose-v2",
+                      "the fix: is a command a reader can paste, not advice:\n#{output}"
       assert_equal %w[compose version], logged(log)
     end
   end
@@ -227,11 +233,54 @@ class DevScriptsTest < Minitest::Test
     end
   end
 
+  def test_dev_once_runs_the_step_exactly_once_and_never_asks_for_a_watcher
+    in_sandbox do |root, bin|
+      FileUtils.cp(File.join(REPO, "bin", "dev"), File.join(bin, "dev"))
+      FileUtils.chmod(0o755, File.join(bin, "dev"))
+
+      check_log = File.join(root, "check.log")
+      write_stub(bin, "check", check_log, "exit 0")
+
+      # No watcher is installed in this sandbox, and --once must not need one:
+      # it runs the step and exits with the step's verdict. The script is
+      # copied beside the stub because it opens with `cd "$(dirname "$0")/.."`
+      # and reaches the gate through `./bin/check`.
+      status, output = run_script(File.join(bin, "dev"), bin, "--once")
+
+      assert_equal 0, status, "--once runs the step once and exits with its verdict:\n#{output}"
+      assert_equal %w[--only test], logged(check_log), "exactly one check, the default step"
+      refute_includes output, "MAGIK_DEV_NO_WATCHER", "--once never asks for a watcher"
+    end
+  end
+
+  def test_dev_refuses_with_the_no_watcher_code_when_no_watcher_is_installed
+    in_sandbox do |root, bin|
+      FileUtils.cp(File.join(REPO, "bin", "dev"), File.join(bin, "dev"))
+      FileUtils.chmod(0o755, File.join(bin, "dev"))
+
+      check_log = File.join(root, "check.log")
+      write_stub(bin, "check", check_log, "exit 0")
+
+      # The up-front run happens, then the refusal. Exit 69 means "not
+      # installed", not "broken" — nothing in this repository is wrong — and
+      # the fix: has to be a command the reader can paste.
+      status, output = run_script(File.join(bin, "dev"), bin)
+
+      assert_equal 69, status, "no watcher is 'not installed', not 'broken':\n#{output}"
+      assert_includes output, "MAGIK_DEV_NO_WATCHER"
+      assert_includes output, "fix: sudo apt-get install -y entr",
+                      "the fix: is a command a reader can paste, not advice:\n#{output}"
+      assert_equal %w[--only test], logged(check_log), "the up-front run, once"
+    end
+  end
+
   private
 
   # Yields [root, bin]. The bin directory holds the `dirname` stand-in both
-  # scripts open with (`cd "$(dirname "$0")/.."`) and is the child's ENTIRE
-  # PATH, so a tool is truly absent until a stub for it is written there.
+  # scripts open with (`cd "$(dirname "$0")/.."`) and the `cat` `bin/dev`
+  # prints its messages with — a POSIX tool, not one of the tools under test,
+  # so the real one is linked in. The directory is the child's ENTIRE PATH, so
+  # a tool is truly absent until a stub for it is written there.
   #
   # @yieldparam root [String] the sandbox root
   # @yieldparam bin [String] the sandbox bin directory, the child's whole PATH
@@ -241,6 +290,7 @@ class DevScriptsTest < Minitest::Test
       bin = File.join(root, "bin")
       FileUtils.mkdir_p(bin)
       FileUtils.ln_s(DIRNAME, File.join(bin, "dirname"))
+      FileUtils.ln_s(CAT, File.join(bin, "cat"))
       yield root, bin
     end
   end
@@ -274,8 +324,8 @@ class DevScriptsTest < Minitest::Test
   # @param path [String] the script to run
   # @param bin [String] the sandbox bin directory, the child's whole PATH
   # @return [Array(Integer, String)] exit status, combined stdout and stderr
-  def run_script(path, bin)
-    out, status = Open3.capture2e({ "PATH" => bin }, BASH, path)
+  def run_script(path, bin, *)
+    out, status = Open3.capture2e({ "PATH" => bin }, BASH, path, *)
     [status.exitstatus, out]
   end
 end
