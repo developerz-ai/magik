@@ -2,14 +2,14 @@
 
 **Status:** `Format contract real, catalogue almost entirely planned`. **Eight codes exist today.**
 Every other code on this page is seeded from the guardrails in
-[`docs/idea/00-build-spec.md`](../../../docs/idea/00-build-spec.md) and is raised by nothing.
+[`docs/idea/00-build-spec.md`](../docs/idea/00-build-spec.md) and is raised by nothing.
 `As of 2026-08-26`.
 
 Every failure Magik raises is a `Magik::Error` carrying three things, and all three are required:
 
 1. a **stable code** shaped `MAGIK_<SUBSYSTEM>_<CONDITION>` — greppable, linkable, safe to match on
    in a test. The allowed `<SUBSYSTEM>` tokens are a closed set, written down in
-   [`docs/architecture/03-error-codes.md`](../../../docs/architecture/03-error-codes.md#the-allowed-subsystem-tokens);
+   [`docs/architecture/03-error-codes.md`](https://github.com/developerz-ai/magik/blob/main/docs/architecture/03-error-codes.md#the-allowed-subsystem-tokens);
 2. a **cause** — one sentence about what actually went wrong;
 3. a **fix** — a runnable command or a concrete edit. Never "check your configuration".
 
@@ -56,8 +56,8 @@ raise NoTenant, "model :Invoice declares no tenant_id and no `global!` reason"
 |---|---|
 | Lookup | `magik errors explain <CODE> --json` — *planned*; today, this page |
 | Uniqueness | one code is owned by exactly one subsystem, and **one condition is named by exactly one code**. Two spellings of one guardrail is the drift this page is checked against |
-| Format | `MAGIK_<SUBSYSTEM>_<CONDITION>`, with `<SUBSYSTEM>` from the closed token set in [`docs/architecture/03-error-codes.md`](../../../docs/architecture/03-error-codes.md#the-allowed-subsystem-tokens). `MAGIK_ERROR` is the one carved-out exception — the base class names no subsystem because it has none |
-| Stability | a shipped code never changes meaning and is never reused. A renamed concept gets a new code and the old one stays documented. Three CLI codes were renamed into this format *before* anything depended on them — the reasoning is [on the architecture page](../../../docs/architecture/03-error-codes.md#the-shipped-codes-and-the-format-a-decision-record) |
+| Format | `MAGIK_<SUBSYSTEM>_<CONDITION>`, with `<SUBSYSTEM>` from the closed token set in [`docs/architecture/03-error-codes.md`](https://github.com/developerz-ai/magik/blob/main/docs/architecture/03-error-codes.md#the-allowed-subsystem-tokens). `MAGIK_ERROR` is the one carved-out exception — the base class names no subsystem because it has none |
+| Stability | a shipped code never changes meaning and is never reused. A renamed concept gets a new code and the old one stays documented. Three CLI codes were renamed into this format *before* anything depended on them — the reasoning is [on the architecture page](https://github.com/developerz-ai/magik/blob/main/docs/architecture/03-error-codes.md#the-shipped-codes-and-the-format-a-decision-record) |
 | `fix` is executable | a command, a call to paste, or an edit naming a file. A `fix:` reading "do the right thing" is a bug — [file it](https://github.com/developerz-ai/magik/issues) |
 | Bare `Error` | never raised by the framework for a framework condition. A code, a cause and a fix, or it is not a Magik error |
 | Enforced format | `Magik::Error` validates the code against `CODE_FORMAT` and refuses a blank `fix` at construction. A malformed code is an `ArgumentError` before it ever reaches a user |
@@ -86,7 +86,7 @@ and `lib/` disagree, in either direction.
 |---|---|---|---|
 | `MAGIK_ERROR` | the base code | a one-off `Magik::Error` raised with no more specific class | read the cause; it names the condition |
 | `MAGIK_CLI_UNKNOWN_COMMAND` | not a Magik command | a typo, or a command from another tool | `magik help` lists every command |
-| `MAGIK_CLI_COMMAND_NOT_IMPLEMENTED` | a specified command that is not built | every command except `version`, `help` and `docs` | `magik help` for what runs today; [`ROADMAP.md`](../ROADMAP.md) for when the rest lands |
+| `MAGIK_CLI_COMMAND_NOT_IMPLEMENTED` | a specified command that is not built | every command except `version`, `help` and `docs` | `magik help` for what runs today; [`ROADMAP.md`](https://raw.githubusercontent.com/developerz-ai/magik/main/apps/magik/ROADMAP.md) for when the rest lands |
 | `MAGIK_CLI_INVALID_OPTION` | a flag this command does not take | a typo, or a flag from a different command | `magik help <command>` for its flags |
 | `MAGIK_DOCS_UNAVAILABLE` | no shipped documentation tree was found at all | a damaged install, or a `MAGIK_DOCS_ROOT` pointing at nothing | reinstall the gem with `gem install magik`, or set `MAGIK_DOCS_ROOT` to a checkout of <https://github.com/developerz-ai/magik> |
 | `MAGIK_DOCS_PAGE_NOT_FOUND` | a slug or path names no shipped page | a typo, or a page from a different version of the gem | `magik docs list` shows every page that ships with this gem |
@@ -101,7 +101,7 @@ exits.
 
 ## Planned — seeded from the guardrails
 
-The spec's [Guardrails to Enforce at Boot](../../../docs/idea/00-build-spec.md) section is the seed, and
+The spec's [Guardrails to Enforce at Boot](../docs/idea/00-build-spec.md) section is the seed, and
 each rule in it has a code. It names six original rules, and a further table covering authorization,
 the application shell and uploads.
 
@@ -272,7 +272,7 @@ fails quietly is worse than one that refuses loudly.**
 | Code | Means | Fix |
 |---|---|---|
 | `MAGIK_PWA_OFFLINE_UNSUPPORTED` | something asked for offline behaviour | there is no offline mode, at any phase. The server is the single source of truth |
-| `MAGIK_RENDER_CLIENT_COMPUTE_UNSUPPORTED` | something asked for heavy client-side compute | out of scope. See [`docs/idea/05-limits.md`](../../../docs/idea/05-limits.md) |
+| `MAGIK_RENDER_CLIENT_COMPUTE_UNSUPPORTED` | something asked for heavy client-side compute | out of scope. See [`docs/idea/05-limits.md`](https://raw.githubusercontent.com/developerz-ai/magik/main/docs/idea/05-limits.md) |
 | `MAGIK_CONFIG_UNKNOWN_BACKEND` | a swap point was pointed at a backend that does not exist | the cause lists the backends that seam accepts |
 
 ---
@@ -281,5 +281,5 @@ fails quietly is worse than one that refuses loudly.**
 
 - [CLI reference](CLI-Reference.md) — the commands the `fix:` lines name.
 - [Known gaps](Known-Gaps.md) — what is not built.
-- [`docs/idea/03-guardrails.md`](../../../docs/idea/03-guardrails.md) — why each guardrail exists.
-- [`docs/architecture/03-error-codes.md`](../../../docs/architecture/03-error-codes.md) — how codes are declared and owned.
+- [`docs/idea/03-guardrails.md`](https://raw.githubusercontent.com/developerz-ai/magik/main/docs/idea/03-guardrails.md) — why each guardrail exists.
+- [`docs/architecture/03-error-codes.md`](https://raw.githubusercontent.com/developerz-ai/magik/main/docs/architecture/03-error-codes.md) — how codes are declared and owned.

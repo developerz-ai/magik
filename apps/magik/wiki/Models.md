@@ -141,7 +141,7 @@ MAGIK_MODEL_LAZY_ASSOCIATION: :Invoice#customer was not eagerly loaded
 | A `:file` field declares `max_size:` and `content_types:` | `MAGIK_MODEL_UNCONSTRAINED_UPLOAD` | boot |
 
 Full catalogue: [Error codes](Error-Codes.md). Why each exists:
-[`docs/idea/03-guardrails.md`](../../../docs/idea/03-guardrails.md).
+[`docs/idea/03-guardrails.md`](https://raw.githubusercontent.com/developerz-ai/magik/main/docs/idea/03-guardrails.md).
 
 ## Swap points
 
@@ -155,7 +155,7 @@ Full catalogue: [Error codes](Error-Codes.md). Why each exists:
 The rule from the spec: every opinionated default has a **working, tested** config-level swap, proven
 before merge rather than promised in a doc. The two rows above marked "not a swap point" are stated as
 such deliberately — pretending everything is swappable is its own dishonesty.
-See [`docs/idea/04-swap-points.md`](../../../docs/idea/04-swap-points.md).
+See [`docs/idea/04-swap-points.md`](https://raw.githubusercontent.com/developerz-ai/magik/main/docs/idea/04-swap-points.md).
 
 ## Next
 

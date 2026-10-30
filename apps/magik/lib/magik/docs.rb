@@ -33,18 +33,25 @@ module Magik
     #
     # This constant is the single source of truth for the decision:
     # magik.gemspec reads it to build `spec.files`, and {pages} reads it to
-    # build the catalogue. Keeping one list means `magik docs list` can never
-    # offer a page that `gem build` left out.
+    # build the catalogue. Keeping one list means an INSTALLED gem's
+    # catalogue can never offer a page that `gem build` left out. A checkout
+    # catalogue is wider by design: `../../docs/**/*.md` reaches the
+    # repository-root trees, which the gemspec excludes from the package, so
+    # a checkout's `magik docs list` includes repository-only pages an
+    # installed gem neither ships nor advertises.
     #
-    # Two entries carry their own story. `docs/**/*.md` covers a docs/ tree
-    # inside the root itself — an installed gem layout, a vendored copy, a test
-    # fixture. `../../docs/**/*.md` reaches the repository-root `docs/` trees —
-    # build spec, guardrails, architecture notes — which stay out of the gem
-    # package and live four directories above this file in a checkout. The
-    # gemspec drops every candidate that resolves outside the gem dir, so the
-    # checkout-only spelling never ships: a checkout catalogue serves those
-    # pages, an installed gem serves its packaged wiki/llms tree.
-    # test/magik/docs_test.rb asserts the split.
+    # Two entries carry their own story. `docs/**/*.md` covers the GENERATED
+    # build-spec mirror, docs/idea/00-build-spec.md — the path
+    # Magik::Error::DEFAULT_FIX and every spec-only stub's error message
+    # name, so an installed gem serves the page its own fix lines point at
+    # (scripts/checks/build_spec_mirror.rb renders and verifies it; in a
+    # checkout the repository original is ALSO catalogued under its ../../
+    # spelling). `../../docs/**/*.md` reaches the repository-root trees —
+    # DSL surface, guardrails, architecture notes — which stay out of the
+    # gem package and live four directories above this file in a checkout.
+    # The gemspec drops every candidate that resolves outside the gem dir,
+    # so the checkout-only spelling never ships. test/magik/docs_test.rb
+    # asserts the split.
     #
     # @return [Array<String>] `Dir.glob` patterns
     # @example

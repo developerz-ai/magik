@@ -1,6 +1,6 @@
 {
   "schema": 1,
-  "build_id": "727148e878108f4a0e81d2387fb31f22f9f1fd3d7e39652c877dc63a51bb2919",
+  "build_id": "40bcf9e4f28af025bf297e6392cc95e240f5fa3fa81a6193d44fde98b7742790",
   "generator": "scripts/checks/manifest.rb",
   "gem": {
     "name": "magik",
@@ -259,25 +259,25 @@
       "code": "MAGIK_DOCS_AMBIGUOUS_PAGE",
       "class": "Magik::Docs::AmbiguousPageError",
       "fix": "run `magik docs list` and use the full slug, e.g. `magik docs wiki/models`",
-      "at": "lib/magik/docs.rb:136"
+      "at": "lib/magik/docs.rb:143"
     },
     {
       "code": "MAGIK_DOCS_MISSING_TERM",
       "class": "Magik::Docs::MissingTermError",
       "fix": "run `magik docs search <term>`, e.g. `magik docs search ledger`",
-      "at": "lib/magik/docs.rb:142"
+      "at": "lib/magik/docs.rb:149"
     },
     {
       "code": "MAGIK_DOCS_PAGE_NOT_FOUND",
       "class": "Magik::Docs::PageNotFoundError",
       "fix": "run `magik docs list` to see every page that ships with this gem",
-      "at": "lib/magik/docs.rb:130"
+      "at": "lib/magik/docs.rb:137"
     },
     {
       "code": "MAGIK_DOCS_UNAVAILABLE",
       "class": "Magik::Docs::UnavailableError",
       "fix": "reinstall the gem with `gem install magik`, or set `MAGIK_DOCS_ROOT` to a checkout of https://github.com/developerz-ai/magik",
-      "at": "lib/magik/docs.rb:123"
+      "at": "lib/magik/docs.rb:130"
     },
     {
       "code": "MAGIK_ERROR",
@@ -312,6 +312,12 @@
       "path": "scripts/checks/doc_commands.rb"
     },
     {
+      "name": "shipped-links",
+      "summary": "Every link a packaged page carries resolves inside the gem.",
+      "order": 45,
+      "path": "scripts/checks/shipped_links.rb"
+    },
+    {
       "name": "changelog",
       "summary": "CHANGELOG.md is Keep a Changelog, has [Unreleased], and covers Magik::VERSION.",
       "order": 50,
@@ -328,6 +334,12 @@
       "summary": "Every file under dummy/ is syntactically valid Ruby — and nothing more.",
       "order": 70,
       "path": "scripts/checks/dummy_parses.rb"
+    },
+    {
+      "name": "build-spec-mirror",
+      "summary": "The packaged build-spec mirror is a fresh render of the original.",
+      "order": 75,
+      "path": "scripts/checks/build_spec_mirror.rb"
     },
     {
       "name": "manifest",

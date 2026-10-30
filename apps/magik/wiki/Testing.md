@@ -18,14 +18,14 @@ engineer. Prior art for the *runner mechanics* comes from Rails' parallel test r
 `parallel_tests` / `parallel_rspec`: process-per-core, database per worker, a clean split of work.
 That is where the borrowing stops — the framework choice is Minitest and it is not revisited.
 
-How it works underneath — worker threads, template-database cloning, the honest risks in each — is [`docs/architecture/04-testing-strategy.md`](../../../docs/architecture/04-testing-strategy.md).
+How it works underneath — worker threads, template-database cloning, the honest risks in each — is [`docs/architecture/04-testing-strategy.md`](https://raw.githubusercontent.com/developerz-ai/magik/main/docs/architecture/04-testing-strategy.md).
 This page is what you type.
 
 ---
 
 ## Writing a test
 
-The running example is the invoicing SaaS in [`dummy/`](../dummy/).
+The running example is the invoicing SaaS in [`dummy/`](https://github.com/developerz-ai/magik/tree/main/apps/magik/dummy).
 
 ```ruby
 # test/actions/mark_paid_test.rb
@@ -386,7 +386,7 @@ magik test --workers 1 --json | jq .duration_ms    # the serial baseline the par
 
 The honest risks in the parallel design — chiefly that thread-parallel tests demand genuinely
 shared-nothing tests — are named in
-[`docs/architecture/04-testing-strategy.md`](../../../docs/architecture/04-testing-strategy.md) rather than
+[`docs/architecture/04-testing-strategy.md`](https://raw.githubusercontent.com/developerz-ai/magik/main/docs/architecture/04-testing-strategy.md) rather than
 smoothed over here.
 
 ---
@@ -411,4 +411,4 @@ because someone else's server was up.
 - [Actions](Actions.md) · [Screens and components](Screens-And-Components.md) · [Jobs](Jobs.md) — what you are testing.
 - [Development loop](Development-Loop.md) — `magik test --watch` alongside a reloading server.
 - [CLI reference](CLI-Reference.md) — every flag on `magik test`.
-- [`docs/architecture/04-testing-strategy.md`](../../../docs/architecture/04-testing-strategy.md) — how the runner works, and its risks.
+- [`docs/architecture/04-testing-strategy.md`](https://raw.githubusercontent.com/developerz-ai/magik/main/docs/architecture/04-testing-strategy.md) — how the runner works, and its risks.

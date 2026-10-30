@@ -55,6 +55,25 @@ the repository being brought back into agreement with it.
   worktree, the file set as the only lock, and `bin/check` run by the coordinator alone. Both are
   adapted from the TypeScript sibling's harness; neither claims any framework behaviour.
 
+- **The build spec ships inside the gem as a generated mirror** — `apps/magik/docs/idea/00-build-spec.md`,
+  rendered from the checkout's original by `ruby apps/magik/scripts/checks/build_spec_mirror.rb`
+  (`--write` regenerates; the check fails when the committed copy is stale). `Magik::Error::DEFAULT_FIX`
+  and every spec-only stub's error message name the path `docs/idea/00-build-spec.md`; an installed gem
+  has no repository around it, so without the mirror every error's recovery instruction was unusable
+  exactly where errors are handled. The mirror carries the original verbatim, with links rewritten to
+  absolute repository URLs so they resolve from an installed gem's filesystem, and the gemspec's
+  file-list filter now sees untracked-but-un-ignored files so a first `--write` is visible to a gate
+  run before the next commit. Re-derive: `ruby apps/magik/scripts/checks/build_spec_mirror.rb`, then
+  `magik docs docs/idea/00-build-spec` and `gem build` + `tar -tf` for the packaged bytes.
+
+- **A shipped-links guard — `apps/magik/scripts/checks/shipped_links.rb`** — every relative link in a
+  packaged page (`Magik::Docs::PACKAGED_GLOBS`, minus the checkout-only `../` spellings) must resolve
+  to another packaged file inside the gem root, or the check fails with `MAGIK_DEV_SHIPPED_LINK_ESCAPES`
+  or `MAGIK_DEV_SHIPPED_LINK_UNPACKAGED`. It found 84 links across 17 wiki pages that resolved only
+  from a checkout and dangled in an installed gem; all are rewritten — the build spec to the packaged
+  mirror (`../docs/idea/00-build-spec.md`), the rest to absolute repository URLs, the same mechanism
+  `llms.txt` already used. Re-derive: `ruby apps/magik/scripts/checks/shipped_links.rb`.
+
 ### Changed
 
 - **`bin/stop` is the teardown half of the setup→dev→check cycle**, not a `true` stub. It runs
@@ -74,11 +93,26 @@ the repository being brought back into agreement with it.
   resolve one bundle from the checkout root, and every command, workflow path and relative link
   was re-pointed with it — `rake -C apps/magik test`,
   `ruby -Iapps/magik/lib apps/magik/exe/magik version --json`. The package shrank to match:
-  `spec.files` stays inside `apps/magik/` — README, LICENSE, CHANGELOG and `docs/**` leave the
-  gem — while a checkout `magik docs` still serves `docs/idea` and `docs/architecture` by
+  `spec.files` stays inside `apps/magik/` — README, LICENSE, CHANGELOG and the repo-root `docs/`
+  trees leave the gem, with one later exception under Added above: the generated build-spec mirror —
+  while a checkout `magik docs` still serves `docs/idea` and `docs/architecture` by
   resolving `../../docs/**` against `Magik.root`. `magik.manifest.json` moved verbatim and
   `ruby apps/magik/scripts/checks/manifest.rb` passes against it unchanged. Re-derive the
   layout with `bin/check` — every step runs the app-prefixed spelling.
+
+- **Dependabot now tracks the checkout-root bundle too.** CI resolves TWO Bundler definitions — the
+  root `Gemfile` (the workspace entry `bin/check`'s `bundle exec` and CI's bundler-cache resolve
+  against) and `apps/magik/Gemfile` — but Dependabot only watched the app one, so a constraint
+  update it proposed for the app bundle did not reach the bundle CI actually resolves, and the
+  duplicated development constraints in the two files could drift apart in silence. The root entry
+  uses the same fortnightly cron schedule and cooldown as the app bundle, so both bundles update in
+  one morning, not two.
+
+- **`.coderabbit.yml` is back at the checkout root.** CodeRabbit discovers `.coderabbit.yml` only at
+  the repository root; while it sat under `apps/magik/`, every review fell back to defaults and
+  dropped the path instructions. The file moves back with its globs already repo-root-relative, a
+  header note on why the location is load-bearing, and the gemspec and docs instructions updated for
+  the generated build-spec mirror and the shipped-links guard.
 - **`.claude/settings.json` is no longer committed**, and is now ignored. It is a permission
   allowlist and a post-edit hook — one operator's tolerance for what runs unprompted and one
   machine's tooling — so committing it handed every contributor those choices silently. Nothing in

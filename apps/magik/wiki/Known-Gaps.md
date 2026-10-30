@@ -20,7 +20,7 @@ magik help                                             # every command that runs
 
 | Gap | Symptom | Work around it by |
 |---|---|---|
-| **The entire framework is unimplemented** | `docs/idea/00-build-spec.md` describes ten phases — 1, 2, 3, 4, 4b, 5, 6, 7, 8, 9 — over thirteen build steps. Zero are built. There is no `App.define`, no `model`, no `screen`, no `action`, no router, no renderer, no job queue, no ledger, no `magik new`. Every DSL block on this wiki is a design artefact that has never been parsed | there is no workaround. Use Rails, or use [Ultimate](https://github.com/developerz-ai/ultimate), and watch [`ROADMAP.md`](../ROADMAP.md) |
+| **The entire framework is unimplemented** | `docs/idea/00-build-spec.md` describes ten phases — 1, 2, 3, 4, 4b, 5, 6, 7, 8, 9 — over thirteen build steps. Zero are built. There is no `App.define`, no `model`, no `screen`, no `action`, no router, no renderer, no job queue, no ledger, no `magik new`. Every DSL block on this wiki is a design artefact that has never been parsed | there is no workaround. Use Rails, or use [Ultimate](https://github.com/developerz-ai/ultimate), and watch [`ROADMAP.md`](https://raw.githubusercontent.com/developerz-ai/magik/main/apps/magik/ROADMAP.md) |
 | `magik new` does not exist | the command is registered and exits `1` with `MAGIK_CLI_COMMAND_NOT_IMPLEMENTED` | none. It is build step 1 |
 | Twelve of the fifteen CLI commands are `MAGIK_CLI_COMMAND_NOT_IMPLEMENTED` | only `version`, `help` and `docs` run | `magik help --json` is the authoritative list, and it marks every command `ready` or `planned`. Re-derive it rather than trusting this row |
 | The error catalogue is eight codes, not the ~80 on [Error codes](Error-Codes.md) | four CLI codes and four `MAGIK_DOCS_*` codes. Everything else is written down and raised by nothing | treat that page's [Live today](Error-Codes.md#live-today) table as the real one |
@@ -28,7 +28,7 @@ magik help                                             # every command that runs
 | Every subsystem module is a documented stub | referencing one loads a module that raises `NotImplementedError` naming the spec section it will implement | `ruby -Iapps/magik/lib -e 'require "magik"; puts Magik::SUBSYSTEMS.keys.inspect'` lists all twenty-one |
 | `apps/magik/dummy/` is a reference app that has never executed | Ledgerline, an invoicing SaaS, is written out in full — but there is no framework to run it against, so **every declaration in it is a claim, not a behaviour**. It is parse-checked and nothing more: `ruby apps/magik/scripts/checks/dummy_parses.rb` | read it as the spec made executable-shaped. `examples/` is still empty |
 | No benchmark exists | the spec targets 1,000 tests in under 10s. Nothing has been measured, because there is no test runner | do not quote a performance number for Magik. There is none to quote |
-| TruffleRuby is barely exercised | the production runtime is TruffleRuby and the development default is CRuby. The only TruffleRuby behaviour anyone has measured is `apps/magik/scripts/probes/runtime.rb` ([results](../../../docs/architecture/12-runtime-verification.md)); everything else runs in CI | assume nothing beyond what that page records |
+| TruffleRuby is barely exercised | the production runtime is TruffleRuby and the development default is CRuby. The only TruffleRuby behaviour anyone has measured is `apps/magik/scripts/probes/runtime.rb` ([results](https://raw.githubusercontent.com/developerz-ai/magik/main/docs/architecture/12-runtime-verification.md)); everything else runs in CI | assume nothing beyond what that page records |
 | No swap point has been proven | every swap on this wiki — DB, cache, jobs, search, realtime — is a design commitment with no implementation and no test on either side | the spec requires a **passing test** before a swap is claimed. None exists |
 
 ---
@@ -37,12 +37,12 @@ magik help                                             # every command that runs
 
 These were once a different kind of gap: capability the spec did not describe at all, so building the
 framework exactly as written would still not have produced it. They were found by the coverage audit,
-[`docs/idea/10-saas-coverage.md`](../../../docs/idea/10-saas-coverage.md), which pressure-tested the spec's
+[`docs/idea/10-saas-coverage.md`](https://raw.githubusercontent.com/developerz-ai/magik/main/docs/idea/10-saas-coverage.md), which pressure-tested the spec's
 claim to cover "99% of SaaS use cases".
 
 **`As of 2026-08-26` every row below has been accepted into the spec.** That closes a *design* gap
-and nothing else — the constructs are in [`docs/idea/00-build-spec.md`](../../../docs/idea/00-build-spec.md)
-and drafted in [`docs/idea/02-dsl-surface.md`](../../../docs/idea/02-dsl-surface.md), and **not one line of
+and nothing else — the constructs are in [`docs/idea/00-build-spec.md`](../docs/idea/00-build-spec.md)
+and drafted in [`docs/idea/02-dsl-surface.md`](https://raw.githubusercontent.com/developerz-ai/magik/main/docs/idea/02-dsl-surface.md), and **not one line of
 any of them is implemented**, exactly like the rest of the framework. The table is kept because a
 reader deciding whether to trust the spec should be able to see what it was missing and when it
 stopped missing it.
@@ -75,12 +75,12 @@ coverage at under a fifth, and it predates the rows above closing. Re-run it rat
 ## Not built yet, by phase
 
 This is unfinished work, not a defect list. Order and definitions of done are in
-[`ROADMAP.md`](../ROADMAP.md); this table is that page reduced to "what is missing".
+[`ROADMAP.md`](https://raw.githubusercontent.com/developerz-ai/magik/main/apps/magik/ROADMAP.md); this table is that page reduced to "what is missing".
 
 **Two orderings, and this table carries both.** A phase is an *identity* — which capability a
 construct belongs to. A build step is a *position* — when it actually gets written. The spec's ten
 phases and its thirteen build steps are deliberately not the same sequence, and where they disagree
-**build order wins** ([`docs/idea/06-phases.md`](../../../docs/idea/06-phases.md)). The rows below are in
+**build order wins** ([`docs/idea/06-phases.md`](https://raw.githubusercontent.com/developerz-ai/magik/main/docs/idea/06-phases.md)). The rows below are in
 delivery order and keep their spec phase number, exactly as `ROADMAP.md` presents them — **nothing
 here renumbers a phase.** That is why phase 9 appears third, phase 7 before phase 6, and phase 4b
 between 4 and 5.
@@ -105,7 +105,7 @@ last because they enforce boundaries across everything that exists by then.
 `1.0.0` is not "every row above is green". It is that **plus** four claims proven by something
 executable — every swap point tested on both sides, a CRUD screen under 30 lines with its line count
 asserted by a test, no `fintech: true` mode anywhere, and a generated app that is safe and usable on
-its first run. [`ROADMAP.md`](../ROADMAP.md) carries the proofs each one needs.
+its first run. [`ROADMAP.md`](https://raw.githubusercontent.com/developerz-ai/magik/main/apps/magik/ROADMAP.md) carries the proofs each one needs.
 
 ---
 
@@ -138,7 +138,7 @@ Nothing on this page is removed because it became inconvenient to state.
 
 ## Next
 
-- [`ROADMAP.md`](../ROADMAP.md) — what gets built, in what order, and what "done" means.
+- [`ROADMAP.md`](https://raw.githubusercontent.com/developerz-ai/magik/main/apps/magik/ROADMAP.md) — what gets built, in what order, and what "done" means.
 - [FAQ](FAQ.md) — including "is this production ready" (no).
 - [Error codes](Error-Codes.md) — the eight codes that are real.
 - [Contributing](Contributing.md) — the fastest way to make this page shorter.

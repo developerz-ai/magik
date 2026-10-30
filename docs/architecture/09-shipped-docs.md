@@ -28,11 +28,13 @@ Three pieces:
 
 | Piece | Where | Does |
 |---|---|---|
-| The packaging rule | [`../../apps/magik/magik.gemspec`](../../apps/magik/magik.gemspec) | `spec.files` is the allowlist `exe/**`, `lib/**/*`, `sig/**/*` plus `Magik::Docs::PACKAGED_GLOBS` — `llms.txt`, `wiki/**/*.md`, and the checkout-only `../../docs/**/*.md` spelling |
+| The packaging rule | [`../../apps/magik/magik.gemspec`](../../apps/magik/magik.gemspec) | `spec.files` is the allowlist `exe/**`, `lib/**/*`, `sig/**/*` plus `Magik::Docs::PACKAGED_GLOBS` — `llms.txt`, `wiki/**/*.md`, the generated build-spec mirror `docs/idea/00-build-spec.md`, and the checkout-only `../../docs/**/*.md` spelling |
 | The resolver | [`../../apps/magik/lib/magik/docs.rb`](../../apps/magik/lib/magik/docs.rb) | finds the tree, derives the catalogue from the files, finds and searches pages |
 | The command | [`../../apps/magik/lib/magik/cli/docs_command.rb`](../../apps/magik/lib/magik/cli/docs_command.rb) | `magik docs list` · `magik docs <slug>` · `magik docs search <term>` · `magik docs path` |
+| The mirror check | [`../../apps/magik/scripts/checks/build_spec_mirror.rb`](../../apps/magik/scripts/checks/build_spec_mirror.rb) | renders `docs/idea/00-build-spec.md` from the original and fails the gate when the committed copy is stale; `--write` regenerates |
+| The link check | [`../../apps/magik/scripts/checks/shipped_links.rb`](../../apps/magik/scripts/checks/shipped_links.rb) | every relative link in a packaged page must resolve to another packaged file inside the gem root |
 
-The glob list lives in exactly one place. `magik.gemspec` reads `Magik::Docs::PACKAGED_GLOBS` to decide what to package, and `Magik::Docs.pages` reads the same constant to build the catalogue, so `magik docs list` cannot advertise a page `gem build` left out. `apps/magik/test/magik/docs_test.rb` asserts the packaging split anyway, because a constant shared today is a constant somebody forks tomorrow.
+The glob list lives in exactly one place. `magik.gemspec` reads `Magik::Docs::PACKAGED_GLOBS` to decide what to package, and `Magik::Docs.pages` reads the same constant to build the catalogue, so an installed gem's `magik docs list` cannot advertise a page `gem build` left out; a checkout catalogue is wider by design and also lists the repo-root trees under their `../../` spellings. `apps/magik/test/magik/docs_test.rb` asserts the packaging split anyway, because a constant shared today is a constant somebody forks tomorrow.
 
 ## What ships, and what does not
 
@@ -46,9 +48,9 @@ Shipping everything by reflex is not a decision. This is the decision.
 | `llms.txt` | the machine-readable map, the first thing an agent reads. Its links are absolute `raw.githubusercontent.com` URLs, so it never dangles. |
 | `exe/**`, `lib/**/*`, `sig/**/*` | the code itself — in the same allowlist as the doc globs, not documentation, and the reason `spec.files` is one list rather than two. |
 
-### Does not ship: the repo-root `docs/` trees
+### The repo-root `docs/` trees, with one exception
 
-`docs/idea/`, `docs/architecture/` and `docs/ops/` stay at the checkout root, two levels above the gemspec, and out of the package. They are the design record of *this repository* — `docs/idea/00-build-spec.md` is named verbatim by `Magik::Error::DEFAULT_FIX` and by every spec-only stub's `NotImplementedError`, which makes the spec a promise about the tree a contributor clones, not a page a user installs.
+Most of them stay at the checkout root, two levels above the gemspec, and out of the package: the rest of `docs/idea/`, `docs/architecture/` and `docs/ops/` are the design record of *this repository*. `docs/idea/00-build-spec.md` is the deliberate exception — `Magik::Error::DEFAULT_FIX` and every spec-only stub's error message name that path, and an installed gem has no repository around it, so the gem ships a GENERATED mirror of the spec at the same path relative to the gem root: `apps/magik/docs/idea/00-build-spec.md`, rendered from the original by [`apps/magik/scripts/checks/build_spec_mirror.rb`](../../apps/magik/scripts/checks/build_spec_mirror.rb), which fails the gate when the mirror is stale. A hand-maintained copy would drift; a generated one cannot, because the check is its only writer. Re-derive it: `ruby apps/magik/scripts/checks/build_spec_mirror.rb`.
 
 `docs/architecture/**` was the close call, on the argument that an agent who hits a `MAGIK_*` code wants [`03-error-codes.md`](03-error-codes.md) wherever it lives. The workspace split retired that argument by moving the whole app tree under `apps/magik/`: these pages document a repository whose code now sits at `apps/magik/lib/`, so they stay with the repository root — and a checkout catalogue still serves them. `PACKAGED_GLOBS` carries `../../docs/**/*.md`, which resolves in a checkout and is dropped by the gemspec's `../` reject, so an installed gem neither ships nor advertises those pages; [`apps/magik/test/magik/docs_test.rb`](../../apps/magik/test/magik/docs_test.rb) asserts both halves of that split.
 
@@ -59,7 +61,7 @@ Shipping everything by reflex is not a decision. This is the decision.
 | Excluded | Why |
 |---|---|
 | `.claude/**` | subagents and slash commands for implementing *this framework*. Dropped into a user's app they are confidently wrong. An app gets its own `.claude/` from `lib/magik/cli/templates/app/.claude/`, which does ship. |
-| `CONTRIBUTING.md`, `PUBLISHING.md`, `ROADMAP.md`, `SECURITY.md`, `CODE_OF_CONDUCT.md`, `CLAUDE.md`/`AGENTS.md` | this repository's process, not the DSL. `llms.txt` links to them absolutely, so nothing dangles. |
+| `CONTRIBUTING.md`, `PUBLISHING.md`, `ROADMAP.md`, `SECURITY.md`, `CODE_OF_CONDUCT.md`, `CLAUDE.md`/`AGENTS.md` | this repository's process, not the DSL. `llms.txt` and the wiki link to them by absolute repository URLs, so nothing dangles — [`apps/magik/scripts/checks/shipped_links.rb`](../../apps/magik/scripts/checks/shipped_links.rb) asserts no packaged page carries a relative link that leaves the gem dir. |
 | `dummy/**` | the demonstration app: large, and the rule it demonstrates is already written down in [`../../apps/magik/wiki/Project-Layout.md`](../../apps/magik/wiki/Project-Layout.md). |
 | `test/`, `bin/`, `scripts/`, `docker/`, `.github/` | development machinery. |
 

@@ -48,7 +48,7 @@ holds.
 | `config/backends.rb` — the swap points | changing the job or realtime backend re-opens connections |
 | `db/migrate/*` | schema changes are applied by `magik db migrate`, not by a file watcher. A watcher that silently altered your schema would be a bad surprise |
 | `Gemfile` | a new gem needs `bundle install` |
-| `.env` | environment is read at boot — see [`docs/architecture/07-configuration-and-secrets.md`](../../../docs/architecture/07-configuration-and-secrets.md) |
+| `.env` | environment is read at boot — see [`docs/architecture/07-configuration-and-secrets.md`](https://raw.githubusercontent.com/developerz-ai/magik/main/docs/architecture/07-configuration-and-secrets.md) |
 
 The server tells you when it hits one rather than silently doing nothing:
 
@@ -89,7 +89,7 @@ MAGIK_RENDER_SCREEN_DIRECT_QUERY: :Invoices builds a query inside its body block
 | The full backtrace, collapsed | available, not in your way |
 
 In development only. In production the same error is a log line with the same three fields and a
-generic page — see [`docs/architecture/06-observability.md`](../../../docs/architecture/06-observability.md).
+generic page — see [`docs/architecture/06-observability.md`](https://raw.githubusercontent.com/developerz-ai/magik/main/docs/architecture/06-observability.md).
 
 ---
 
@@ -169,4 +169,4 @@ before a schema you cannot easily shard is already in production.
 - [Getting started](Getting-Started.md) — the first run.
 - [Testing](Testing.md) — `--watch`, `--changed`, and the parallel runner.
 - [CLI reference](CLI-Reference.md) — every command and flag.
-- [`docs/architecture/08-dev-loop.md`](../../../docs/architecture/08-dev-loop.md) — how reload actually works, and what it cannot do.
+- [`docs/architecture/08-dev-loop.md`](https://raw.githubusercontent.com/developerz-ai/magik/main/docs/architecture/08-dev-loop.md) — how reload actually works, and what it cannot do.

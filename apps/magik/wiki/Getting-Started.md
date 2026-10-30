@@ -1,7 +1,7 @@
 # Getting started
 
 **Status:** `Planned — not implemented`. Every command and every output on this page is the **target**
-developer experience described by [`docs/idea/00-build-spec.md`](../../../docs/idea/00-build-spec.md). None
+developer experience described by [`docs/idea/00-build-spec.md`](../docs/idea/00-build-spec.md). None
 of it runs. `magik new` does not exist. `As of 2026-08-26`.
 
 Read this as the acceptance test for Phase 1 and Phase 2, written before the code — because "what
@@ -185,5 +185,5 @@ sharding pain, pre-empted. See [CLI reference](CLI-Reference.md).
 | The full model DSL | [Models](Models.md) |
 | The full screen and component DSL | [Screens and components](Screens-And-Components.md) |
 | Every CLI command | [CLI reference](CLI-Reference.md) |
-| What order this gets built in | [`ROADMAP.md`](../ROADMAP.md) |
+| What order this gets built in | [`ROADMAP.md`](https://raw.githubusercontent.com/developerz-ai/magik/main/apps/magik/ROADMAP.md) |
 | What is missing | [Known gaps](Known-Gaps.md) |

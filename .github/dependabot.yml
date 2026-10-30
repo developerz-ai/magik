@@ -19,13 +19,13 @@ version: 2
 # ONE THING TO KNOW ABOUT THE bundler ECOSYSTEM HERE: Gemfile.lock is not committed (see
 # .gitignore — magik is a library gem, so a checked-in lockfile would pin resolutions the gem does
 # not actually require of its users). Without a lockfile Dependabot can only propose changes to the
-# declared CONSTRAINTS in apps/magik/Gemfile and apps/magik/magik.gemspec, so it stays quiet until
+# declared CONSTRAINTS in the two Gemfiles and apps/magik/magik.gemspec, so it stays quiet until
 # a release moves past a `~>` bound rather than tracking every patch. That is the correct trade for
 # a library, and it is why CI resolves fresh on every run: the gate is what notices a bad upstream
 # release here, not a lockfile bump.
 
 updates:
-  # ── the bundle ────────────────────────────────────────────────────────────────────────────
+  # ── the app bundle ─────────────────────────────────────────────────────────────────────────
   - package-ecosystem: bundler
     directory: /apps/magik
     schedule:
@@ -65,6 +65,37 @@ updates:
       # The engine is chosen by the CI matrix and by `required_ruby_version` in
       # apps/magik/magik.gemspec. Bundler resolving a "newer ruby" is not an update anyone applies
       # from a PR.
+      - dependency-name: ruby
+
+  # ── the checkout-root bundle ─────────────────────────────────────────────────────────────
+  # A SECOND Bundler definition, not a duplicate tracker: CI resolves both, and they are not the
+  # same file. The root Gemfile carries the workspace entry (`gemspec path: apps/magik`) that
+  # bin/check's `bundle exec`, bin/setup's `bundle install` and CI's ruby/setup-ruby bundler-cache
+  # all resolve against, plus its own copy of the development constraints. Watching only the app
+  # bundle let a constraint update land there without ever reaching the bundle CI resolves, and let
+  # the two Gemfiles drift apart in silence. Same fortnightly schedule as the app bundle — both
+  # bundles update in one morning, not two — and the same groups, because everything the root
+  # bundle pulls in is development-side or arrives through the app gemspec.
+  - package-ecosystem: bundler
+    directory: /
+    schedule:
+      interval: cron
+      cronjob: '0 6 1,15 * *'
+      timezone: Europe/Berlin
+    open-pull-requests-limit: 5
+    labels: [dependencies, ruby]
+    commit-message:
+      prefix: 'chore(deps)'
+    cooldown:
+      default-days: 14
+    groups:
+      dev-dependencies:
+        dependency-type: development
+        update-types: [minor, patch]
+      runtime-dependencies:
+        dependency-type: production
+        update-types: [minor, patch]
+    ignore:
       - dependency-name: ruby
 
   # ── the workflows ─────────────────────────────────────────────────────────────────────────

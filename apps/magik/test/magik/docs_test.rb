@@ -7,8 +7,8 @@ require "test_helper"
 # The shipped-documentation resolver. Real behaviour, so real tests: root
 # resolution under both layouts a gem can be loaded from, catalogue derivation,
 # lookup, search, and the packaging checks that keep the checkout/gem docs
-# split honest — repo-root docs/ served from a checkout, wiki/ + llms.txt
-# packaged in the gem.
+# split honest — repo-root docs/ served from a checkout, wiki/ + llms.txt +
+# the generated build-spec mirror packaged in the gem.
 class MagikDocsTest < Minitest::Test
   def teardown
     ENV.delete(Magik::Docs::ROOT_ENV)
@@ -222,9 +222,11 @@ class MagikDocsTest < Minitest::Test
   end
 
   # The packaging split: the gem ships the app-author manual — wiki/ +
-  # llms.txt — and nothing from the repo-root docs/ trees or the repository's
-  # process files (README, LICENSE, CHANGELOG stay at the checkout root).
-  def test_packaged_documentation_is_wiki_and_llms_txt_only
+  # llms.txt — plus the generated build-spec mirror named by
+  # `Magik::Error::DEFAULT_FIX` and every stub's error message, and nothing
+  # from the rest of the repo-root docs/ trees or the repository's process
+  # files (README, LICENSE, CHANGELOG stay at the checkout root).
+  def test_packaged_documentation_is_wiki_llms_txt_and_the_build_spec
     packaged = gemspec_files
     catalogued_inside = Magik::Docs.pages.map { |page| page[:path] }.reject { |path| path.start_with?("../") }
 
@@ -233,9 +235,25 @@ class MagikDocsTest < Minitest::Test
     assert_equal catalogued_inside.sort, packaged_docs.sort
     assert_includes packaged, "llms.txt"
     assert_includes packaged, "wiki/Models.md"
+    assert_includes packaged, "docs/idea/00-build-spec.md",
+                    "the path Magik::Error::DEFAULT_FIX and every stub names must resolve in an installed gem"
+    assert_includes catalogued_inside, "docs/idea/00-build-spec.md"
     refute_includes packaged, "README.md"
     refute_includes packaged, "LICENSE"
     refute_includes packaged, "CHANGELOG.md"
+  end
+
+  # The mirror is catalogued under the gem-relative spelling the error fix
+  # lines name, so `magik docs docs/idea/00-build-spec` resolves in both
+  # layouts. In a checkout the repository original is ALSO catalogued under
+  # its ../../ spelling; the shorthand deliberately refuses to guess between
+  # the two (Magik::Docs::AmbiguousPageError).
+  def test_the_build_spec_mirror_is_catalogued_at_the_path_the_errors_name
+    page = Magik::Docs.pages.find { |entry| entry[:path] == "docs/idea/00-build-spec.md" }
+
+    refute_nil page, "docs/idea/00-build-spec.md must be in the catalogue at its gem-relative path"
+    assert_equal "both", page[:audience]
+    assert_path_exists Magik::Docs.root.join("docs/idea/00-build-spec.md").to_s
   end
 
   private

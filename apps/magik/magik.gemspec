@@ -46,7 +46,8 @@ Gem::Specification.new do |spec|
   # gem dir is dropped outright, so a glob aimed at the repository root can
   # never leak into the package. README.md, LICENSE, CHANGELOG.md and the
   # repo-root docs/ trees stay out — they live at the checkout root, two
-  # levels above this file, and are not part of the distributed gem.
+  # levels above this file — with one deliberate exception: the generated
+  # build-spec mirror, docs/idea/00-build-spec.md, named below.
   #
   # ## Why the documentation ships inside the gem
   #
@@ -61,34 +62,52 @@ Gem::Specification.new do |spec|
   # tools can read. See docs/architecture/09-shipped-docs.md.
   #
   # The glob list lives in Magik::Docs::PACKAGED_GLOBS, which is also what
-  # `magik docs list` reads, so the catalogue can never offer a page that
-  # `gem build` left out. test/magik/docs_test.rb asserts the packaging split.
+  # `magik docs list` reads, so an INSTALLED gem's catalogue can never offer
+  # a page that `gem build` left out. A checkout catalogue is wider by
+  # design: the ../../ spelling also serves the repo-root trees, which the
+  # package excludes. test/magik/docs_test.rb asserts the packaging split.
   #
   # ## What ships, and what deliberately does not
   #
-  # SHIPS — exe/**, lib/**/*, sig/**/*, llms.txt, wiki/**/*.md:
+  # SHIPS — exe/**, lib/**/*, sig/**/*, llms.txt, wiki/**/*.md, and the
+  # generated build-spec mirror docs/idea/00-build-spec.md:
   #
   #   * wiki/ is the app author's reference manual. It is the whole point of
   #     shipping docs at all: an installed gem that carries its own manual is
   #     version-matched by construction, and `magik docs path` hands an agent
   #     a directory its ordinary grep and glob tools can read.
   #   * llms.txt is the machine-readable page map the catalogue routes from.
+  #   * docs/idea/00-build-spec.md is a GENERATED mirror of the checkout's
+  #     docs/idea/00-build-spec.md — scripts/checks/build_spec_mirror.rb
+  #     renders it from the original and fails the gate when stale. The path
+  #     is not a nice-to-have: Magik::Error::DEFAULT_FIX and every spec-only
+  #     stub's NotImplementedError message name it, and an installed gem has
+  #     no repository two levels up for that path to resolve against, so
+  #     without the mirror the recovery instruction in every error is
+  #     unusable exactly where errors are handled. The mirror carries the
+  #     original verbatim, with links rewritten to absolute repository URLs
+  #     so they resolve from an installed gem's filesystem.
   #
   # STAYS AT THE REPOSITORY ROOT — never packaged:
   #
-  #   * docs/idea/ and docs/architecture/ — the build spec (named verbatim by
-  #     Magik::Error::DEFAULT_FIX and by every spec-only stub's
-  #     NotImplementedError message), the DSL surface, the guardrails, the
-  #     architecture notes. They are the design record of *this repository*
-  #     and live two levels above this gemspec, outside the gem dir. A checkout
-  #     catalogue still serves them: PACKAGED_GLOBS carries the
-  #     ../../docs/**/*.md spelling, which resolves in a checkout and is
-  #     dropped here by the "../" reject below — so an installed gem neither
-  #     ships nor advertises those pages. docs_test asserts the split.
+  #   * the REST of docs/idea/ and docs/architecture/, and docs/ops/ — the
+  #     DSL surface, the guardrails, the architecture notes. They are the
+  #     design record of *this repository* and live two levels above this
+  #     gemspec, outside the gem dir. A checkout catalogue still serves them:
+  #     PACKAGED_GLOBS carries the ../../docs/**/*.md spelling, which
+  #     resolves in a checkout and is dropped here by the "../" reject below
+  #     — so an installed gem neither ships nor advertises those pages.
+  #     docs_test asserts the split.
   #   * CONTRIBUTING.md, PUBLISHING.md, ROADMAP.md, SECURITY.md,
   #     CODE_OF_CONDUCT.md, CLAUDE.md/AGENTS.md — this repository's process,
-  #     not the DSL. llms.txt links to them with absolute
-  #     raw.githubusercontent.com URLs, so nothing dangles by leaving them out.
+  #     not the DSL.
+  #
+  # Shipped pages never carry a relative link that leaves the gem dir: links
+  # to repository-only pages are absolute repository URLs (the mechanism
+  # llms.txt already used), and scripts/checks/shipped_links.rb fails the
+  # gate on any relative link in a packaged page that resolves outside the
+  # gem dir or to an unpackaged file — "nothing dangles" is an assertion, not
+  # a claim.
   #   * .claude/ — subagents and slash commands for implementing *this
   #     framework* (bin/check, lib/magik/<subsystem>/). Dropped into a user's
   #     app they are confidently wrong. An app gets its own .claude/ from
@@ -100,7 +119,10 @@ Gem::Specification.new do |spec|
   # The cost of this decision: a documentation change is now part of a release.
   # Editing wiki/ without cutting a version leaves every installed gem reading
   # the old page, which is the trade for never reading a page that does not
-  # match the code. The repo-root docs/ trees do not carry that cost — from a
+  # match the code. The build-spec mirror carries the same cost with a guard:
+  # editing the original without rerunning
+  # `ruby apps/magik/scripts/checks/build_spec_mirror.rb --write` fails the
+  # checks step. The repo-root docs/ trees do not carry that cost — from a
   # checkout they are one ../../ step away, and MAGIK_DOCS_ROOT can point a
   # catalogue at any checkout.
   #
@@ -129,17 +151,23 @@ Gem::Specification.new do |spec|
 
   # `git ls-files` is authoritative when the gem is built from a checkout (the
   # repository's .git lives at the checkout root, two levels above this
-  # gemspec): it keeps untracked scratch files out of a release. Without git —
-  # an unpacked tarball, or a tree with nothing committed yet — the allowlist
-  # stands alone.
+  # gemspec): it keeps ignored scratch files out of a release.
+  # `--cached --others --exclude-standard` — tracked files plus untracked,
+  # un-ignored ones — because a packaged page can be NEW in the working tree:
+  # the build-spec mirror is generated in place, and a gate run on the dirty
+  # tree must see it in spec.files or the packaging tests would read a file
+  # list the built gem will not have. Without git — an unpacked tarball, or a
+  # tree with nothing committed yet — the allowlist stands alone.
   checkout_root = File.expand_path("../..", gemspec_dir)
-  tracked =
+  git_files =
     if File.directory?(File.join(checkout_root, ".git"))
-      Dir.chdir(gemspec_dir) { IO.popen(%w[git ls-files -z], &:read).split("\x0") }
+      Dir.chdir(gemspec_dir) do
+        IO.popen(%w[git ls-files --cached --others --exclude-standard -z], &:read).split("\x0")
+      end
     else
       []
     end
-  candidates &= tracked unless tracked.empty?
+  candidates &= git_files unless git_files.empty?
 
   spec.files = candidates.reject do |path|
     path.empty? || File.directory?(File.join(gemspec_dir, path))

@@ -39,7 +39,7 @@ Every page is labelled. No page claims something works.
 
 ### When will it be usable?
 
-[`ROADMAP.md`](../ROADMAP.md) has the order and the definition of "done" per phase. It has **no
+[`ROADMAP.md`](https://raw.githubusercontent.com/developerz-ai/magik/main/apps/magik/ROADMAP.md) has the order and the definition of "done" per phase. It has **no
 dates**, deliberately — a date on unstarted work is a guess wearing a suit.
 
 ---
@@ -51,7 +51,7 @@ dates**, deliberately — a date on unstarted work is a guess wearing a suit.
 Concurrency. TruffleRuby has **no GVL**, so threads there run genuinely in parallel — and that is
 measured rather than assumed: `ruby apps/magik/scripts/probes/runtime.rb` reports 2.55–3.54× on 4 threads on
 TruffleRuby against 0.80–0.89× on CRuby, `As of 2026-08-26`
-([the evidence](../../../docs/architecture/12-runtime-verification.md)). Those are engine measurements, not
+([the evidence](https://raw.githubusercontent.com/developerz-ai/magik/main/docs/architecture/12-runtime-verification.md)). Those are engine measurements, not
 Magik measurements — there is no framework to measure yet.
 
 CRuby `>= 3.2` is supported for tooling and development, so you can run RuboCop and the framework's
@@ -120,7 +120,7 @@ Magik::Kit::Modal` and the boot verifies it; miss a slot and you get
 exits: satisfy the contract, or stop shadowing the name.
 
 Full worked example: [Screens and components](Screens-And-Components.md#using-your-own-components). The
-reasoning: [`docs/idea/08-component-overrides.md`](../../../docs/idea/08-component-overrides.md).
+reasoning: [`docs/idea/08-component-overrides.md`](https://raw.githubusercontent.com/developerz-ai/magik/main/docs/idea/08-component-overrides.md).
 
 ### Does "no SPA framework" mean I cannot write any JavaScript?
 
@@ -201,8 +201,8 @@ agent, and the framework's shape follows from it: one uniform DSL grammar across
 boot-time guardrails as the correction mechanism, errors carrying a runnable `fix:`, convention over
 configuration, and a surface small enough to fit in a context window.
 
-Read [`docs/idea/07-ai-first.md`](../../../docs/idea/07-ai-first.md) for the reasoning, and
-[`.claude/README.md`](../../../.claude/README.md) for the agent workbench committed to this repo.
+Read [`docs/idea/07-ai-first.md`](https://raw.githubusercontent.com/developerz-ai/magik/main/docs/idea/07-ai-first.md) for the reasoning, and
+[`.claude/README.md`](https://raw.githubusercontent.com/developerz-ai/magik/main/.claude/README.md) for the agent workbench committed to this repo.
 
 ### I am an agent. Where do I start?
 
@@ -212,8 +212,8 @@ SaaS with** Magik.
 ### How do I help?
 
 [Contributing](Contributing.md), which points at the root
-[`CONTRIBUTING.md`](../../../CONTRIBUTING.md). The fastest way to be useful is to take a phase from
-[`ROADMAP.md`](../ROADMAP.md) and make [Known gaps](Known-Gaps.md) shorter.
+[`CONTRIBUTING.md`](https://raw.githubusercontent.com/developerz-ai/magik/main/CONTRIBUTING.md). The fastest way to be useful is to take a phase from
+[`ROADMAP.md`](https://raw.githubusercontent.com/developerz-ai/magik/main/apps/magik/ROADMAP.md) and make [Known gaps](Known-Gaps.md) shorter.
 
 ### Where are the API docs?
 

@@ -56,7 +56,7 @@ Planned, for a generated app rather than for the gem:
 
 | Dependency | Why | Swappable |
 |---|---|---|
-| PostgreSQL | the default database, the default job queue, and the default realtime transport (`LISTEN`/`NOTIFY`) | the DB engine is a [swap point](../../../docs/idea/04-swap-points.md); the defaults are not the only options |
+| PostgreSQL | the default database, the default job queue, and the default realtime transport (`LISTEN`/`NOTIFY`) | the DB engine is a [swap point](https://raw.githubusercontent.com/developerz-ai/magik/main/docs/idea/04-swap-points.md); the defaults are not the only options |
 | A TruffleRuby install | production runtime | no — this is the non-negotiable runtime decision |
 | Nothing else | no Node, no bundler for the frontend, no build step for CSS or JS. htmx is ~14kb served from the app | — |
 
