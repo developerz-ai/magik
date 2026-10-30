@@ -65,7 +65,15 @@ echo
 
 if command -v watchexec >/dev/null 2>&1; then
   echo "==> watcher: watchexec"
-  exec watchexec --clear --exts rb,rake,gemspec --watch lib --watch exe --watch test -- ./bin/check --only "$STEP"
+  # --exts is a whitelist filter that drops extension-less files (Rakefile and
+  # Gemfile would never trigger) and cannot reach magik.gemspec — derive --watch
+  # from the arrays above instead, exactly like the entr/fswatch/inotifywait
+  # branches. --watch accepts a file as well as a directory.
+  WATCH_ARGS=()
+  for path in "${WATCH_PATHS[@]}" "${WATCH_FILES[@]}"; do
+    WATCH_ARGS+=(--watch "$path")
+  done
+  exec watchexec --clear "${WATCH_ARGS[@]}" -- ./bin/check --only "$STEP"
 fi
 
 if command -v entr >/dev/null 2>&1; then
