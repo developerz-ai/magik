@@ -31,7 +31,7 @@ reverse**. Three properties make that true in this repository, and all three are
 | Property | What it buys |
 |---|---|
 | **The spec is the constraint** | [`00-build-spec.md`](00-build-spec.md) is the source of truth, and every change must trace to a section of it. An agent decides *within* a frame it did not set. A decision that contradicts the spec is not a decision, it is a bug — and changing the spec is an amendment with an argument, not a commit |
-| **The gate is the check** | `bin/check` is seven steps and CI runs the same ones across four engines. A decision that breaks something is red within a minute, and "it seemed right" does not survive a failing test |
+| **The gate is the check** | `bin/check` is eight steps and CI runs the same ones across four engines. A decision that breaks something is red within a minute, and "it seemed right" does not survive a failing test |
 | **Nothing is shipped** | the version is a name reservation. Almost every decision here is reversible for free *right now* and permanent later, which inverts the usual caution: **deciding late is the expensive option** |
 
 Take any one of those away and this model stops being appropriate. A framework with users, a decision
