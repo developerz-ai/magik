@@ -1,0 +1,50 @@
+---
+description: Prove a change in developerz-ai/magik before committing or opening a pull request — the repo's own install, run and check commands. Use before every commit.
+---
+
+# Verify a change in developerz-ai/magik
+
+> House skill — established by dz-runner setup mode from this repo’s own
+> detected commands. Correct it in place; setup never overwrites a skill that exists.
+
+## The one gate
+
+`bin/check` is the gate, and a green run here is local proof — not every proof:
+
+- It is the same script CI runs, so it covers the repo's own seven steps (RuboCop, Minitest,
+  YARD with its documentation-coverage floor, gem build, CLI JSON smoke, Markdown links,
+  scripts/checks). It runs on local CRuby, and that does NOT prove the TruffleRuby lane:
+  CI's Ruby-engine matrix and installed-gem smoke test remain a separate requirement —
+  never infer TruffleRuby correctness from a local CRuby pass (.dz/maintainer/reviewer.md).
+- In git, the full gate runs at pre-push, not pre-commit: pre-commit is fast changed-file
+  checks and pre-push is `bin/check` (lefthook.yml; the bin/setup fallback writes
+  .git/hooks/pre-push).
+
+| Step | Command | What it is |
+|------|---------|------------|
+| install | `bin/setup` | (dpkg -s postgresql-client redis-tools build-essential libyaml-dev libssl-dev zlib1g-dev entr >/dev/null 2>&1 \|\| (sudo -n apt-get update && sudo -n apt-get install -y --no-install-recommends postgresql-client redis-tools build-essential libyaml-dev libssl-dev zlib1g-dev entr)) && bin/setup --no-hooks |
+| run | `bin/dev` | PARALLEL_PROCESSOR_COUNT=2 bin/dev — on developerz.ai runs, start it with code_bash_background when you need a running stack |
+| prove | `bin/check` | PARALLEL_PROCESSOR_COUNT=2 bin/check |
+| stop | `bin/stop` | true — on developerz.ai runs, the platform runs this when your session ends — do not stop the stack yourself |
+
+## Rules
+
+- Run every command from the repo root — the scripts `cd` there themselves.
+- `bin/check` red is not a pull request. Fix the cause, never silence the gate.
+
+## Exit codes `bin/check` must use
+
+A coding box runs this gate before it commits, and it has to tell a FAILING change
+from a gate it could not run — otherwise correct work is thrown away as if it were
+red. Exit 1 cannot carry that difference, so one code is reserved:
+
+| Exit | Means | What the platform does |
+|------|-------|------------------------|
+| 0 | the change passes | commit it |
+| 75 | a resource the gate NEEDS is unreachable (a database, a service, a credential) — it refused to grade | refuse the commit, and blame the environment, never the change |
+| any other non-zero | the gate ran and the change is red | refuse the commit, and blame the change |
+
+- Guard preconditions FIRST and `exit 75` when one is unmet. `exit 1` there tells the
+  platform your change is broken when it is your environment that is.
+- Changed a dependency? Re-run `bin/setup` before `bin/check`, or you are proving a stale tree.
+- Add the test that fails first, then the fix — a green run that never went red proves nothing.
