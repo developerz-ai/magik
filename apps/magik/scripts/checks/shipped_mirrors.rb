@@ -50,6 +50,50 @@ require_relative "../lib/library"
 
 module MagikScripts
   module Checks
+    # A refresh that could not complete. {#operation} says which half failed —
+    # `:read` a checkout original, `:write` a packaged mirror — and {#path}
+    # names the app-root-relative file it failed on, so the recovery can name
+    # the real obstacle instead of advising a restore of the docs/ tree, which
+    # would destroy uncommitted edits to the checkout originals.
+    class RefreshError < StandardError
+      # The failing half (`:read` a checkout original or `:write` a packaged
+      # mirror), the app-root-relative path that failed, and what the operation
+      # actually raised.
+      attr_reader :operation, :path, :original
+
+      # @param operation [Symbol] `:read` or `:write`
+      # @param path [String] the app-root-relative path that failed
+      # @param original [Exception] the error the operation raised
+      def initialize(operation:, path:, original:)
+        @operation = operation
+        @path = path
+        @original = original
+        super("#{operation == :read ? "reading" : "writing"} #{path} raised #{original.class}: " \
+              "#{original.message.lines.first.to_s.strip}")
+      end
+
+      # The recovery for this refresh failure, specific to the operation that
+      # failed, and never a restore: an unreadable source is inspected where it
+      # lies — git reports whether the loss or the permission change is this
+      # checkout's own edit — and a mirror that could not be written is
+      # inspected at the mirror, whose bytes the check alone owns. The checkout
+      # originals may hold uncommitted edits, so no branch of this suggests
+      # touching them.
+      #
+      # @return [String] a runnable command, on checkout-root paths
+      def recovery
+        case operation
+        when :read
+          "git status --short -- #{path.delete_prefix(ShippedMirrors::CHECKOUT_PREFIX)}   " \
+          "# this source could not be read — see whether the loss or the permission change is yours " \
+          "before touching anything"
+        else
+          "ls -l apps/magik/#{path}   # this mirror could not be written — repair what it shows, then " \
+          "re-run: ruby apps/magik/scripts/checks/shipped_mirrors.rb --write"
+        end
+      end
+    end
+
     # The packaged mirrors of the checkout's docs/ trees versus the originals
     # they are rendered from.
     class ShippedMirrors < Check
@@ -286,8 +330,36 @@ module MagikScripts
       # @return [Hash{String => String}]
       def self.render_all(version:)
         sources.to_h do |source|
-          [mirror_for(source), render(Repo.read(source), version: version, source: source)]
+          [mirror_for(source), render(read_source(source), version: version, source: source)]
         end
+      end
+
+      # One checkout original, read. A missing or unreadable source ends the
+      # refresh, and the recovery has to name the file — so the read is wrapped
+      # here, where the source's path is at hand.
+      #
+      # @param source [String] an app-root-relative source path
+      # @return [String]
+      # @raise [RefreshError] when the source cannot be read
+      def self.read_source(source)
+        Repo.read(source)
+      rescue StandardError => e
+        raise RefreshError.new(operation: :read, path: source, original: e)
+      end
+
+      # One packaged mirror, written. A failed write ends the refresh, and the
+      # recovery has to name the file — so the write is wrapped here, where the
+      # mirror's path is at hand.
+      #
+      # @param mirror [String] the mirror's app-root-relative path
+      # @param body [String] the rendered mirror
+      # @raise [RefreshError] when the mirror cannot be written
+      def self.write_mirror(mirror, body)
+        file = Repo.path(mirror)
+        FileUtils.mkdir_p(file.dirname.to_s)
+        file.write(body)
+      rescue StandardError => e
+        raise RefreshError.new(operation: :write, path: mirror, original: e)
       end
 
       # The findings implied by expected renders against committed mirrors.
@@ -361,11 +433,7 @@ module MagikScripts
       # @return [MagikScripts::Result]
       def regenerate
         fresh = self.class.render_all(version: Library.load!::VERSION)
-        fresh.each do |mirror, body|
-          file = Repo.path(mirror)
-          FileUtils.mkdir_p(file.dirname.to_s)
-          file.write(body)
-        end
+        fresh.each { |mirror, body| write_mirror(mirror, body) }
 
         ok(expected: expectation,
            got: "wrote #{fresh.size} mirrors under docs/, generated from the checkout's docs/ originals")
@@ -376,11 +444,13 @@ module MagikScripts
       # @return [MagikScripts::Result]
       def unrefreshable(error)
         detail = "#{error.class}: #{error.message.lines.first.to_s.strip}"
-        failure(reason: "shipped_mirrors_unrefreshable", expected: expectation, fix: refresh_fix,
-                findings: [Finding.new(code: "MAGIK_DEV_SHIPPED_MIRRORS_UNREFRESHABLE", at: SOURCE_GLOB,
+        fix = error.is_a?(RefreshError) ? error.recovery : renderer_fix
+        failure(reason: "shipped_mirrors_unrefreshable", expected: expectation, fix: fix,
+                findings: [Finding.new(code: "MAGIK_DEV_SHIPPED_MIRRORS_UNREFRESHABLE",
+                                       at: error.is_a?(RefreshError) ? error.path : SOURCE_GLOB,
                                        cause: "rendering the checkout originals into the packaged mirrors " \
                                               "raised #{detail}",
-                                       fix: refresh_fix)],
+                                       fix: fix)],
                 got: detail)
       end
 
@@ -391,13 +461,13 @@ module MagikScripts
            got: "#{fresh.size} packaged mirrors are current, generated from the checkout's docs/ originals")
       end
 
-      # A runnable recovery, on checkout-root paths: the sources are the
-      # repository's docs/ tree at the checkout root, so git restores them, and
-      # the mirrors are regenerated by this check's own `--write`.
+      # The recovery when rendering itself raised — never a restore, because a
+      # renderer bug survives one, and the sources may hold uncommitted edits.
       #
       # @return [String]
-      def refresh_fix
-        "git checkout -- docs   # then rerun: ruby apps/magik/scripts/checks/shipped_mirrors.rb --write"
+      def renderer_fix
+        "ruby apps/magik/scripts/checks/shipped_mirrors.rb   # re-run to confirm; a repeat is a bug in " \
+          "this check's renderer, not in your docs — leave the sources as they are"
       end
 
       # @return [String]

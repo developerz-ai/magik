@@ -239,11 +239,15 @@ the repository being brought back into agreement with it.
 - **`apps/magik/scripts/README.md`'s check-authoring sequence runs the suite the way the repo
   spells it** — `bundle exec rake -C apps/magik test`, not `bundle exec rake test`, which stopped
   working when the Rakefile moved into `apps/magik`.
-- **The mirror check's and the shipped-links check's failure branches hand the reader a runnable
-  recovery** — `git checkout -- docs` (then the regenerating `--write`) when rendering the mirrors
-  raises, and concrete `in apps/magik/<page>:<line>, replace <target> with <replacement>` edits for
-  a dangling, unpackaged, filesystem-absolute or mutable-`main` link — where both checks used to
-  print advice such as "restore the source and check its links".
+- **The mirror check's recovery is specific to the half of the refresh that failed, and never
+  restores anything** — an unreadable source reports `git status --short -- <that source>` at the
+  path that failed, a mirror that could not be written reports `ls -l apps/magik/<that mirror>`
+  plus the regenerating `--write`, and an unexpected renderer error says to re-run the check rather
+  than touch the tree — where the refresh path printed one blanket `git checkout -- docs`, which
+  would have destroyed uncommitted edits to the checkout originals without addressing a write
+  failure at all. The shipped-links check keeps its concrete `in apps/magik/<page>:<line>, replace
+  <target> with <replacement>` edits for a dangling, unpackaged, filesystem-absolute or
+  mutable-`main` link.
 - **`apps/magik/PUBLISHING.md`'s inventory tells release reviewers the truth about `docs/`**: the gem
   ships the generated mirror tree, the checkout-root originals stay out — not "docs/ is not
   packaged".

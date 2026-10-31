@@ -144,4 +144,94 @@ class MagikScriptsShippedMirrorsTest < Minitest::Test
       assert_path_exists MagikScripts::Repo.path(Mirrors.mirror_for(source)).to_s
     end
   end
+
+  # --- a refresh that cannot complete ----------------------------------------
+  #
+  # The recovery contract: the failure names the half that failed — reading a
+  # checkout original, or writing a packaged mirror — and the exact path, and
+  # the recovery inspects that path instead of restoring anything. A blanket
+  # `git checkout -- docs` destroys uncommitted edits to the checkout originals
+  # and addresses no write failure at all.
+
+  def test_an_unreadable_source_is_wrapped_with_its_operation_and_path
+    error = assert_raises(MagikScripts::Checks::RefreshError) do
+      Mirrors.read_source("../../docs/idea/no-such-source.md")
+    end
+
+    assert_equal :read, error.operation
+    assert_equal "../../docs/idea/no-such-source.md", error.path
+    assert_instance_of Errno::ENOENT, error.original
+    assert_includes error.message, "reading ../../docs/idea/no-such-source.md"
+  end
+
+  def test_a_failed_mirror_write_is_wrapped_with_its_operation_and_path
+    error = assert_raises(MagikScripts::Checks::RefreshError) do
+      Mirrors.write_mirror("Rakefile/inner/mirror.md", "body\n")
+    end
+
+    assert_equal :write, error.operation
+    assert_equal "Rakefile/inner/mirror.md", error.path
+    assert_includes error.message, "writing Rakefile/inner/mirror.md"
+  end
+
+  def test_a_read_failure_reports_the_source_and_a_recovery_that_restores_nothing
+    result = Mirrors.new.send(:unrefreshable, refresh_error(:read, "../../docs/idea/00-build-spec.md"))
+
+    assert_equal MagikScripts::Result::FAIL, result.status
+    assert_equal "MAGIK_DEV_SHIPPED_MIRRORS_UNREFRESHABLE", result.findings.first.code
+    assert_equal "../../docs/idea/00-build-spec.md", result.findings.first.at
+    assert_includes result.findings.first.cause, "reading ../../docs/idea/00-build-spec.md"
+    assert_includes result.fix, "git status --short -- docs/idea/00-build-spec.md"
+    refute_includes result.fix, "git checkout",
+                    "a blanket restore would destroy uncommitted source edits"
+  end
+
+  def test_a_write_failure_reports_the_mirror_and_a_recovery_that_restores_nothing
+    result = Mirrors.new.send(:unrefreshable, refresh_error(:write, "docs/idea/00-build-spec.md"))
+
+    assert_equal MagikScripts::Result::FAIL, result.status
+    assert_equal "docs/idea/00-build-spec.md", result.findings.first.at
+    assert_includes result.findings.first.cause, "writing docs/idea/00-build-spec.md"
+    assert_includes result.fix, "ls -l apps/magik/docs/idea/00-build-spec.md"
+    assert_includes result.fix, "ruby apps/magik/scripts/checks/shipped_mirrors.rb --write"
+    refute_includes result.fix, "git checkout",
+                    "a blanket restore would destroy uncommitted source edits"
+  end
+
+  def test_a_renderer_bug_is_reported_without_telling_anyone_to_touch_the_tree
+    result = Mirrors.new.send(:unrefreshable, StandardError.new("boom"))
+
+    assert_equal MagikScripts::Result::FAIL, result.status
+    assert_equal Mirrors::SOURCE_GLOB, result.findings.first.at
+    assert_includes result.fix, "ruby apps/magik/scripts/checks/shipped_mirrors.rb"
+    refute_includes result.fix, "git checkout"
+  end
+
+  def test_run_routes_a_failed_write_to_the_mirror_specific_recovery
+    error = refresh_error(:write, "docs/idea/00-build-spec.md")
+    original = Mirrors.method(:render_all)
+    Mirrors.define_singleton_method(:render_all) { |*_args, **_kwargs| raise error }
+    begin
+      result = Mirrors.new(write: true).run
+    ensure
+      Mirrors.define_singleton_method(:render_all, original)
+    end
+
+    assert_equal MagikScripts::Result::FAIL, result.status
+    assert_equal "shipped_mirrors_unrefreshable", result.reason
+    assert_includes result.fix, "ls -l apps/magik/docs/idea/00-build-spec.md"
+    refute_includes result.fix, "git checkout"
+  end
+
+  private
+
+  # A refresh failure as the check's rescue receives it.
+  #
+  # @param operation [Symbol] `:read` or `:write`
+  # @param path [String] the app-root-relative path that failed
+  # @return [MagikScripts::Checks::RefreshError]
+  def refresh_error(operation, path)
+    original = operation == :read ? Errno::ENOENT.new(path) : Errno::EACCES.new(path)
+    MagikScripts::Checks::RefreshError.new(operation: operation, path: path, original: original)
+  end
 end
