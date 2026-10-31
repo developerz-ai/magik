@@ -2,7 +2,7 @@
 
 Two boundary systems: the tier rules between Magik's own subsystems, and the domain rules an app declares. Both are meant to fail the build or the boot, never a review.
 
-**Status:** rule one is enforced, rule two is planned. The tier checker exists and runs — `ruby scripts/checks/boundaries.rb` — over an executable copy of the table in [`../../scripts/lib/tiers.rb`](../../scripts/lib/tiers.rb); `bin/check` does not yet run it as a step. The `domain` DSL and component shadowing are unimplemented. Reviewed 2026-08-26.
+**Status:** rule one is enforced, rule two is planned. The tier checker exists and runs — `ruby apps/magik/scripts/checks/boundaries.rb` — over an executable copy of the table in [`../../apps/magik/scripts/lib/tiers.rb`](../../apps/magik/scripts/lib/tiers.rb); `bin/check` does not yet run it as a step. The `domain` DSL and component shadowing are unimplemented. Reviewed 2026-08-26.
 
 ## Rule one — tiers, inside this repo
 
@@ -18,7 +18,7 @@ tier 5   check, testing
 tier 6   cli
 ```
 
-The table is duplicated in [`01-module-map.md`](01-module-map.md) and has an executable copy in [`../../scripts/lib/tiers.rb`](../../scripts/lib/tiers.rb). Prose and code must agree; when they diverge, the code is right and the prose is a bug — and `MAGIK_DEV_BOUNDARY_TABLE_DRIFT` is what says so, because [`../../scripts/checks/boundaries.rb`](../../scripts/checks/boundaries.rb) re-parses both documents against the code on every run.
+The table is duplicated in [`01-module-map.md`](01-module-map.md) and has an executable copy in [`../../apps/magik/scripts/lib/tiers.rb`](../../apps/magik/scripts/lib/tiers.rb). Prose and code must agree; when they diverge, the code is right and the prose is a bug — and `MAGIK_DEV_BOUNDARY_TABLE_DRIFT` is what says so, because [`../../apps/magik/scripts/checks/boundaries.rb`](../../apps/magik/scripts/checks/boundaries.rb) re-parses both documents against the code on every run.
 
 | Rule | Detail |
 |---|---|
@@ -47,10 +47,10 @@ Each of these was the tempting sideways import, and the design that removed the 
 
 ### How it is enforced
 
-[`../../scripts/checks/boundaries.rb`](../../scripts/checks/boundaries.rb), run directly today and a `bin/check` step once one is wired:
+[`../../apps/magik/scripts/checks/boundaries.rb`](../../apps/magik/scripts/checks/boundaries.rb), run directly today and a `bin/check` step once one is wired:
 
 ```
-1. read       every lib/magik/**/*.rb
+1. read       every apps/magik/lib/magik/**/*.rb
 2. scan       require / require_relative statements and constant references (regex over source — no app boot needed)
 3. resolve    specifier → owning subsystem, or "internal file of another subsystem"
 4. evaluate   tier(importer) > tier(imported)? front door only?
@@ -61,10 +61,10 @@ Each of these was the tempting sideways import, and the design that removed the 
 |---|---|
 | Codes | `MAGIK_DEV_BOUNDARY_TIER` (sideways or upward) · `MAGIK_DEV_BOUNDARY_INTERNAL_REQUIRE` (past the front door) · `MAGIK_DEV_BOUNDARY_TABLE_DRIFT` (a document restates the table and no longer agrees with the code). Repo-internal, because a check is something only this checkout can run — the framework codes `MAGIK_BOUNDARY_TIER` and `MAGIK_BOUNDARY_INTERNAL_REQUIRE` stay reserved for the `magik check` that will raise them inside somebody's application ([`03-error-codes.md`](03-error-codes.md#the-dev-namespace-codes-that-never-reach-an-app)) |
 | Cost | a source scan, no boot, no database |
-| Where it runs | `ruby scripts/checks/boundaries.rb`, and CI. Not in `magik server` — a tier violation is a repo defect, not an app one |
+| Where it runs | `ruby apps/magik/scripts/checks/boundaries.rb`, and CI. Not in `magik server` — a tier violation is a repo defect, not an app one |
 | `--json` | one finding object per violation, same schema as every other check ([`03-error-codes.md`](03-error-codes.md)) |
 
-The third code is the one that keeps this page honest: the table is written three times — here, in [`01-module-map.md`](01-module-map.md), and in `scripts/lib/tiers.rb` — and only the third is authoritative.
+The third code is the one that keeps this page honest: the table is written three times — here, in [`01-module-map.md`](01-module-map.md), and in `apps/magik/scripts/lib/tiers.rb` — and only the third is authoritative.
 
 ## Rule two — domains, inside an app
 
@@ -95,7 +95,7 @@ domains/
     test/
 ```
 
-**A domain contains the same `app/` tree as a flat app** — `app/models/invoice.rb` becomes `domains/billing/app/models/invoice.rb` and nothing inside the file changes. The prescribed layout is [`../../wiki/Project-Layout.md`](../../wiki/Project-Layout.md), demonstrated by [`../../dummy/`](../../dummy/); a generator that invents a path is a bug.
+**A domain contains the same `app/` tree as a flat app** — `app/models/invoice.rb` becomes `domains/billing/app/models/invoice.rb` and nothing inside the file changes. The prescribed layout is [`../../apps/magik/wiki/Project-Layout.md`](../../apps/magik/wiki/Project-Layout.md), demonstrated by [`../../apps/magik/dummy/`](../../apps/magik/dummy/); a generator that invents a path is a bug.
 
 | Declaration | Meaning |
 |---|---|

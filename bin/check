@@ -38,9 +38,11 @@
 #   69  a step could not run because a tool is not installed — the environment
 #       is not set up. Nothing here is broken; run the install command it prints.
 
+require "fileutils"
 require "json"
 require "open3"
 require "time"
+require "tmpdir"
 
 ROOT = File.expand_path("..", __dir__)
 Dir.chdir(ROOT)
@@ -54,6 +56,21 @@ EXIT_NOT_INSTALLED = 69  # EX_UNAVAILABLE
 # to bury the fix: line under a wall of text.
 EXCERPT_HEAD = 25
 EXCERPT_TAIL = 15
+
+# Where the build step writes its artifact: the system tmpdir, never the
+# checkout, so a packaging smoke test leaves no .gem in the tree. The step's
+# announce and body both use this one path, so the announced command is the
+# command that actually runs.
+GEM_BUILD_TARGET = File.join(Dir.tmpdir, "magik-gem-build-smoke.gem")
+
+# The rubocop step lints BOTH trees: `rake -C apps/magik rubocop` covers the gem,
+# and these three scripts are the only other Ruby in the checkout (every other
+# file under bin/ is a shell script). They are named explicitly because none
+# carries a .rb extension, so a directory scan under RuboCop's default Include
+# patterns would silently skip all of them — while CI keys its lint job on
+# `bin/**` and runs exactly that step. A new Ruby script under bin/ must be
+# added here or it is linted nowhere.
+ROOT_BIN_SCRIPTS = %w[bin/check bin/rake bin/release].freeze
 
 # --- primitives ------------------------------------------------------------
 
@@ -137,58 +154,83 @@ STEPS = [
   Step.new(
     name: "rubocop",
     title: "RuboCop — style and lint",
-    command: -> { bundled("rake", "rubocop").join(" ") },
+    command: lambda {
+      cmds = [bundled("rubocop", *ROOT_BIN_SCRIPTS), bundled("rake", "-C", "apps/magik", "rubocop")]
+      cmds.map { |c| c.join(" ") }.join(" && ")
+    },
     body: lambda {
-      cmd = bundled("rake", "rubocop")
+      bin_cmd = bundled("rubocop", *ROOT_BIN_SCRIPTS)
+      app_cmd = bundled("rake", "-C", "apps/magik", "rubocop")
       unless tool?("rubocop")
-        next missing_tool("rubocop", command: cmd.join(" "),
-                                     install: "bin/setup      # rubocop is a development dependency in the Gemfile")
+        next missing_tool("rubocop", command: "#{bin_cmd.join(" ")} && #{app_cmd.join(" ")}",
+                                     install: "bin/setup      # rubocop is a development " \
+                                              "dependency in apps/magik/Gemfile")
       end
 
-      from_shell(*sh(*cmd), command: cmd.join(" "),
-                            reason: "rubocop_offenses",
-                            expected: "no RuboCop offenses",
-                            fix: "bundle exec rubocop -a   # then read what it could not autocorrect")
+      # Cheapest first: three root scripts before the whole gem tree. Stop at
+      # the first red — each fix: names the tree that actually offended.
+      bin_fix = "bundle exec rubocop -a #{ROOT_BIN_SCRIPTS.join(" ")}   # then read what it could not autocorrect"
+      bin_lint = from_shell(*sh(*bin_cmd), command: bin_cmd.join(" "),
+                                           reason: "rubocop_offenses",
+                                           expected: "no RuboCop offenses in the root bin/ scripts",
+                                           fix: bin_fix)
+      next bin_lint unless bin_lint[:status] == "pass"
+
+      from_shell(*sh(*app_cmd), command: app_cmd.join(" "),
+                                reason: "rubocop_offenses",
+                                expected: "no RuboCop offenses",
+                                fix: "bundle exec rubocop -a apps/magik   # then read what it could not autocorrect")
     }
   ),
 
   Step.new(
     name: "test",
     title: "Minitest — the unit suite",
-    command: -> { bundled("rake", "test").join(" ") },
+    command: -> { bundled("rake", "-C", "apps/magik", "test").join(" ") },
     body: lambda {
-      cmd = bundled("rake", "test")
+      cmd = bundled("rake", "-C", "apps/magik", "test")
       from_shell(*sh(*cmd), command: cmd.join(" "),
                             reason: "test_failures",
                             expected: "every Minitest assertion passes, 0 failures and 0 errors",
-                            fix: "bundle exec rake test   # or one file: ruby -Ilib -Itest test/path/to/one_test.rb")
+                            fix: "bundle exec rake -C apps/magik test   # or one file: " \
+                                 "ruby -Iapps/magik/lib -Iapps/magik/test apps/magik/test/path/to/one_test.rb")
     }
   ),
 
   Step.new(
     name: "yard",
     title: "YARD — docs build and documentation coverage",
-    command: -> { "#{bundled("rake", "yard").join(" ")} && #{bundled("yard", "stats", "--list-undoc").join(" ")}" },
+    command: lambda {
+      stats = "BUNDLE_GEMFILE=#{File.join(ROOT, "Gemfile")} #{bundled("yard", "stats", "--list-undoc").join(" ")}"
+      "#{bundled("rake", "-C", "apps/magik", "yard").join(" ")} && (cd apps/magik && #{stats})"
+    },
     body: lambda {
-      build_cmd = bundled("rake", "yard")
+      build_cmd = bundled("rake", "-C", "apps/magik", "yard")
       stats_cmd = bundled("yard", "stats", "--list-undoc")
       unless tool?("yard")
         next missing_tool("yard", command: build_cmd.join(" "),
-                                  install: "bin/setup      # yard is a development dependency in the Gemfile")
+                                  install: "bin/setup      # yard is a development dependency in apps/magik/Gemfile")
       end
 
       ok, out, code = sh(*build_cmd)
       unless ok
         next fail_with(reason: "yard_build_failed", command: build_cmd.join(" "), exit_code: code,
                        expected: "`rake yard` renders the documentation without error",
-                       got: out, fix: "bundle exec rake yard   # read the YARD parse errors it prints")
+                       got: out, fix: "bundle exec rake -C apps/magik yard   # read the YARD parse errors it prints")
       end
 
-      stats_ok, stats, stats_code = sh(*stats_cmd)
+      # yard reads .yardopts from the cwd, so the stats call runs inside the app
+      # tree. The bundle it resolves stays the ROOT one: Gemfile.lock is
+      # machine-local and never committed, and CI resolves only the workspace
+      # Gemfile, so an unpinned `bundle exec` inside apps/magik would face an app
+      # Gemfile with no lockfile. Pin BUNDLE_GEMFILE to the root one.
+      stats_ok, stats, stats_code = Dir.chdir(File.join(ROOT, "apps/magik")) do
+        sh({ "BUNDLE_GEMFILE" => File.join(ROOT, "Gemfile") }, *stats_cmd)
+      end
       unless stats_ok
         next fail_with(reason: "yard_stats_failed", command: stats_cmd.join(" "), exit_code: stats_code,
                        expected: "`yard stats` reports a coverage percentage",
-                       got: stats, fix: "bundle exec yard stats --list-undoc")
+                       got: stats, fix: "cd apps/magik && bundle exec yard stats --list-undoc")
       end
 
       minimum = Float(ENV.fetch("MAGIK_YARD_MIN_COVERAGE", "100"))
@@ -196,13 +238,14 @@ STEPS = [
       if measured.nil?
         next fail_with(reason: "yard_coverage_unreadable", command: stats_cmd.join(" "), exit_code: 0,
                        expected: "a line matching `NN% documented` in the output of `yard stats`",
-                       got: stats, fix: "bundle exec yard stats --list-undoc   # and check the YARD version")
+                       got: stats, fix: "cd apps/magik && bundle exec yard stats --list-undoc   " \
+                                        "# and check the YARD version")
       end
       if Float(measured) + 1e-9 < minimum
         next fail_with(reason: "yard_coverage_below_floor", command: stats_cmd.join(" "), exit_code: 0,
                        expected: "documentation coverage >= #{minimum}%",
                        got: "measured #{measured}%\n\n#{stats}",
-                       fix: "bundle exec yard stats --list-undoc   # document what it lists, " \
+                       fix: "cd apps/magik && bundle exec yard stats --list-undoc   # document what it lists, " \
                             "or lower the floor with MAGIK_YARD_MIN_COVERAGE")
       end
 
@@ -210,36 +253,50 @@ STEPS = [
     }
   ),
 
+  # RubyGems resolves a gemspec's file list against the CURRENT directory, not
+  # the gemspec's own — `gem build apps/magik/magik.gemspec` from this checkout's
+  # root fails with Gem::InvalidSpecificationException listing every packaged
+  # file, while the same build from inside apps/magik succeeds (verified on
+  # RubyGems 3.6.9; build_command.rb chdirs only when handed a directory, never
+  # a .gemspec path). The smoke test therefore builds from inside the app tree,
+  # the same convention the yard step uses for its stats call, and stays on the
+  # plain `gem` binary: `bundle exec` inside apps/magik would resolve the app
+  # Gemfile's bundle, which has no lockfile of its own.
   Step.new(
     name: "build",
     title: "gem build — packaging smoke test",
-    command: -> { "gem build magik.gemspec" },
+    command: -> { "(cd apps/magik && gem build magik.gemspec --output #{GEM_BUILD_TARGET})" },
     body: lambda {
-      unless File.exist?("magik.gemspec")
-        next fail_with(reason: "gemspec_missing", command: "gem build magik.gemspec", exit_code: nil,
-                       expected: "magik.gemspec at the repo root",
-                       got: "there is no magik.gemspec here (cwd: #{ROOT})",
-                       fix: "restore magik.gemspec — the gem cannot be packaged without it")
+      unless File.exist?("apps/magik/magik.gemspec")
+        next fail_with(reason: "gemspec_missing",
+                       command: "(cd apps/magik && gem build magik.gemspec)", exit_code: nil,
+                       expected: "apps/magik/magik.gemspec in the app tree",
+                       got: "there is no apps/magik/magik.gemspec here (cwd: #{ROOT})",
+                       fix: "restore apps/magik/magik.gemspec " \
+                            "— the gem cannot be packaged without it")
       end
 
-      require "tmpdir"
-      Dir.mktmpdir("magik-gem-build") do |dir|
-        target = File.join(dir, "magik.gem")
-        cmd = bundled("gem", "build", "magik.gemspec", "--output", target)
-        ok, out, code = sh(*cmd)
+      cmd = ["gem", "build", "magik.gemspec", "--output", GEM_BUILD_TARGET]
+      # An artifact left behind by a crashed earlier run must not vouch for this one.
+      FileUtils.rm_f(GEM_BUILD_TARGET)
+      begin
+        ok, out, code = Dir.chdir(File.join(ROOT, "apps/magik")) { sh(*cmd) }
         unless ok
           next fail_with(reason: "gem_build_failed", command: cmd.join(" "), exit_code: code,
-                         expected: "`gem build` packages magik.gemspec without error",
-                         got: out, fix: "gem build magik.gemspec   # read the errors and warnings it prints")
+                         expected: "`gem build` packages apps/magik/magik.gemspec without error",
+                         got: out, fix: "(cd apps/magik && gem build magik.gemspec)   " \
+                                        "# read the errors and warnings it prints")
         end
-        unless File.exist?(target)
+        unless File.exist?(GEM_BUILD_TARGET)
           next fail_with(reason: "gem_build_wrote_nothing", command: cmd.join(" "), exit_code: 0,
-                         expected: "a .gem file at #{target}",
+                         expected: "a .gem file at #{GEM_BUILD_TARGET}",
                          got: "gem build exited 0 but wrote no file.\n\n#{out}",
-                         fix: "gem build magik.gemspec   # check the gemspec's files list")
+                         fix: "(cd apps/magik && gem build magik.gemspec)   # check the gemspec's files list")
         end
 
-        pass("packaged #{File.size(target)} bytes", command: cmd.join(" "))
+        pass("packaged #{File.size(GEM_BUILD_TARGET)} bytes", command: cmd.join(" "))
+      ensure
+        FileUtils.rm_f(GEM_BUILD_TARGET)
       end
     }
   ),
@@ -247,15 +304,16 @@ STEPS = [
   Step.new(
     name: "cli",
     title: "CLI smoke test — `magik version --json` from source",
-    command: -> { "ruby -Ilib exe/magik version --json" },
+    command: -> { "ruby -Iapps/magik/lib apps/magik/exe/magik version --json" },
     body: lambda {
-      cmd = ["ruby", "-Ilib", "exe/magik", "version", "--json"]
+      cmd = ["ruby", "-Iapps/magik/lib", "apps/magik/exe/magik", "version", "--json"]
       printed = cmd.join(" ")
       ok, out, code = sh(*cmd)
       unless ok
         next fail_with(reason: "cli_nonzero_exit", command: printed, exit_code: code,
                        expected: "exit status 0",
-                       got: out, fix: "ruby -Ilib exe/magik version --json   # then read lib/magik/cli.rb")
+                       got: out, fix: "ruby -Iapps/magik/lib apps/magik/exe/magik version --json   " \
+                                      "# then read apps/magik/lib/magik/cli.rb")
       end
 
       begin
@@ -264,8 +322,8 @@ STEPS = [
         next fail_with(reason: "cli_json_unparseable", command: printed, exit_code: 0,
                        expected: "a single JSON object on stdout",
                        got: "#{e.message}\n\nstdout was:\n#{out}",
-                       fix: "ruby -Ilib exe/magik version --json   # something is writing to stdout " \
-                            "that is not JSON")
+                       fix: "ruby -Iapps/magik/lib apps/magik/exe/magik version --json   " \
+                            "# something is writing to stdout that is not JSON")
       end
 
       missing = %w[name version status] - data.keys
@@ -273,13 +331,13 @@ STEPS = [
         next fail_with(reason: "cli_json_missing_keys", command: printed, exit_code: 0,
                        expected: "keys name, version, status in the JSON object",
                        got: "missing: #{missing.join(", ")}\n\n#{out}",
-                       fix: "add the missing keys in Magik::CLI.version (lib/magik/cli.rb)")
+                       fix: "add the missing keys in Magik::CLI.version (apps/magik/lib/magik/cli.rb)")
       end
       unless data["name"] == "magik"
         next fail_with(reason: "cli_json_wrong_name", command: printed, exit_code: 0,
                        expected: %(name == "magik"),
                        got: "name is #{data["name"].inspect}\n\n#{out}",
-                       fix: "fix the name field in Magik::CLI.version (lib/magik/cli.rb)")
+                       fix: "fix the name field in Magik::CLI.version (apps/magik/lib/magik/cli.rb)")
       end
 
       pass("magik #{data["version"]} (#{data["status"]}) on #{data["ruby_engine"]} #{data["ruby"]}",
@@ -324,12 +382,14 @@ STEPS = [
     }
   ),
 
-  # The repo's own conventions, as assertions. Each script under scripts/checks/
-  # asserts one thing this repository promises in prose -- the error codes are
-  # documented, the CHANGELOG has an [Unreleased], every documented command
-  # exists, dummy/ parses, the manifest is current, the tiers agree.
+  # The repo's own conventions, as assertions. Each script under
+  # apps/magik/scripts/checks/ asserts one thing this repository promises in
+  # prose -- the error codes are documented, the CHANGELOG has an [Unreleased],
+  # every documented command exists, dummy/ parses, the manifest is current, the
+  # tiers agree.
   #
-  # They live here rather than only in scripts/ because the two of them that
+  # They live here rather than only in apps/magik/scripts/ because the two of
+  # them that
   # were red -- error-codes and doc-commands -- had been red for an unknown
   # number of commits, and nobody noticed, for exactly one reason: nothing ran
   # them. A check that is not in the gate is a check that does not exist, which
@@ -337,17 +397,17 @@ STEPS = [
   # guardrail.
   Step.new(
     name: "checks",
-    title: "repo checks — scripts/checks/*.rb, the conventions as assertions",
-    command: -> { "for f in scripts/checks/*.rb; do ruby \"$f\"; done" },
+    title: "repo checks — apps/magik/scripts/checks/*.rb, the conventions as assertions",
+    command: -> { "for f in apps/magik/scripts/checks/*.rb; do ruby \"$f\"; done" },
     body: lambda {
       # Dir.glob already sorts; the order matters because the fix: line below names the
       # first failing script, and a stable order makes that reproducible.
-      scripts = Dir.glob("scripts/checks/*.rb")
+      scripts = Dir.glob("apps/magik/scripts/checks/*.rb")
       if scripts.empty?
-        next fail_with(reason: "no_repo_checks", command: "ls scripts/checks/", exit_code: nil,
-                       expected: "at least one check under scripts/checks/",
+        next fail_with(reason: "no_repo_checks", command: "ls apps/magik/scripts/checks/", exit_code: nil,
+                       expected: "at least one check under apps/magik/scripts/checks/",
                        got: "the directory is empty or missing",
-                       fix: "git checkout scripts/checks   # the checks are tracked; restore them")
+                       fix: "git checkout apps/magik/scripts/checks   # the checks are tracked; restore them")
       end
 
       failures = []
@@ -365,12 +425,13 @@ STEPS = [
         # check that exists -- a fix: line pointing at a passing script is
         # advice wearing a command, which is the thing this repo forbids.
         next fail_with(reason: "repo_check_failed", command: "ruby #{failed_paths.first}", exit_code: nil,
-                       expected: "every script under scripts/checks/ exits 0",
+                       expected: "every script under apps/magik/scripts/checks/ exits 0",
                        got: "#{failures.size} of #{scripts.size} failed:\n\n#{failures.join("\n\n")}",
                        fix: "ruby #{failed_paths.first}   # run the failing check alone and read its output")
       end
 
-      pass("#{scripts.size} repo checks pass", command: "for f in scripts/checks/*.rb; do ruby \"$f\"; done")
+      pass("#{scripts.size} repo checks pass",
+           command: "for f in apps/magik/scripts/checks/*.rb; do ruby \"$f\"; done")
     }
   )
 ].freeze

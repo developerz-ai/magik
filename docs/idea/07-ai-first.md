@@ -60,7 +60,7 @@ An agent's working memory is finite, and a framework whose API does not fit insi
 |---|---|
 | ~30 constructs, one grammar | the whole DSL is a page ([`02-dsl-surface.md`](02-dsl-surface.md)) |
 | No SPA, no template language, no build config | three toolchains that are not in the context window because they are not in the framework ([`05-limits.md`](05-limits.md)) |
-| One gem, subsystems under `lib/magik/<subsystem>/` | one dependency, one namespace, one place a symbol can live |
+| One gem, subsystems under `apps/magik/lib/magik/<subsystem>/` | one dependency, one namespace, one place a symbol can live |
 | Declarations over configuration | an app's behaviour is readable from its declarations; there is no `config/` archaeology to reconstruct |
 
 The intended test of this: a whole small app — models, screens, actions, jobs — read in one pass, with room left to think.
@@ -71,13 +71,13 @@ The repo is structured so that a machine-readable map plus the spec is enough to
 
 | Artifact | Role |
 |---|---|
-| `llms.txt` (repo root) | the machine-readable repo map — the first thing an agent reads |
+| `apps/magik/llms.txt` (app tree root) | the machine-readable repo map — the first thing an agent reads |
 | [`00-build-spec.md`](00-build-spec.md) | the source of truth for what to build |
 | [`02-dsl-surface.md`](02-dsl-surface.md) | the shape of every construct, for an agent implementing one or calling one |
 | [`03-guardrails.md`](03-guardrails.md) | the rules the result is checked against |
 | [`../architecture/05-adding-a-feature.md`](../architecture/05-adding-a-feature.md) | the loop, with the exact commands |
 | `.claude/agents/*`, `.claude/commands/*` | the loop, pre-packaged as agent definitions and slash commands |
-| `wiki/` | the reference manual for app authors |
+| `apps/magik/wiki/` | the reference manual for app authors |
 
 ### 7. The agent decides, not only types
 
@@ -108,8 +108,8 @@ Both are agents. They need different things from this repo, and conflating them 
 
 | | **Agent A — implementing Magik** | **Agent B — building an app with Magik** |
 |---|---|---|
-| Works in | this repo, `lib/magik/<subsystem>/` | a generated app |
-| Source of truth | [`00-build-spec.md`](00-build-spec.md) | `wiki/` + [`02-dsl-surface.md`](02-dsl-surface.md) |
+| Works in | this repo, `apps/magik/lib/magik/<subsystem>/` | a generated app |
+| Source of truth | [`00-build-spec.md`](00-build-spec.md) | `apps/magik/wiki/` + [`02-dsl-surface.md`](02-dsl-surface.md) |
 | Needs | the tier rules, the conventions, the failing test first, YARD on every public method | the DSL grammar, the guardrail catalogue, the generators |
 | Its loop | [`../architecture/05-adding-a-feature.md`](../architecture/05-adding-a-feature.md) → `bin/check` | `magik generate …` → `magik check` → `magik test` |
 | Its gate | `bin/check` green | `magik check` + `magik test` green |

@@ -2,7 +2,7 @@
 
 Every construct in the Magik grammar, in its intended Ruby shape, grouped by the spec phase that introduces it.
 
-**Status:** spec only — every construct on this page is `planned`. No DSL method exists in `lib/`; the code blocks are design targets an implementer works from, not transcripts. Reviewed 2026-08-26.
+**Status:** spec only — every construct on this page is `planned`. No DSL method exists in `apps/magik/lib/`; the code blocks are design targets an implementer works from, not transcripts. Reviewed 2026-08-26.
 
 **Vocabulary.** Four concepts recur across constructs and each has exactly one spelling — D1 durations, D2 preconditions, D3 field subsets, D4 uniqueness. This page uses them throughout, and a line that shows one carries an inline `D<n>` marker pointing at the reasoning in [`00-build-spec.md`](00-build-spec.md)'s *DSL vocabulary* section rather than repeating it.
 

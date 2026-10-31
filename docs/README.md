@@ -34,7 +34,7 @@ Three doc trees: why the framework is shaped this way, how the repo that will bu
 | Doc | Read this when… |
 |---|---|
 | [`architecture/00-conventions.md`](architecture/00-conventions.md) | you are writing any Ruby file in this repo |
-| [`architecture/01-module-map.md`](architecture/01-module-map.md) | you need to decide which `lib/magik/<subsystem>/` a change belongs in |
+| [`architecture/01-module-map.md`](architecture/01-module-map.md) | you need to decide which `apps/magik/lib/magik/<subsystem>/` a change belongs in |
 | [`architecture/02-boundaries.md`](architecture/02-boundaries.md) | your `require` points sideways or upward, or you are wiring app-level domains |
 | [`architecture/03-error-codes.md`](architecture/03-error-codes.md) | you are about to raise something |
 | [`architecture/04-testing-strategy.md`](architecture/04-testing-strategy.md) | you are writing the test that has to fail before your code exists |
@@ -53,7 +53,7 @@ Three doc trees: why the framework is shaped this way, how the repo that will bu
 |---|---|
 | [`ops/README.md`](ops/README.md) | you want the intended deployment shape: stateless app servers, Puma, Postgres, workers — and the note that none of it runs yet |
 
-Outside `docs/`: [`../README.md`](../README.md) is the repo entry point, `wiki/` is the reference manual, `CHANGELOG.md` records what actually landed.
+Outside `docs/`: [`../README.md`](../README.md) is the repo entry point, [`apps/magik/wiki/`](../apps/magik/wiki/Home.md) is the reference manual, `CHANGELOG.md` records what actually landed.
 
 ## Reading order
 

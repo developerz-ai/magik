@@ -62,9 +62,9 @@
     },
     {
       "label": "services: up",
-      "detail": "Start the local Postgres (docker/compose.yml). Nothing connects to it yet.",
+      "detail": "Start the local Postgres (apps/magik/docker/compose.yml). Nothing connects to it yet.",
       "type": "shell",
-      "command": "docker compose -f docker/compose.yml up -d && docker compose -f docker/compose.yml ps",
+      "command": "docker compose -f apps/magik/docker/compose.yml up -d && docker compose -f apps/magik/docker/compose.yml ps",
       "presentation": { "reveal": "always", "panel": "dedicated", "clear": true },
       "problemMatcher": []
     },
@@ -72,7 +72,7 @@
       "label": "services: down",
       "detail": "Stop the local services, keeping their data.",
       "type": "shell",
-      "command": "docker compose -f docker/compose.yml down",
+      "command": "docker compose -f apps/magik/docker/compose.yml down",
       "presentation": { "reveal": "always", "panel": "dedicated", "clear": true },
       "problemMatcher": []
     },

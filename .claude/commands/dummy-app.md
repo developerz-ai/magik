@@ -1,5 +1,5 @@
 ---
-description: Drive dummy/ — the invoicing/billing example SaaS — toward being runnable as phases land, and report exactly how far it gets
+description: Drive apps/magik/dummy/ — the invoicing/billing example SaaS — toward being runnable as phases land, and report exactly how far it gets
 argument-hint: [construct or phase to exercise, or blank to assess]
 allowed-tools: Read, Write, Edit, Glob, Grep, Bash
 ---
@@ -9,28 +9,29 @@ allowed-tools: Read, Write, Edit, Glob, Grep, Bash
 ## Focus
 $ARGUMENTS — blank means assess where it stands.
 
-`dummy/` is the proving ground: an invoicing/billing SaaS that exercises every DSL construct once,
-idiomatically. **A framework change that does not show up in `dummy/` is unverified.** There is no
+`apps/magik/dummy/` is the proving ground: an invoicing/billing SaaS that exercises every DSL
+construct once, idiomatically. **A framework change that does not show up in `apps/magik/dummy/`
+is unverified.** There is no
 production to test against — this is it.
 
 ## Rules
 
 - **It is the layout, not just the code.** Every file goes where
-  [`wiki/Project-Layout.md`](../../wiki/Project-Layout.md) prescribes. The prescribed tree and its
-  separation of concerns are part of the product; never invent a path here.
+  [`apps/magik/wiki/Project-Layout.md`](../../apps/magik/wiki/Project-Layout.md) prescribes. The
+  prescribed tree and its separation of concerns are part of the product; never invent a path here.
 - **One idiomatic use of each construct**, not an exhaustive matrix. It is a teaching surface.
 - It carries the house rules where a reader will copy them: Sequel, integer-cents money, `tenant_id`
   scoping, UUIDv7, Minitest, SOLID/SRP — one object one job.
 - **No HTML, CSS or JavaScript written by hand.** The under-30-lines CRUD claim is measured here.
-- Copy examples from the wiki rather than paraphrasing them: the wiki page and the `dummy/` file
-  must be the same code.
+- Copy examples from the wiki rather than paraphrasing them: the wiki page and the
+  `apps/magik/dummy/` file must be the same code.
 
 ## What to do
 
 1. Establish how far it gets **today** — most of it cannot run yet, and that is the honest state:
-   `cd dummy && ruby -Ilib -e 'require "magik"'`, then the phase's entry point.
-   `ruby -Ilib -e 'require "magik"; p Magik::SPEC_ONLY_SUBSYSTEMS'` tells you which subsystems are
-   still stubs before you waste a run finding out.
+   `cd apps/magik/dummy && ruby -I../lib -e 'require "magik"'`, then the phase's entry point.
+   `ruby -Iapps/magik/lib -e 'require "magik"; p Magik::SPEC_ONLY_SUBSYSTEMS'` tells you which
+   subsystems are still stubs before you waste a run finding out.
 2. Add or update the file for the construct in focus. Mark anything still unrunnable with a comment
    naming the phase that unblocks it.
 3. Report the exact boundary: the first line that raises `NotImplementedError`, and which subsystem

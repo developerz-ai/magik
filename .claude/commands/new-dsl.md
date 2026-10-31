@@ -24,15 +24,15 @@ with the owner, not a new keyword.
    [`docs/idea/03-guardrails.md`](../../docs/idea/03-guardrails.md) (`guardrail-author` builds
    them). Any new default names its swap in
    [`docs/idea/04-swap-points.md`](../../docs/idea/04-swap-points.md).
-3. **Docs** — the construct's [`wiki/`](../../wiki/) page, marked `planned` until step 6.
-4. **Worked example** — the same code in `dummy/`, at the path
-   [`wiki/Project-Layout.md`](../../wiki/Project-Layout.md) prescribes. Wiki example and `dummy/`
-   file are the same code, or one of them is imaginary.
-5. **Failing test** (`test-writer`) — `test/magik/<subsystem>/`. Watch it fail for the right reason.
-6. **Implement** (`spec-implementer`) — smallest thing that passes, in `lib/magik/<subsystem>/`.
+3. **Docs** — the construct's [`apps/magik/wiki/`](../../apps/magik/wiki/) page, marked `planned` until step 6.
+4. **Worked example** — the same code in `apps/magik/dummy/`, at the path
+   [`apps/magik/wiki/Project-Layout.md`](../../apps/magik/wiki/Project-Layout.md) prescribes. The
+   wiki example and `apps/magik/dummy/` file are the same code, or one of them is imaginary.
+5. **Failing test** (`test-writer`) — `apps/magik/test/magik/<subsystem>/`. Watch it fail for the right reason.
+6. **Implement** (`spec-implementer`) — smallest thing that passes, in `apps/magik/lib/magik/<subsystem>/`.
    Sequel, no ActiveSupport, SRP: one object one job, registered — never another branch in a `case`.
-7. **YARD** on every public method: summary, `@param`, `@return`, `@raise`. `rake yard` must not
-   warn.
+7. **YARD** on every public method: summary, `@param`, `@return`, `@raise`. `rake -C apps/magik
+   yard` must not warn.
 8. **`bin/check`** green.
 9. **`CHANGELOG.md`**, and flip the wiki page from `planned` to real — **only now**, because only now
    does a test prove it.

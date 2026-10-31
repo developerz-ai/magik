@@ -11,10 +11,10 @@ Answer with **one** task, not a list. A ranked backlog is what the roadmap alrea
 
 1. `git log --oneline -30` and `git status --short` — what actually landed, and what is half-done in
    the tree right now. Unfinished work in the working tree outranks anything on paper.
-2. [`ROADMAP.md`](../../ROADMAP.md) — the version milestones and each phase's exit criteria.
+2. [`apps/magik/ROADMAP.md`](../../apps/magik/ROADMAP.md) — the version milestones and each phase's exit criteria.
 3. [`docs/idea/06-phases.md`](../../docs/idea/06-phases.md) — dependency order and what each phase
    unblocks.
-4. `rake test` — the exit criteria are assertions; find the first one with no test behind it.
+4. `rake -C apps/magik test` — the exit criteria are assertions; find the first one with no test behind it.
 
 ## Rank by
 

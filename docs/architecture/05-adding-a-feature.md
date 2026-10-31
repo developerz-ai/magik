@@ -2,7 +2,7 @@
 
 The loop a contributor or an agent follows to land one piece of the framework, start to finish, with the commands.
 
-**Status:** partly runnable. `bin/check` and `rake test` exist and pass today; the DSL, the option tables, `magik describe` and the framework's own test runner do not, so the steps that touch them are the intended ones. Where a step cannot run today, the page says so. Reviewed 2026-08-26.
+**Status:** partly runnable. `bin/check` and `rake -C apps/magik test` exist and pass today; the DSL, the option tables, `magik describe` and the framework's own test runner do not, so the steps that touch them are the intended ones. Where a step cannot run today, the page says so. Reviewed 2026-08-26.
 
 ## The loop
 
@@ -11,11 +11,11 @@ The loop a contributor or an agent follows to land one piece of the framework, s
 | 0 | Read the spec section | — | [`../idea/00-build-spec.md`](../idea/00-build-spec.md) |
 | 1 | Document it here first | edit | `docs/idea/02-dsl-surface.md`, `docs/architecture/*` |
 | 2 | Pick the subsystem and confirm the tier | — | [`01-module-map.md`](01-module-map.md), [`02-boundaries.md`](02-boundaries.md) |
-| 3 | Write the failing Minitest | edit | `test/magik/<subsystem>/<concern>_test.rb` |
-| 4 | Watch it fail | `bundle exec rake test TEST=test/magik/<subsystem>/<concern>_test.rb` | red, for the right reason |
-| 5 | Implement | edit | `lib/magik/<subsystem>/<concern>.rb` |
+| 3 | Write the failing Minitest | edit | `apps/magik/test/magik/<subsystem>/<concern>_test.rb` |
+| 4 | Watch it fail | `bundle exec rake -C apps/magik test TEST=test/magik/<subsystem>/<concern>_test.rb` | red, for the right reason |
+| 5 | Implement | edit | `apps/magik/lib/magik/<subsystem>/<concern>.rb` |
 | 6 | Add the option-table rows | edit | the construct's `Option` rows, which `magik describe` serializes |
-| 7 | Register the error codes | edit | `lib/magik/<subsystem>/errors.rb` |
+| 7 | Register the error codes | edit | `apps/magik/lib/magik/<subsystem>/errors.rb` |
 | 8 | Ship the guardrail | edit + test | the rule object in the same subsystem |
 | 9 | YARD every public method | edit | the same files |
 | 10 | Run the gate | `bin/check` | green |
@@ -31,7 +31,7 @@ The spec is the source of truth, and **no framework code ships that is not spec-
 model: field :money refuses floats  (spec: Non-negotiable #10, Phase 1)
 ```
 
-If the thing you want is not in the spec, the first commit edits the spec, on its own, with the argument. Inventing behaviour in `lib/` and back-filling a doc is how a framework acquires surface nobody chose.
+If the thing you want is not in the spec, the first commit edits the spec, on its own, with the argument. Inventing behaviour in `apps/magik/lib/` and back-filling a doc is how a framework acquires surface nobody chose.
 
 ## 1. Document it first
 
@@ -63,7 +63,7 @@ sed -n '/^## Every subsystem/,/^## Where the guardrails live/p' docs/architectur
 ## 3–4. Write the failing test
 
 ```ruby
-# test/magik/model/money_field_test.rb
+# apps/magik/test/magik/model/money_field_test.rb
 # frozen_string_literal: true
 
 require "test_helper"
@@ -84,7 +84,7 @@ end
 ```
 
 ```bash
-bundle exec rake test TEST=test/magik/model/money_field_test.rb
+bundle exec rake -C apps/magik test TEST=test/magik/model/money_field_test.rb
 ```
 
 | Rule | Detail |
@@ -97,7 +97,7 @@ bundle exec rake test TEST=test/magik/model/money_field_test.rb
 ## 5. Implement
 
 ```
-lib/magik/<subsystem>/<concern>.rb
+apps/magik/lib/magik/<subsystem>/<concern>.rb
 ```
 
 | Rule | Detail |
@@ -126,7 +126,7 @@ Neither the option tables nor `magik describe` exists yet; both land at build-or
 ## 7. Register the error codes
 
 ```ruby
-# lib/magik/model/errors.rb
+# apps/magik/lib/magik/model/errors.rb
 register "MAGIK_MODEL_FLOAT_MONEY",
   summary: "A float reached a :money field.",
   why:     "Currency in binary floating point loses cents. :money is integer minor units plus a currency.",
@@ -187,10 +187,10 @@ Two families of check, and only the first is wired into the gate so far:
 | Family | Where it lives | Status |
 |---|---|---|
 | lint, tests, YARD coverage, gem build, the CLI's own surface, docs packaging | `bin/check` steps | **runs today** |
-| boundaries, error-code catalogue, changelog, version consistency, doc commands, spec-only drift | one file each in [`../../scripts/checks/`](../../scripts/checks/), run directly — `ruby scripts/checks/<name>.rb` | **runs today, not yet a `bin/check` step** |
+| boundaries, error-code catalogue, changelog, version consistency, doc commands, spec-only drift | one file each in [`../../apps/magik/scripts/checks/`](../../apps/magik/scripts/checks/), run directly — `ruby apps/magik/scripts/checks/<name>.rb` | **runs today, not yet a `bin/check` step** |
 | conformance — swap-point suites, where the change touched a seam ([`../idea/04-swap-points.md`](../idea/04-swap-points.md)) | nowhere yet | planned; there is no seam to conform to |
 
-The boundaries check is the one to run by hand after touching `lib/`: `ruby scripts/checks/boundaries.rb`.
+The boundaries check is the one to run by hand after touching `apps/magik/lib/`: `ruby apps/magik/scripts/checks/boundaries.rb`.
 
 ## 11. Changelog
 

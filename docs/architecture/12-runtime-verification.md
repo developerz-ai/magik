@@ -29,7 +29,7 @@ The thread-parallelism question is easy to get wrong, and the first attempt at i
 | **The JIT must be warmed before timing** | TruffleRuby is a JIT that starts in an interpreter. A cold native image loses to its own warmed self by a wide margin, and the deployment guide says so ([`deploying.md`](https://github.com/oracle/truffleruby/blob/master/doc/user/deploying.md): peak performance requires "running the application under load for a period of time") | you measure warmup, attribute it to the concurrency model, and conclude the opposite of the truth |
 | **Each round must depend on the last** | otherwise the rounds are independent and hoistable, and you are back to problem one | the compiler computes one round and reuses it |
 
-`scripts/probes/runtime.rb` satisfies all three by hashing a rolling buffer: `digest = Digest::SHA256.hexdigest(digest)`, N times, where round *n* cannot start until round *n−1* has produced its input. It runs a tenth-scale pass first, purely to warm the JIT, and discards it. Only then does it time a serial pass and a parallel pass of identical total work.
+`apps/magik/scripts/probes/runtime.rb` satisfies all three by hashing a rolling buffer: `digest = Digest::SHA256.hexdigest(digest)`, N times, where round *n* cannot start until round *n−1* has produced its input. It runs a tenth-scale pass first, purely to warm the JIT, and discards it. Only then does it time a serial pass and a parallel pass of identical total work.
 
 **What the probe deliberately does not do.** It does not compare engines against each other for speed, it does not measure request throughput, and it does not measure memory. It answers three yes/no questions and reports one ratio as evidence for the first:
 
@@ -42,24 +42,24 @@ Questions 2 and 3 are **capability probes on the runtime**, not proposals. Neith
 ## The probes
 
 ```bash
-ruby scripts/probes/runtime.rb                                             # whichever engine is on PATH
-ruby scripts/probes/runtime.rb --json                                      # machine-readable
-MAGIK_PROBE_ROUNDS=500000 MAGIK_PROBE_THREADS=8 ruby scripts/probes/runtime.rb
+ruby apps/magik/scripts/probes/runtime.rb                                    # whichever engine is on PATH
+ruby apps/magik/scripts/probes/runtime.rb --json                             # machine-readable
+MAGIK_PROBE_ROUNDS=500000 MAGIK_PROBE_THREADS=8 ruby apps/magik/scripts/probes/runtime.rb
 ```
 
 And the IO half, which needs a database:
 
 ```bash
-DATABASE_URL=postgres://localhost/postgres ruby scripts/probes/pg_concurrency.rb
-DATABASE_URL=postgres://localhost/postgres ruby scripts/probes/pg_concurrency.rb --json
+DATABASE_URL=postgres://localhost/postgres ruby apps/magik/scripts/probes/pg_concurrency.rb
+DATABASE_URL=postgres://localhost/postgres ruby apps/magik/scripts/probes/pg_concurrency.rb --json
 ```
 
 The exact commands that produced the table below, on this machine:
 
 ```bash
-ruby scripts/probes/runtime.rb                                             # CRuby 3.2.3
-mise exec ruby@truffleruby-24.2.1        -- ruby scripts/probes/runtime.rb # TruffleRuby 24.2.1
-mise exec ruby@truffleruby+graalvm-34.0.1 -- ruby scripts/probes/runtime.rb # TruffleRuby 34.0.1
+ruby apps/magik/scripts/probes/runtime.rb                                    # CRuby 3.2.3
+mise exec ruby@truffleruby-24.2.1        -- ruby apps/magik/scripts/probes/runtime.rb # TruffleRuby 24.2.1
+mise exec ruby@truffleruby+graalvm-34.0.1 -- ruby apps/magik/scripts/probes/runtime.rb # TruffleRuby 34.0.1
 ```
 
 `MAGIK_PROBE_ROUNDS` (default 200,000) and `MAGIK_PROBE_THREADS` (default 4) tune it. The speedup is called "parallel" above 1.5× — a deliberately loose threshold, because the question is *parallel or not*, not *how parallel*.
@@ -90,7 +90,7 @@ The method answers directly rather than by inference: **N threads, one connectio
 
 | | Result |
 |---|---|
-| Probe | [`../../scripts/probes/pg_concurrency.rb`](../../scripts/probes/pg_concurrency.rb) |
+| Probe | [`../../apps/magik/scripts/probes/pg_concurrency.rb`](../../apps/magik/scripts/probes/pg_concurrency.rb) |
 | Setup | eight threads, eight connections, `pg_sleep(1.0)` each — serial would be eight seconds |
 | Every engine tested | the queries **overlap**: the eight finish in about one second, not eight |
 | Verdict | **`pg` releases the runtime lock while a query is in flight.** Concurrent queries overlap instead of serialising |
@@ -253,7 +253,7 @@ This finding is about what upstream has **not yet implemented**, and that class 
 | TruffleRuby's fibers stop being OS threads (the Loom work its docs point at) | the idle-connection ceiling changes shape even without a scheduler |
 | `Ractor` lands on TruffleRuby | nothing automatically. Threads already parallelise here and are more compatible with gems, by TruffleRuby's own assessment, so a Ractor implementation changes what is *available* and not what Magik uses. Worth one comparison run, not a redesign |
 | `fork` becomes available in the native configuration | Puma clustered mode and process-based workers become possible. Re-open the sizing question, not the concurrency model |
-| `pg` stops releasing the runtime lock, on any supported engine | the threading argument for database work, and with it the server model. Re-run [`../../scripts/probes/pg_concurrency.rb`](../../scripts/probes/pg_concurrency.rb) after a `pg` or TruffleRuby major |
+| `pg` stops releasing the runtime lock, on any supported engine | the threading argument for database work, and with it the server model. Re-run [`../../apps/magik/scripts/probes/pg_concurrency.rb`](../../apps/magik/scripts/probes/pg_concurrency.rb) after a `pg` or TruffleRuby major |
 
 ### The one condition that would reopen the server decision
 
@@ -264,7 +264,7 @@ Stated precisely, because "this may change someday" is not a trigger and nobody 
 | **The trigger** | TruffleRuby implements `Fiber::Scheduler` / `Fiber.set_scheduler`. That single upstream change, and nothing else. Not a TruffleRuby release in general, not a benchmark someone publishes |
 | **Why it is the trigger** | a fiber-per-connection server — Falcon is the mature one — is genuinely better than a thread pool for many mostly-idle connections, which is exactly Magik's realtime workload. It cannot boot here today: the scheduler is absent and `async` raises on its first block. The disqualification is an engine incompatibility and nothing else |
 | **How we notice** | the probe runs in CI against the newest TruffleRuby. `fiber_scheduler.available` flips from `false` to `true` and the step goes red. **That is the mechanism** — a changed probe result, not somebody happening to read a changelog |
-| **What we do then** | re-run `scripts/probes/runtime.rb` on every engine, confirm `async` boots, and then re-evaluate the alternative against Puma **on the workload that actually motivates it**: many concurrent idle realtime connections |
+| **What we do then** | re-run `apps/magik/scripts/probes/runtime.rb` on every engine, confirm `async` boots, and then re-evaluate the alternative against Puma **on the workload that actually motivates it**: many concurrent idle realtime connections |
 | **Why that is the same question** | it is [the measurement already owed](#the-open-question-owed-and-unanswered). The reason to want a fiber server *is* the reason thread-per-connection is a concern. Answer one and you have the evidence for the other |
 | **What it would cost to move** | a configuration and deployment change, not an app-code change. The server sits behind Rack; a Magik app's screens, actions and jobs do not name it ([`../idea/04-swap-points.md`](../idea/04-swap-points.md)). The realtime transport is the one place that would need real work |
 
@@ -272,7 +272,7 @@ Stated precisely, because "this may change someday" is not a trigger and nobody 
 
 **How it gets noticed rather than discovered.** `bin/check` does not run this probe — it is not a correctness check and it takes seconds of CPU. CI should:
 
-1. Run `scripts/probes/runtime.rb --json` on **every engine in the matrix**, as an advisory step, and print the JSON.
+1. Run `apps/magik/scripts/probes/runtime.rb --json` on **every engine in the matrix**, as an advisory step, and print the JSON.
 2. Run it against the **newest** TruffleRuby, not a pinned one. `.github/workflows/ci.yml` already uses `truffleruby-head` for exactly this reason, and that is the right choice — keep it.
 3. Fail the step, loudly, if `fiber_scheduler.available` or `ractor.works` flips to `true` on a TruffleRuby leg. **A green-to-red on good news is the point**: the reversal must arrive as a build failure with this page's name on it, not as something a maintainer stumbles into two years later.
 
@@ -300,5 +300,5 @@ The one thing the tables establish without qualification: **on TruffleRuby, `Fib
 - [`11-jobs-backend.md`](11-jobs-backend.md) — the worker concurrency model, corrected against this page
 - [`04-testing-strategy.md`](04-testing-strategy.md) — the parallel test runner, corrected against this page
 - [`../ops/README.md`](../ops/README.md) — the deployment shape, corrected against this page
-- [`../../scripts/probes/runtime.rb`](../../scripts/probes/runtime.rb) — the CPU-parallelism and capability probe
-- [`../../scripts/probes/pg_concurrency.rb`](../../scripts/probes/pg_concurrency.rb) — the IO-path probe, and the load-bearing half
+- [`../../apps/magik/scripts/probes/runtime.rb`](../../apps/magik/scripts/probes/runtime.rb) — the CPU-parallelism and capability probe
+- [`../../apps/magik/scripts/probes/pg_concurrency.rb`](../../apps/magik/scripts/probes/pg_concurrency.rb) — the IO-path probe, and the load-bearing half

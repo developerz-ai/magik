@@ -11,14 +11,15 @@ That is honest right up until one page starts describing something nobody built.
 
 ## Ground truth, in this order
 
-1. **The code.** Does `lib/magik/<subsystem>/` still raise `NotImplementedError`? A stub is not a
+1. **The code.** Does `apps/magik/lib/magik/<subsystem>/` still raise `NotImplementedError`? A stub is not a
    feature no matter how good its YARD block is.
-   The machine-readable version: `ruby -Ilib -e 'require "magik"; p Magik::SPEC_ONLY_SUBSYSTEMS'`.
+   The machine-readable version: `ruby -Iapps/magik/lib -e 'require "magik"; p Magik::SPEC_ONLY_SUBSYSTEMS'`.
    Diff that constant against what is actually implemented — **in both directions**. A subsystem
    still listed but working, or absent from the list but still raising, is a finding on its own.
-2. **The tests.** `rake test` — a claim with no test behind it is a claim.
-3. **The CLI.** `magik help` (or `ruby -Ilib exe/magik help`) is the list of commands that exist.
-   `ruby -Ilib exe/magik version --json` is the stable machine-readable status line.
+2. **The tests.** `rake -C apps/magik test` — a claim with no test behind it is a claim.
+3. **The CLI.** `magik help` (or `ruby -Iapps/magik/lib apps/magik/exe/magik help`) is the list of
+   commands that exist.
+   `ruby -Iapps/magik/lib apps/magik/exe/magik version --json` is the stable machine-readable status line.
 4. **`git log`.** Merged subjects are the cheapest ground truth about what actually landed.
 
 Only then read the docs, and only to check them against the above.
@@ -27,13 +28,13 @@ Only then read the docs, and only to check them against the above.
 
 | Claim source | Against |
 |---|---|
-| [`docs/idea/00-build-spec.md`](../../docs/idea/00-build-spec.md) phases | `lib/magik/*` and `test/**` |
+| [`docs/idea/00-build-spec.md`](../../docs/idea/00-build-spec.md) phases | `apps/magik/lib/magik/*` and `apps/magik/test/**` |
 | [`docs/idea/02-dsl-surface.md`](../../docs/idea/02-dsl-surface.md) constructs | the methods that actually exist |
 | [`docs/idea/03-guardrails.md`](../../docs/idea/03-guardrails.md) | a test that proves each rule fires |
 | [`docs/idea/04-swap-points.md`](../../docs/idea/04-swap-points.md) | a contract test run against **both** backends |
-| [`wiki/Error-Codes.md`](../../wiki/Error-Codes.md) | codes actually raised, each with a runnable `fix:` |
-| [`ROADMAP.md`](../../ROADMAP.md) + [`wiki/Known-Gaps.md`](../../wiki/Known-Gaps.md) | everything above |
-| [`README.md`](../../README.md), [`llms.txt`](../../llms.txt), `wiki/` examples | the same |
+| [`apps/magik/wiki/Error-Codes.md`](../../apps/magik/wiki/Error-Codes.md) | codes actually raised, each with a runnable `fix:` |
+| [`apps/magik/ROADMAP.md`](../../apps/magik/ROADMAP.md) + [`apps/magik/wiki/Known-Gaps.md`](../../apps/magik/wiki/Known-Gaps.md) | everything above |
+| [`README.md`](../../README.md), [`apps/magik/llms.txt`](../../apps/magik/llms.txt), `apps/magik/wiki/` examples | the same |
 
 **Phase numbers differ** between the spec and the delivery order — reconcile against
 [`docs/idea/06-phases.md`](../../docs/idea/06-phases.md) before calling anything late or early.

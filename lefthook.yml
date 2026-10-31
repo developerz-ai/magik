@@ -24,12 +24,13 @@ pre-commit:
   parallel: true
   commands:
     rubocop:
-      # Changed Ruby files only. `dummy/` is excluded in .rubocop.yml — it is
-      # aspirational DSL for a framework that cannot execute it, so linting it
-      # would be linting a language that does not exist yet.
+      # Changed Ruby files only. `apps/magik/dummy/` is excluded in
+      # apps/magik/.rubocop.yml — it is aspirational DSL for a framework that
+      # cannot execute it, so linting it would be linting a language that does
+      # not exist yet.
       glob: "*.{rb,rake,gemspec}"
       exclude:
-        - "dummy/**/*"
+        - "apps/magik/dummy/**/*"
       run: bundle exec rubocop --force-exclusion --autocorrect {staged_files}
       stage_fixed: true
       skip:

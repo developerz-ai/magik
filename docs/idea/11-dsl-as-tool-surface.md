@@ -178,7 +178,7 @@ One construct, as data:
 | No app, no boot, no database | it answers about the *grammar*, so it works in an empty directory — which is when an agent needs it most, before `magik new` has run. |
 | Not `magik registry` | [`../architecture/06-observability.md`](../architecture/06-observability.md) already plans `magik registry [--json]` for **what this app declared**. `describe` is **what the grammar allows**. Neither may grow into the other: one needs a booted app and one must not have one. |
 | Ships in the gem | same argument as the docs: a schema fetched from `main` describes a version the reader is not running. Deriving it from the loaded code makes version-matching a property, not a promise. |
-| Guarded by a check | a `scripts/checks/` step asserting every option in [`02-dsl-surface.md`](02-dsl-surface.md) appears in `magik describe --json` and vice versa. A convention that is not a check does not exist. |
+| Guarded by a check | an `apps/magik/scripts/checks/` step asserting every option in [`02-dsl-surface.md`](02-dsl-surface.md) appears in `magik describe --json` and vice versa. A convention that is not a check does not exist. |
 | Additive-only schema | the same stability contract as every other `--json` output ([`../architecture/03-error-codes.md`](../architecture/03-error-codes.md)). |
 
 ### How it relates to `magik docs`
@@ -294,7 +294,7 @@ An agent generalises from one construct to the next; every idea spelled two ways
 | D3 | A field subset | **`fields`, `filterable`, `sortable`, `searchable`, `writable`** — five declarations, one vocabulary, identical on `api`, `admin_panel`, `data_table` and `screen` | R1 and R9. There are five roles here, not one, so "one spelling" means one word per role across every surface. `per_page:` stays an option: a scalar setting is not a field subset |
 | D4 | Uniqueness | they stay apart: **`unique:`** on a `field` is a database constraint, and a job's dedupe key is **`idempotent_by`** — the same word `action` already uses | R1 and R10. A constraint and a dedupe key cannot converge, and sharing a stem while meaning different things is the worst of both. Reusing `idempotent_by` removes an option from the catalogue rather than adding one |
 
-**Enforcement:** a `scripts/checks/` step over the option tables. Unenforceable as prose, mechanical as data — which is the point of §2.
+**Enforcement:** an `apps/magik/scripts/checks/` step over the option tables. Unenforceable as prose, mechanical as data — which is the point of §2.
 
 ### R2 — Enumerated beats free-form
 
@@ -380,7 +380,7 @@ R1–R10 are design rules for whoever implements a construct, which is what that
 |---|---|
 | `magik describe` exists | it does not. It is in [`00-build-spec.md`](00-build-spec.md) as a phase-1 command and nothing is implemented. |
 | `magik mcp` exists | it does not, and the spec defers it. No MCP server has been written, run or measured. |
-| The DSL is introspectable today | no DSL method exists in `lib/`. The option tables §2 depends on are not written. |
+| The DSL is introspectable today | no DSL method exists in `apps/magik/lib/`. The option tables §2 depends on are not written. |
 | The token figures are Magik's | they are `gold-standards-in-ai`'s MCP measurements, cited to establish the shape of the argument. Nothing here is measured, `As of 2026-08-26`. |
 | Agents do not make mistakes | they do, constantly, and [`03-guardrails.md`](03-guardrails.md) is the whole framework's answer. The claim is narrower: **with lookup and a gate, an agent beats a human working from memory on a recall-heavy surface.** |
 | R1's four decisions have been exercised | they are settled spellings in a spec-only document. Nothing has been written against them, and §1's point stands: settling them was free now and would have been a semver break later. |
@@ -396,4 +396,4 @@ Magik is not betting that the agent is infallible. It is betting that a fallible
 - [`../architecture/09-shipped-docs.md`](../architecture/09-shipped-docs.md) — the prose half of discoverability, and the one part of it that runs.
 - [`../architecture/06-observability.md`](../architecture/06-observability.md) — `magik registry`, `routes` and `explain`, which `magik_run` dispatches to and must not duplicate.
 - [`../architecture/03-error-codes.md`](../architecture/03-error-codes.md) — the error contract R7 extends.
-- [`../../wiki/CLI-Reference.md`](../../wiki/CLI-Reference.md) — the CLI surface as shipped.
+- [`../../apps/magik/wiki/CLI-Reference.md`](../../apps/magik/wiki/CLI-Reference.md) — the CLI surface as shipped.

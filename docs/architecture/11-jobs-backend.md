@@ -2,11 +2,11 @@
 
 Which Postgres queue Magik wraps, by what locking mechanism, and where that mechanism stops being the right answer.
 
-**Status:** planned. Nothing here is implemented — `lib/magik/jobs/` does not exist, no backend is written, no benchmark has been run on Magik code, and every number on this page is quoted from an upstream source with attribution. Reviewed 2026-08-26.
+**Status:** planned. Nothing here is implemented — `apps/magik/lib/magik/jobs/` does not exist, no backend is written, no benchmark has been run on Magik code, and every number on this page is quoted from an upstream source with attribution. Reviewed 2026-08-26.
 
 ## What is already decided
 
-The queue is Postgres-backed, transactional, Que-style. That is the spec ([`../idea/00-build-spec.md`](../idea/00-build-spec.md), Phase 4) and the seam table ([`../idea/04-swap-points.md`](../idea/04-swap-points.md)), and the argument for it — *an external queue cannot join your transaction* — is made in full in [`../../wiki/Jobs.md`](../../wiki/Jobs.md). It is not re-argued here.
+The queue is Postgres-backed, transactional, Que-style. That is the spec ([`../idea/00-build-spec.md`](../idea/00-build-spec.md), Phase 4) and the seam table ([`../idea/04-swap-points.md`](../idea/04-swap-points.md)), and the argument for it — *an external queue cannot join your transaction* — is made in full in [`../../apps/magik/wiki/Jobs.md`](../../apps/magik/wiki/Jobs.md). It is not re-argued here.
 
 This page answers the three questions that decision leaves open:
 
@@ -25,8 +25,8 @@ Six facts about Magik decide most of the comparison before quality enters it.
 | **Sequel, not ActiveRecord** | spec decision 3 | a backend whose storage layer *is* ActiveRecord is not adaptable; it is a second ORM in the process |
 | **Not a Rails app** | the whole spec | a gem with a runtime dependency on `railties` drags a framework in to run a queue |
 | **TruffleRuby in production** | spec decision 1 | anything with a threading or forking model tuned to MRI needs verifying, not assuming |
-| **Threads, genuinely parallel** | measured — `ruby scripts/probes/runtime.rb`, [`12-runtime-verification.md`](12-runtime-verification.md) | the worker runs a bounded thread pool. Concurrency is a declared thread count, and the OS preempts a CPU-bound job rather than letting it stall its peers |
-| **`pg` releases the runtime lock** | measured — `scripts/probes/pg_concurrency.rb`, same page | the thread pool is a real thread pool for database work too. Without this result the worker's threads would serialise on every query and the pool would be decoration |
+| **Threads, genuinely parallel** | measured — `ruby apps/magik/scripts/probes/runtime.rb`, [`12-runtime-verification.md`](12-runtime-verification.md) | the worker runs a bounded thread pool. Concurrency is a declared thread count, and the OS preempts a CPU-bound job rather than letting it stall its peers |
+| **`pg` releases the runtime lock** | measured — `apps/magik/scripts/probes/pg_concurrency.rb`, same page | the thread pool is a real thread pool for database work too. Without this result the worker's threads would serialise on every query and the pool would be decoration |
 | **`fork` is unavailable on TruffleRuby** | measured — same page | any backend whose scaling story is "fork a worker per core" has no scaling story here. More workers means more containers |
 
 The first two are not preferences. `activerecord` and `railties` are declared runtime dependencies or they are not, and that is checkable rather than arguable.
@@ -137,7 +137,7 @@ Against that, the spec's own rule: *wrap something good rather than reinvent it.
 
 > **Wrap Que for storage and claiming. Own the scheduler, uniqueness, retries, the worker loop and observability. Draw the line explicitly and put it in the code.**
 
-Concretely, in `lib/magik/jobs/backends/postgres.rb` ([`01-module-map.md`](01-module-map.md)):
+Concretely, in `apps/magik/lib/magik/jobs/backends/postgres.rb` ([`01-module-map.md`](01-module-map.md)):
 
 | Layer | Owner | Why |
 |---|---|---|
@@ -226,7 +226,7 @@ Que already does this — from its docs on `poll-interval`:
 
 Polling does not go away. It is the backstop for `run_at` in the future, for retries, and for a notification lost while a worker was restarting. It goes from being the primary path to being the safety net, which is the correct role for it.
 
-**The architectural saving.** The spec's default realtime backend is Postgres `LISTEN`/`NOTIFY` ([`../idea/04-swap-points.md`](../idea/04-swap-points.md), and [`../../wiki/Realtime.md`](../../wiki/Realtime.md)). The job queue's wakeup is the same mechanism. So:
+**The architectural saving.** The spec's default realtime backend is Postgres `LISTEN`/`NOTIFY` ([`../idea/04-swap-points.md`](../idea/04-swap-points.md), and [`../../apps/magik/wiki/Realtime.md`](../../apps/magik/wiki/Realtime.md)). The job queue's wakeup is the same mechanism. So:
 
 | | |
 |---|---|
@@ -246,7 +246,7 @@ Two costs, stated:
 
 ## Threads in the worker
 
-`magik worker` runs a bounded **thread pool**: one job, one worker thread. On TruffleRuby those threads are genuinely parallel — measured by `ruby scripts/probes/runtime.rb` ([`12-runtime-verification.md`](12-runtime-verification.md)); cite the probe rather than a ratio, because the ratio moves with machine load — so a worker process uses the cores it is given. Three consequences, in ascending order of how much trouble they cause.
+`magik worker` runs a bounded **thread pool**: one job, one worker thread. On TruffleRuby those threads are genuinely parallel — measured by `ruby apps/magik/scripts/probes/runtime.rb` ([`12-runtime-verification.md`](12-runtime-verification.md)); cite the probe rather than a ratio, because the ratio moves with machine load — so a worker process uses the cores it is given. Three consequences, in ascending order of how much trouble they cause.
 
 ### The connection pool is thread-keyed — which is Sequel's default
 
@@ -268,7 +268,7 @@ What the model does *not* require is the property that would have been hardest t
 
 `pg` is the right driver for the usual reason and one specific one: "Add support for TruffleRuby. It is regularly tested as part of our CI" ([`ruby-pg` README](https://github.com/ged/ruby-pg)).
 
-The question that used to sit upstream of all of it is now answered. TruffleRuby treats native extensions as thread-unsafe by default and serialises them behind a global lock unless they mark themselves safe, and **if `pg` did not get that lock lifted, the worker's threads would serialise on every query** — a pool that looked like a pool and behaved like a queue. It does get lifted: `scripts/probes/pg_concurrency.rb` runs eight threads each issuing a one-second query on its own connection, and they overlap rather than serialising, on every engine tested ([`12-runtime-verification.md`](12-runtime-verification.md), `As of 2026-08-26`). Re-run it after a `pg` or TruffleRuby major, because the result is engine-and-driver specific and the probe is the mechanism for noticing.
+The question that used to sit upstream of all of it is now answered. TruffleRuby treats native extensions as thread-unsafe by default and serialises them behind a global lock unless they mark themselves safe, and **if `pg` did not get that lock lifted, the worker's threads would serialise on every query** — a pool that looked like a pool and behaved like a queue. It does get lifted: `apps/magik/scripts/probes/pg_concurrency.rb` runs eight threads each issuing a one-second query on its own connection, and they overlap rather than serialising, on every engine tested ([`12-runtime-verification.md`](12-runtime-verification.md), `As of 2026-08-26`). Re-run it after a `pg` or TruffleRuby major, because the result is engine-and-driver specific and the probe is the mechanism for noticing.
 
 ### A job that blocks on CPU — the expensive case
 
@@ -316,7 +316,7 @@ The claim query is the only query that matters, and it is run constantly. Que's 
 
 `(priority, run_at, id)` is the order jobs are *claimed in*, best-effort. It is not the order they finish in, and with N workers it cannot be. Two jobs enqueued in the same transaction may complete in either order, and a retry reorders a job arbitrarily far into the future.
 
-**Stated as a rule:** *Magik guarantees no ordering between two jobs.* If B must follow A, that is one job that does both, or A enqueues B on completion. This is the same shape of honesty as the at-least-once statement already in [`../../wiki/Jobs.md`](../../wiki/Jobs.md), and the two failures compound: an at-least-once queue with no ordering guarantee means a handler must be correct when run twice *and* when run out of order.
+**Stated as a rule:** *Magik guarantees no ordering between two jobs.* If B must follow A, that is one job that does both, or A enqueues B on completion. This is the same shape of honesty as the at-least-once statement already in [`../../apps/magik/wiki/Jobs.md`](../../apps/magik/wiki/Jobs.md), and the two failures compound: an at-least-once queue with no ordering guarantee means a handler must be correct when run twice *and* when run out of order.
 
 ### Priorities and queues
 
@@ -346,7 +346,7 @@ RETURNING id;
 
 Every worker runs this on a timer; exactly one gets a row back and enqueues the job; the rest get nothing and move on. No leader, no lease, no election to go wrong on a restart, and the enqueue can join the same transaction as the claim so a crash between them is impossible. A missed tick — because every worker was down — is visible as a stale `last_run_at`, which is the right thing for `magik jobs status` to show.
 
-`zone:` is required on a `cron:` schedule and its absence fails at boot ([`../../wiki/Jobs.md`](../../wiki/Jobs.md)). The `next_run_at` computation is the reason: a cron expression evaluated without a zone silently produces a different UTC instant twice a year.
+`zone:` is required on a `cron:` schedule and its absence fails at boot ([`../../apps/magik/wiki/Jobs.md`](../../apps/magik/wiki/Jobs.md)). The `next_run_at` computation is the reason: a cron expression evaluated without a zone silently produces a different UTC instant twice a year.
 
 ### Uniqueness, deduplication, and idempotency
 
@@ -356,13 +356,13 @@ Three distinct windows, and **one declaration**. Conflating the windows is the b
 |---|---|---|---|
 | **From claim to completion** — one instance at a time | not a declaration. A property of claiming | an advisory lock on `hash(job_class, idempotency_key)`, taken alongside the job's own claim lock. Free crash recovery for the same reason the claim lock has it | two enqueues where the first has already finished |
 | **From enqueue to completion** — do not queue a duplicate | **`idempotent_by`**, at the enqueue site | a partial unique index on `(job_class, key_digest) WHERE finished_at IS NULL`. The duplicate `INSERT` conflicts **inside the caller's transaction**, which is the only dedup that composes with transactional enqueue | a job that ran, succeeded, and is redelivered because the acknowledgement was lost |
-| **Forever, on the effect** | **`idempotent_by`** on the mutation the job performs ([`../idea/00-build-spec.md`](../idea/00-build-spec.md) Phase 5, [`../../wiki/Money-And-Ledgers.md`](../../wiki/Money-And-Ledgers.md)) | a persisted idempotency key on the mutation itself, so a second execution is a no-op | nothing — this is the only one that is a guarantee rather than a window |
+| **Forever, on the effect** | **`idempotent_by`** on the mutation the job performs ([`../idea/00-build-spec.md`](../idea/00-build-spec.md) Phase 5, [`../../apps/magik/wiki/Money-And-Ledgers.md`](../../apps/magik/wiki/Money-And-Ledgers.md)) | a persisted idempotency key on the mutation itself, so a second execution is a no-op | nothing — this is the only one that is a guarantee rather than a window |
 
 **Why one word covers two rows.** D4 settles it: a job's meaning — *a repeated request with the same key produces one effect* — is exactly what `action`'s `idempotent_by` already means, so the catalogue carries one option rather than two. The enqueue-time index and the effect-level key are the same declared key enforced at two depths, not two features that happen to rhyme.
 
 **And it is not `unique:`.** `unique:` on a `field` means a database uniqueness constraint and nothing else. A constraint and a dedupe key cannot converge, and sharing a stem while meaning different things is the worst of both — so the two spellings stay apart and neither drifts toward the other.
 
-**The rule that follows:** the first two rows are optimisations. Only the effect-level guarantee survives the case an at-least-once queue actually produces — the job ran, the side effect landed, the process died before the row was marked finished, another worker picked it up. That is why [`../../wiki/Jobs.md`](../../wiki/Jobs.md) makes `idempotent_by` mandatory for money movement at boot and not merely recommended, and why a claim-time lock must never be documented as if it prevented double execution. It prevents double *concurrency*.
+**The rule that follows:** the first two rows are optimisations. Only the effect-level guarantee survives the case an at-least-once queue actually produces — the job ran, the side effect landed, the process died before the row was marked finished, another worker picked it up. That is why [`../../apps/magik/wiki/Jobs.md`](../../apps/magik/wiki/Jobs.md) makes `idempotent_by` mandatory for money movement at boot and not merely recommended, and why a claim-time lock must never be documented as if it prevented double execution. It prevents double *concurrency*.
 
 ## The ceiling
 
@@ -440,7 +440,7 @@ The MultiXact point is a second, independent argument for advisory locks: it is 
 
 A 40-minute job in a transactional queue is a different animal, in four ways.
 
-**1. It can bloat the queue that scheduled it.** The Que pattern — do your writes and `destroy` the job in one transaction — is correct for a fast job and catastrophic for a slow one, because that transaction is open for 40 minutes and is the exact thing that stops autovacuum cleaning the job table. **A long job must not hold a transaction for its duration.** Do the slow work outside a transaction; open a short one at the end to write the result and finish the job. The price is that the crash window between "effect landed" and "job marked finished" is now real — which is at-least-once, which [`../../wiki/Jobs.md`](../../wiki/Jobs.md) already commits to, and which is what `idempotent_by` is for.
+**1. It can bloat the queue that scheduled it.** The Que pattern — do your writes and `destroy` the job in one transaction — is correct for a fast job and catastrophic for a slow one, because that transaction is open for 40 minutes and is the exact thing that stops autovacuum cleaning the job table. **A long job must not hold a transaction for its duration.** Do the slow work outside a transaction; open a short one at the end to write the result and finish the job. The price is that the crash window between "effect landed" and "job marked finished" is now real — which is at-least-once, which [`../../apps/magik/wiki/Jobs.md`](../../apps/magik/wiki/Jobs.md) already commits to, and which is what `idempotent_by` is for.
 
 **2. The lock cost is genuinely small — with advisory locks.** Que's docs:
 
@@ -490,7 +490,7 @@ Named backends for `use :jobs, :<name>`. All are **candidates** — none is impl
 
 **The rule that governs all three:** transactional enqueue is a property of the Postgres backend, **not of the jobs seam.** The swap-point page's narrow-contracts rule — *"a capability only one backend has does not enter the interface"* — means the seam's interface cannot promise it. So it is documented at the point of choosing, on every alternative, every time:
 
-> Any non-Postgres jobs backend loses transactional enqueue. The enqueue crosses a process boundary before your transaction commits. A rollback leaves the job queued, and a commit that fails after the enqueue leaves a job referencing a row that does not exist. Every guarantee in [`../../wiki/Jobs.md`](../../wiki/Jobs.md)'s transactional section comes off the table, and the app must adopt the outbox pattern to get it back.
+> Any non-Postgres jobs backend loses transactional enqueue. The enqueue crosses a process boundary before your transaction commits. A rollback leaves the job queued, and a commit that fails after the enqueue leaves a job referencing a row that does not exist. Every guarantee in [`../../apps/magik/wiki/Jobs.md`](../../apps/magik/wiki/Jobs.md)'s transactional section comes off the table, and the app must adopt the outbox pattern to get it back.
 
 | Target | Buys | Costs |
 |---|---|---|
@@ -527,7 +527,7 @@ Written down so nobody reads the recommendation above as settled fact.
 | Open | Resolved by |
 |---|---|
 | Does Que run on TruffleRuby? | a spike, before Phase 4 starts. Its answer picks between "wrap Que" and "own it" |
-| ~~Does `pg` run without TruffleRuby's global C-extension lock?~~ | **answered 2026-08-26** — it does. `scripts/probes/pg_concurrency.rb`, recorded in [`12-runtime-verification.md`](12-runtime-verification.md). This was the row that gated the thread worker model, and it cleared |
+| ~~Does `pg` run without TruffleRuby's global C-extension lock?~~ | **answered 2026-08-26** — it does. `apps/magik/scripts/probes/pg_concurrency.rb`, recorded in [`12-runtime-verification.md`](12-runtime-verification.md). This was the row that gated the thread worker model, and it cleared |
 | How many concurrent jobs one worker process actually holds | a load test. Each in-flight job is an OS thread; the per-process ceiling and its memory cost are unmeasured ([`12-runtime-verification.md`](12-runtime-verification.md)) |
 | What Magik's own throughput is | a benchmark against real code. There is none, and no number appears on this page that Magik produced |
 | Whether advisory-lock claiming survives contact with a real deployment's connection topology | first real deployment. The PgBouncer incompatibility is known; whether it is a blocker is not |
@@ -535,9 +535,9 @@ Written down so nobody reads the recommendation above as settled fact.
 
 ## Next
 
-- [`../../wiki/Jobs.md`](../../wiki/Jobs.md) — the `job` DSL, the transactional argument, and the guardrails
+- [`../../apps/magik/wiki/Jobs.md`](../../apps/magik/wiki/Jobs.md) — the `job` DSL, the transactional argument, and the guardrails
 - [`../idea/04-swap-points.md`](../idea/04-swap-points.md) — the jobs seam and the rules a backend must satisfy to stop being a candidate
-- [`01-module-map.md`](01-module-map.md) — where `lib/magik/jobs/backends/` sits and what it may require
+- [`01-module-map.md`](01-module-map.md) — where `apps/magik/lib/magik/jobs/backends/` sits and what it may require
 - [`06-observability.md`](06-observability.md) — the `job` log event and `magik jobs status`
 - [`../ops/README.md`](../ops/README.md) — the worker process, drain, and what scales how
 - [`10-performance-defaults.md`](10-performance-defaults.md) — the cost-is-opt-in rule this page's concurrency trade-offs feed into
