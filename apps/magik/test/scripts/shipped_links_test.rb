@@ -20,12 +20,67 @@ class MagikScriptsShippedLinksTest < Minitest::Test
     assert_includes finding.cause, "dangles"
   end
 
+  # A filesystem-absolute target resolves against the reader's filesystem
+  # root — never the gem root — so it dangles in an installed gem even though
+  # it resolves from the checkout, where bin/check's docs step resolves it
+  # against the repository root. That asymmetry is exactly why this check
+  # exists, and why `/…` is judged rather than skipped.
+  def test_a_filesystem_absolute_target_is_reported_as_escaping
+    finding = only("[spec](/docs/idea/00-build-spec.md)", page: "wiki/Home.md",
+                                                          packaged: ["wiki/Home.md", "docs/idea/00-build-spec.md"])
+
+    assert_equal "MAGIK_DEV_SHIPPED_LINK_ESCAPES", finding.code
+    assert_equal "wiki/Home.md:1", finding.at
+    assert_includes finding.cause, "filesystem root"
+    assert_includes finding.fix, "/docs/idea/00-build-spec.md", "names the target it replaces"
+    assert_includes finding.fix, "../docs/idea/00-build-spec.md", "names the packaged replacement"
+  end
+
+  # A repository URL to a page the gem packages is the version-blindness
+  # failure: an installed gem's reader would leave their version for whatever
+  # main carries. The fix names the packaged copy's page-relative spelling.
+  def test_a_main_url_to_a_packaged_page_is_reported
+    finding = only(
+      "[swap points](https://raw.githubusercontent.com/developerz-ai/magik/main/docs/idea/04-swap-points.md)",
+      page: "wiki/Screens-And-Components.md",
+      packaged: ["wiki/Screens-And-Components.md", "docs/idea/04-swap-points.md"]
+    )
+
+    assert_equal "MAGIK_DEV_SHIPPED_LINK_MUTABLE_MAIN", finding.code
+    assert_equal "wiki/Screens-And-Components.md:1", finding.at
+    assert_includes finding.fix, "../docs/idea/04-swap-points.md"
+  end
+
+  def test_a_blob_url_with_a_fragment_keeps_the_anchor_in_its_fix
+    finding = only(
+      "[codes](https://github.com/developerz-ai/magik/blob/main/docs/architecture/03-error-codes.md#tokens)",
+      page: "wiki/Error-Codes.md", packaged: ["wiki/Error-Codes.md", "docs/architecture/03-error-codes.md"]
+    )
+
+    assert_equal "MAGIK_DEV_SHIPPED_LINK_MUTABLE_MAIN", finding.code
+    assert_includes finding.fix, "../docs/architecture/03-error-codes.md#tokens"
+  end
+
+  # For content the gem does not carry, the repository URL is the only link
+  # there is — unpackaged files, directories, and other repositories are
+  # silent, as are https URLs to nobody's main.
+  def test_main_urls_to_unpacked_files_directories_and_other_repositories_are_silent
+    source = <<~MD
+      [roadmap](https://raw.githubusercontent.com/developerz-ai/magik/main/apps/magik/ROADMAP.md)
+      [idea tree](https://github.com/developerz-ai/magik/tree/main/docs/idea)
+      [ultimate](https://raw.githubusercontent.com/developerz-ai/ultimate/main/README.md)
+    MD
+
+    assert_empty ShippedLinks.audit(links(source), page: "wiki/Home.md", packaged: ["wiki/Home.md"])
+  end
+
   def test_a_link_to_an_unpackaged_file_inside_the_gem_is_reported
     finding = only("[roadmap](../ROADMAP.md)", page: "wiki/Home.md", packaged: ["wiki/Home.md"])
 
     assert_equal "MAGIK_DEV_SHIPPED_LINK_UNPACKAGED", finding.code
     assert_includes finding.cause, "ROADMAP.md"
     assert_includes finding.cause, "does not package"
+    assert_includes finding.fix, "wiki/Home.md:1", "the fix names the file and line to edit"
   end
 
   def test_packaged_siblings_absolute_links_and_fragments_are_silent

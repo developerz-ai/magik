@@ -5,7 +5,7 @@
 >
 > **Status:** spec only. Nothing in this document is implemented. `As of 2026-08-26` the repository
 > contains a name-reservation gem and documentation; no construct, guardrail or command described
-> below exists ([`../../apps/magik/wiki/Known-Gaps.md`](https://raw.githubusercontent.com/developerz-ai/magik/main/apps/magik/wiki/Known-Gaps.md)).
+> below exists ([`../../apps/magik/wiki/Known-Gaps.md`](../../wiki/Known-Gaps.md)).
 
 ## Mission
 
@@ -15,10 +15,10 @@ admin panels. No separate frontend framework — the server renders HTML, htmx h
 
 **The target: express 99% of SaaS use cases — CRUD apps, dashboards, fintech, ecommerce,
 marketplaces — in one grammar, so that no app has to "graduate" to another stack.** The named
-exclusions are permanent and listed in [`05-limits.md`](https://raw.githubusercontent.com/developerz-ai/magik/main/docs/idea/05-limits.md).
+exclusions are permanent and listed in [`05-limits.md`](05-limits.md).
 
 That target is a bar the phases below are sequenced to reach, and the distance to it is a **measured
-question rather than a rhetorical one**. [`10-saas-coverage.md`](https://raw.githubusercontent.com/developerz-ai/magik/main/docs/idea/10-saas-coverage.md) counts the
+question rather than a rhetorical one**. [`10-saas-coverage.md`](10-saas-coverage.md) counts the
 grammar against 68 surfaces a SaaS needs across its whole life and carries the command that re-counts
 the table. Its last full count, `As of 2026-08-26`, put full coverage at **under a fifth**, and named
 three gaps that force a graduation — authorization, the application shell, and media. Those three are
@@ -54,9 +54,9 @@ than trusting this paragraph.**
     per-surface check. Because `render` and `realtime` must evaluate it, **the evaluator sits at
     tier 1** — below `model`, `render` and `realtime` — and takes the actor as an opaque value;
     `auth` at tier 3 supplies that value and never decides
-    ([`../architecture/01-module-map.md`](https://raw.githubusercontent.com/developerz-ai/magik/main/docs/architecture/01-module-map.md)). Authorization is
+    ([`../architecture/01-module-map.md`](../architecture/01-module-map.md)). Authorization is
     **not** a swap point: a second authorization backend is a second authorization system, which is
-    the failure this whole design is organised against ([`04-swap-points.md`](https://raw.githubusercontent.com/developerz-ai/magik/main/docs/idea/04-swap-points.md)).
+    the failure this whole design is organised against ([`04-swap-points.md`](04-swap-points.md)).
 
 ### The runtime, and the measurement under it
 
@@ -69,8 +69,8 @@ machine load, and a number copied into prose is a number a re-run contradicts.
 | Production runtime | **TruffleRuby**, verified on **24.2.1** and on **34.0.1** (2026-04-26, `like ruby 3.4.9`). Its threads are genuinely parallel: N threads over N cores finish CPU-bound work several times faster than one thread does. That is what makes thread-per-request the correct server model, and Puma the correct server |
 | Parallelism holds through the IO path | this is the load-bearing half, because a request spends its life in IO rather than in Ruby. **`pg` releases the runtime lock on every engine tested** — eight threads each issuing a one-second query finish in about one second, not eight — so concurrent queries overlap instead of serialising. CPU parallelism behind a serialising driver would be a queue wearing a thread pool. Probe: [`../../apps/magik/scripts/probes/pg_concurrency.rb`](https://raw.githubusercontent.com/developerz-ai/magik/main/apps/magik/scripts/probes/pg_concurrency.rb) |
 | Development runtime | **CRuby ≥ 3.2**, for tooling only: the CLI, the linter, the docs build, the test suite of the gem itself. **It is not a production target.** Its threads do not parallelise CPU-bound work at all — the global lock — so decision 1 is not true there, and a CRuby production deploy would be a different framework wearing the same name |
-| **There is no `fork`** | TruffleRuby does not implement it: `Process.respond_to?(:fork)` is `false` and calling it raises. Two consequences, both design rather than caveat. **Puma runs in single mode** — no clustered workers — so capacity comes from more containers rather than more processes on a box ([`../ops/README.md`](https://raw.githubusercontent.com/developerz-ai/magik/main/docs/ops/README.md)). And **the test runner has exactly one worker model, a thread** (phase 9), because there is no forked worker to fall back to |
-| Provenance | method, full results and the CI matrix: [`../architecture/12-runtime-verification.md`](https://raw.githubusercontent.com/developerz-ai/magik/main/docs/architecture/12-runtime-verification.md). The probes are [`../../apps/magik/scripts/probes/runtime.rb`](https://raw.githubusercontent.com/developerz-ai/magik/main/apps/magik/scripts/probes/runtime.rb) and [`../../apps/magik/scripts/probes/pg_concurrency.rb`](https://raw.githubusercontent.com/developerz-ai/magik/main/apps/magik/scripts/probes/pg_concurrency.rb); re-derive with `ruby apps/magik/scripts/probes/runtime.rb --json`, once per engine |
+| **There is no `fork`** | TruffleRuby does not implement it: `Process.respond_to?(:fork)` is `false` and calling it raises. Two consequences, both design rather than caveat. **Puma runs in single mode** — no clustered workers — so capacity comes from more containers rather than more processes on a box ([`../ops/README.md`](../ops/README.md)). And **the test runner has exactly one worker model, a thread** (phase 9), because there is no forked worker to fall back to |
+| Provenance | method, full results and the CI matrix: [`../architecture/12-runtime-verification.md`](../architecture/12-runtime-verification.md). The probes are [`../../apps/magik/scripts/probes/runtime.rb`](https://raw.githubusercontent.com/developerz-ai/magik/main/apps/magik/scripts/probes/runtime.rb) and [`../../apps/magik/scripts/probes/pg_concurrency.rb`](https://raw.githubusercontent.com/developerz-ai/magik/main/apps/magik/scripts/probes/pg_concurrency.rb); re-derive with `ruby apps/magik/scripts/probes/runtime.rb --json`, once per engine |
 | Staleness | every fact above is engine-version specific and dated `As of 2026-08-26`. A runtime release can move any of it, and **the probes are the mechanism for noticing.** A claim about the runtime that is not re-derivable from them does not belong in this file |
 
 **The open cost, named rather than papered over.** An OS thread is not free per idle connection.
@@ -109,12 +109,12 @@ can raise. It answers about the grammar, so it needs no app, no boot and no data
 empty directory. It is **derived from the option tables the DSL validates against**, never
 hand-maintained — two tables drift, one cannot. It is not `magik registry`, which reports what an app
 declared. It is the command an option-level error's `fix:` line points at
-([`../architecture/03-error-codes.md`](https://raw.githubusercontent.com/developerz-ai/magik/main/docs/architecture/03-error-codes.md)), and the named consumer
+([`../architecture/03-error-codes.md`](../architecture/03-error-codes.md)), and the named consumer
 without which the option table gets built as prose
-([`11-dsl-as-tool-surface.md`](https://raw.githubusercontent.com/developerz-ai/magik/main/docs/idea/11-dsl-as-tool-surface.md) §2).
+([`11-dsl-as-tool-surface.md`](11-dsl-as-tool-surface.md) §2).
 
 Phase 1 also carries, one line each — the designs are in
-[`10-saas-coverage.md`](https://raw.githubusercontent.com/developerz-ai/magik/main/docs/idea/10-saas-coverage.md), not here:
+[`10-saas-coverage.md`](10-saas-coverage.md), not here:
 
 - `searchable` declarations on `model` and `Model.search`, over the existing search seam
 - soft delete / archive / restore as a model annotation, with scopes excluding archived rows
@@ -140,7 +140,7 @@ Phase 1 also carries, one line each — the designs are in
 | Property | Why |
 |---|---|
 | **Phase 2, not phase 7** | a screen and an action are the first two surfaces that need it. Adding a `policy:` argument to six constructs after all six exist is precisely the retrofit this spec calls "a migration nobody survives" when it says it about tenancy (decision 8). Before `auth` ships the actor is whatever the app resolves; after it, `auth` supplies it, and nothing in the policy layer changes at the handover — which is the test that the tier split is right |
-| **Evaluator at tier 1** | `render` and `realtime` are tier 2 and must evaluate policies, and imports go strictly down ([`../architecture/01-module-map.md`](https://raw.githubusercontent.com/developerz-ai/magik/main/docs/architecture/01-module-map.md)). A tier-3 evaluator is unreachable from the two surfaces that need it most. `policy` at tier 1 takes the actor as an opaque value, exactly as `router` at tier 1 takes a path without knowing what a screen is |
+| **Evaluator at tier 1** | `render` and `realtime` are tier 2 and must evaluate policies, and imports go strictly down ([`../architecture/01-module-map.md`](../architecture/01-module-map.md)). A tier-3 evaluator is unreachable from the two surfaces that need it most. `policy` at tier 1 takes the actor as an opaque value, exactly as `router` at tier 1 takes a path without knowing what a screen is |
 
 Predicates are pure: no queries, no I/O, because a `live` screen re-evaluates one per subscriber per
 change. A `nil` record denies. `roles` and `staff_roles` on `App.define` declare the role set once
@@ -148,7 +148,7 @@ beside the actor — staff are a separate axis, because a support engineer is no
 tenant they are helping. Every surface **names a verb** instead of writing a check —
 `screen :Invoices, policy: %i[Invoice read]`, `action :issue_invoice, policy: %i[Invoice issue]`,
 `channel`, `job`, `api resource`, `admin_panel`. Opting out is a declaration too: `policy: :public`,
-`policy: :system`. Drafted Ruby: [`02-dsl-surface.md`](https://github.com/developerz-ai/magik/blob/main/docs/idea/02-dsl-surface.md#policy).
+`policy: :system`. Drafted Ruby: [`02-dsl-surface.md`](02-dsl-surface.md#policy).
 
 **Three questions `policy` did not answer, found by writing the reference app rather than by reading
 the design — and now decided.** Each was a surface that reaches a model but had no actor or no model
@@ -192,7 +192,7 @@ gates *entry* and each action gates its *write*. Two gates, one evaluator, and n
 None of the three blocked phase 2 — screens and actions, the two surfaces phase 2 delivers, were
 fully specified without them. Each blocked the phase that ships the surface in question, and each was
 cheaper to settle here than after that surface existed. The reasoning is logged in
-[`13-decisions.md`](https://raw.githubusercontent.com/developerz-ai/magik/main/docs/idea/13-decisions.md).
+[`13-decisions.md`](13-decisions.md).
 
 
 **`layout` is the application shell**, and a screen names one
@@ -200,7 +200,7 @@ cheaper to settle here than after that surface existed. The reasoning is logged 
 (`layout: :None`). `magik new` generates a working `:App` layout, so **a generated app has a sidebar
 on its first run**. It is a new *declaration*, not a second override system: its pieces are kit
 components with contracts, so all four rungs of
-[`08-component-overrides.md`](https://raw.githubusercontent.com/developerz-ai/magik/main/docs/idea/08-component-overrides.md) apply unchanged, and a collapsing sidebar is
+[`08-component-overrides.md`](08-component-overrides.md) apply unchanged, and a collapsing sidebar is
 a media query plus one htmx target — inside both permanent limits.
 
 **Every kit component is responsive by construction, and no app-authored declaration is required to
@@ -265,7 +265,7 @@ a phase**; otherwise each phase ships its quarter and the app still cannot store
   only rows
 
 It is not optional: the mission sentence names ecommerce and marketplaces, and both are blocked on
-media. Source: [`10-saas-coverage.md`](https://raw.githubusercontent.com/developerz-ai/magik/main/docs/idea/10-saas-coverage.md) §Media.
+media. Source: [`10-saas-coverage.md`](10-saas-coverage.md) §Media.
 
 ### Phase 5 — Money & Compliance (fintech-ready)
 - `ledger :Name do account; entry do debit/credit/guard end end` — double-entry, boot-time balance validation, append-only
@@ -363,7 +363,7 @@ Phase 8 also carries, one line each:
 **A worker is a thread**, and there is exactly one worker model. TruffleRuby's threads are genuinely
 parallel (decision 1) and TruffleRuby has no `fork`, so a thread is both the right mechanism and the
 only one — the runner does not carry a second, and the isolation story is written once. The design is
-[`../architecture/04-testing-strategy.md`](https://raw.githubusercontent.com/developerz-ai/magik/main/docs/architecture/04-testing-strategy.md). The
+[`../architecture/04-testing-strategy.md`](../architecture/04-testing-strategy.md). The
 1,000-tests-under-10s target is a target that has never been measured.
 
 Phase 9 also carries, one line each:
@@ -377,7 +377,7 @@ Phase 9 also carries, one line each:
 
 ## DSL vocabulary
 
-*One concept, one spelling, everywhere* ([`11-dsl-as-tool-surface.md`](https://raw.githubusercontent.com/developerz-ai/magik/main/docs/idea/11-dsl-as-tool-surface.md)
+*One concept, one spelling, everywhere* ([`11-dsl-as-tool-surface.md`](11-dsl-as-tool-surface.md)
 R1). Four concepts recur across constructs, and each has exactly one spelling. The rules cited are
 R1–R10 on that page.
 
@@ -389,13 +389,13 @@ R1–R10 on that page.
 | **D4** | Uniqueness | **they are two concepts and they stay apart. `unique:` on a `field` means a database uniqueness constraint and nothing else; a job's dedupe key is `idempotent_by`** | a constraint and a dedupe key cannot converge, and R1 says sharing a stem while meaning different things is the worst of both. `unique: true` keeps the name every ORM and SQL itself already uses; renaming it would be novelty at review-time cost (R4). A job's meaning — *a repeated request with the same key produces one effect* — is exactly what `action`'s `idempotent_by` already means, so the catalogue carries one option rather than two (R10), and the `unique` stem keeps a single meaning |
 
 **A drafted DSL spelling is not designed until it has been parsed.** Every Ruby block in
-[`02-dsl-surface.md`](https://raw.githubusercontent.com/developerz-ai/magik/main/docs/idea/02-dsl-surface.md) parses; re-derive by extracting every ` ```ruby ` block from
+[`02-dsl-surface.md`](02-dsl-surface.md) parses; re-derive by extracting every ` ```ruby ` block from
 that file and running `ruby -c` over the concatenation. Reading a block is not a substitute — a
 keyword that cannot be a method name, or a brace block that binds to the wrong receiver, is invisible
 to a reader and obvious to a parser.
 
 **Enforcement:** these are data, not prose. An `apps/magik/scripts/checks/` step over the option tables asserts
-that every option in [`02-dsl-surface.md`](https://raw.githubusercontent.com/developerz-ai/magik/main/docs/idea/02-dsl-surface.md) appears in `magik describe --json` and
+that every option in [`02-dsl-surface.md`](02-dsl-surface.md) appears in `magik describe --json` and
 vice versa. A convention that is not a check does not exist.
 
 ## Libraries to Wrap (don't reinvent)
@@ -409,7 +409,7 @@ Anthropic/OpenAI SDKs (AI actions)
 **JSON is a seam rather than a fixed dependency** (`use :json, :auto | :oj | :stdlib`) because the
 fast path is engine-dependent: `ruby/json` selects a pure-Ruby generator when
 `RUBY_ENGINE == "truffleruby"`, and the C-extension alternatives do not name TruffleRuby as a
-supported platform ([`../architecture/10-performance-defaults.md`](https://raw.githubusercontent.com/developerz-ai/magik/main/docs/architecture/10-performance-defaults.md)).
+supported platform ([`../architecture/10-performance-defaults.md`](../architecture/10-performance-defaults.md)).
 The general rule: *a dependency that is a C extension, or that reaches for a runtime primitive, is a
 candidate for a seam until a probe says otherwise on the production engine.*
 
@@ -422,7 +422,7 @@ long CVE history.
 
 **Wrapped libraries and swap points are not the same thing.** Rodauth is a structural dependency of
 `auth`, not a backend behind an interface, and saying so is more honest than pretending to a seam
-nobody could implement against. The seams are in [`04-swap-points.md`](https://raw.githubusercontent.com/developerz-ai/magik/main/docs/idea/04-swap-points.md).
+nobody could implement against. The seams are in [`04-swap-points.md`](04-swap-points.md).
 
 ## Guardrails to Enforce at Boot (this IS the product)
 - Ledger entries must balance (debits == credits) or boot fails
@@ -434,7 +434,7 @@ nobody could implement against. The seams are in [`04-swap-points.md`](https://r
 
 Authorization, layout and uploads are guardrails for the same reason: each is a rule the frozen
 registry can decide, each is consequential, and each is fixable by an edit the error can name. The
-full catalogue with its `fix:` lines is [`03-guardrails.md`](https://raw.githubusercontent.com/developerz-ai/magik/main/docs/idea/03-guardrails.md).
+full catalogue with its `fix:` lines is [`03-guardrails.md`](03-guardrails.md).
 
 | Guardrail | What fails | Code |
 |---|---|---|
@@ -496,7 +496,7 @@ gets exponentially more expensive per step that ships without it.
 
 The build order and the phase list disagree in one place on purpose — step 5 builds phase 9 early so
 the rest is TDD'd. **Where they disagree, build order wins**; the full mapping is
-[`06-phases.md`](https://raw.githubusercontent.com/developerz-ai/magik/main/docs/idea/06-phases.md).
+[`06-phases.md`](06-phases.md).
 
 ## Deliberately deferred
 
@@ -519,20 +519,19 @@ are stable across one release, the server is a thin, well-specified addition and
 then, on the evidence of those schemas. It stays **read-only** whenever it arrives — a mutating
 server is a different product with different obligations (credentials behind a gateway, end-to-end
 identity, synchronous audit) and would be a separate binary with a separate name. The full design is
-[`11-dsl-as-tool-surface.md`](https://raw.githubusercontent.com/developerz-ai/magik/main/docs/idea/11-dsl-as-tool-surface.md) §3.
+[`11-dsl-as-tool-surface.md`](11-dsl-as-tool-surface.md) §3.
 
 ---
 
 ## About this copy
 
 **Generated file — do not edit.** This page is the packaged mirror of the repository's
-[`docs/idea/00-build-spec.md`](https://raw.githubusercontent.com/developerz-ai/magik/main/docs/idea/00-build-spec.md) at Magik 0.0.1.
-`Magik::Error::DEFAULT_FIX` and every spec-only stub's error message name the path
-`docs/idea/00-build-spec.md`; an installed gem has no repository around it, so this copy is
-what makes that path resolve. Links above point at the repository instead of at sibling
-files, so they work from an installed gem's filesystem. Regenerate after editing the
+`docs/idea/00-build-spec.md` at Magik 0.0.1, rendered by
+`apps/magik/scripts/checks/shipped_mirrors.rb`. An installed gem has no repository around it,
+so every link whose target the gem packages points at that packaged copy — version-matched by
+construction — and every other link points at the repository. Regenerate after editing the
 original:
 
 ```bash
-ruby apps/magik/scripts/checks/build_spec_mirror.rb --write
+ruby apps/magik/scripts/checks/shipped_mirrors.rb --write
 ```

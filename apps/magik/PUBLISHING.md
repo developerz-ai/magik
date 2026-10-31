@@ -182,11 +182,14 @@ out-of-band fallback while CI is unavailable — do it, then say so in the chang
 [`magik.gemspec`](magik.gemspec) builds `files` from an allowlist bounded to the gem's own directory
 (`apps/magik/`), never a `git ls-files` dump: `exe/**`, `lib/**/*` and `sig/**/*`, plus the
 documentation globs in `Magik::Docs::PACKAGED_GLOBS` ([`lib/magik/docs.rb`](lib/magik/docs.rb)) —
-`wiki/**` and `llms.txt` ship. A `../../docs/**/*.md` glob lets a checkout's catalogue serve
-`docs/idea/` and `docs/architecture/`; the gemspec rejects every candidate that would resolve
-outside the gem dir, so no `../` path can reach the package and those trees are not distributed.
+`wiki/**` and `llms.txt` ship, and so does `docs/**`: the GENERATED mirrors of every checkout-root
+`docs/` page — the build spec the errors name and the design pages the manual links — rendered by
+[`scripts/checks/shipped_mirrors.rb`](scripts/checks/shipped_mirrors.rb), which fails the gate when
+a mirror is stale. The checkout-root originals stay at the repository root and are not packaged; a
+`../../docs/**/*.md` glob lets a checkout's catalogue serve them, and the gemspec rejects every
+candidate that would resolve outside the gem dir, so no `../` path can reach the package.
 `README.md`, `LICENSE` and `CHANGELOG.md` stay at the checkout root and are not packaged, and
-neither are `docs/`, `test/`, `bin/`, `dummy/`, `scripts/`, `docker/` or `.github/`.
+neither are `test/`, `bin/`, `dummy/`, `scripts/`, `docker/` or `.github/`.
 `test/magik/docs_test.rb` asserts the split.
 
 Verify what a build actually contains before pushing anything — the allowlist is only as good as

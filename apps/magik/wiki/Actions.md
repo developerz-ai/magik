@@ -124,7 +124,7 @@ the row that caused it commit together — see [Jobs](Jobs.md).
 ## Swap points
 
 An action itself has no backend to swap. What it calls does: the job queue, the cache it invalidates,
-the ledger's storage. See [`docs/idea/04-swap-points.md`](https://raw.githubusercontent.com/developerz-ai/magik/main/docs/idea/04-swap-points.md).
+the ledger's storage. See [docs/idea/04-swap-points.md](../docs/idea/04-swap-points.md).
 
 ## Next
 

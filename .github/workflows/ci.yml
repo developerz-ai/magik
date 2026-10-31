@@ -80,9 +80,11 @@ jobs:
           filters: |
             # Anything RuboCop lints, Minitest loads, or the gemspec packages. The app tree lives
             # under apps/magik/; `bin/**` and the workspace `Gemfile`/`Gemfile.lock` stay at the
-            # checkout root. `.rubocop.yml` is in here rather than under `ci` because a rule change
-            # can turn a green tree red without touching a single .rb file, and the job that would
-            # catch it is `lint`.
+            # checkout root. Both `.rubocop.yml` copies are in here rather than under `ci` because
+            # a rule change can turn a green tree red without touching a single .rb file — the
+            # checkout root's lints `bin/**`, the app's lints the tree — and `apps/magik/Gemfile`
+            # is here because a dependency bump in it changes what lint, test and docs resolve,
+            # even though the gate itself runs on the workspace bundle.
             ruby:
               - 'apps/magik/lib/**'
               - 'apps/magik/exe/**'
@@ -91,7 +93,9 @@ jobs:
               - 'apps/magik/*.gemspec'
               - 'Gemfile'
               - 'Gemfile.lock'
+              - 'apps/magik/Gemfile'
               - 'apps/magik/Rakefile'
+              - '.rubocop.yml'
               - 'apps/magik/.rubocop.yml'
               - 'apps/magik/.ruby-version'
             # `.yardopts` decides what `yard doc` reads and where it writes, so it belongs to the

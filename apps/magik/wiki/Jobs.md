@@ -113,12 +113,12 @@ jobs :kafka, brokers: ENV.fetch("KAFKA_BROKERS")
 One config key, zero app code changes. **The transactional guarantee is a property of the Postgres
 backend, not of the abstraction** — swapping to Kafka buys throughput and loses the shared
 transaction. That trade is stated here rather than discovered later; see
-[`docs/idea/04-swap-points.md`](https://raw.githubusercontent.com/developerz-ai/magik/main/docs/idea/04-swap-points.md).
+[docs/idea/04-swap-points.md](../docs/idea/04-swap-points.md).
 
 Which gem the Postgres backend wraps, why advisory locks rather than `SELECT … FOR UPDATE SKIP
 LOCKED`, what a CPU-bound job costs its worker, and where a Postgres queue stops being the right
 answer:
-[`docs/architecture/11-jobs-backend.md`](https://raw.githubusercontent.com/developerz-ai/magik/main/docs/architecture/11-jobs-backend.md).
+[docs/architecture/11-jobs-backend.md](../docs/architecture/11-jobs-backend.md).
 
 ## Guardrails
 
@@ -136,4 +136,4 @@ answer:
 - [Money and ledgers](Money-And-Ledgers.md) — idempotency, in full.
 - [Realtime](Realtime.md) — the other asynchronous path to a user.
 - [Testing](Testing.md) — `assert_enqueued`.
-- [The jobs backend](https://raw.githubusercontent.com/developerz-ai/magik/main/docs/architecture/11-jobs-backend.md) — the engine decision, the mechanism, and the ceiling.
+- [docs/architecture/11-jobs-backend.md](../docs/architecture/11-jobs-backend.md) — the engine decision, the mechanism, and the ceiling.

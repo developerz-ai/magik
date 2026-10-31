@@ -187,11 +187,24 @@ class MagikCLITest < Minitest::Test
     assert_equal Magik::Docs.read("wiki/models"), out
   end
 
+  # A wiki shorthand is unambiguous — the wiki/ tree exists only inside the
+  # gem — while a docs/ page's basename is catalogued twice in a checkout (the
+  # original under its ../../ spelling, the generated mirror at its
+  # gem-relative path), so that shorthand refuses to guess instead of serving
+  # whichever page came first in the catalogue.
   def test_docs_accepts_a_shorthand_slug
-    _, short_out, = run_cli("docs", "dsl-surface")
-    _, full_out, = run_cli("docs", "../../docs/idea/02-dsl-surface")
+    _, short_out, = run_cli("docs", "models")
+    _, full_out, = run_cli("docs", "wiki/models")
 
     assert_equal full_out, short_out
+  end
+
+  def test_docs_refuses_a_shorthand_that_matches_a_page_and_its_mirror
+    status, _, err = run_cli("docs", "dsl-surface")
+
+    assert_equal Magik::CLI::EXIT_ERROR, status
+    assert_includes err, "MAGIK_DOCS_AMBIGUOUS_PAGE"
+    assert_includes err, "fix:"
   end
 
   def test_docs_page_json_carries_the_entry_and_the_content

@@ -1,6 +1,6 @@
 {
   "schema": 1,
-  "build_id": "40bcf9e4f28af025bf297e6392cc95e240f5fa3fa81a6193d44fde98b7742790",
+  "build_id": "22ae8a356ac69a14e0ff53a270ddda0ef2690ac3ba92ea747a3947edc8e8876b",
   "generator": "scripts/checks/manifest.rb",
   "gem": {
     "name": "magik",
@@ -259,25 +259,25 @@
       "code": "MAGIK_DOCS_AMBIGUOUS_PAGE",
       "class": "Magik::Docs::AmbiguousPageError",
       "fix": "run `magik docs list` and use the full slug, e.g. `magik docs wiki/models`",
-      "at": "lib/magik/docs.rb:143"
+      "at": "lib/magik/docs.rb:145"
     },
     {
       "code": "MAGIK_DOCS_MISSING_TERM",
       "class": "Magik::Docs::MissingTermError",
       "fix": "run `magik docs search <term>`, e.g. `magik docs search ledger`",
-      "at": "lib/magik/docs.rb:149"
+      "at": "lib/magik/docs.rb:151"
     },
     {
       "code": "MAGIK_DOCS_PAGE_NOT_FOUND",
       "class": "Magik::Docs::PageNotFoundError",
       "fix": "run `magik docs list` to see every page that ships with this gem",
-      "at": "lib/magik/docs.rb:137"
+      "at": "lib/magik/docs.rb:139"
     },
     {
       "code": "MAGIK_DOCS_UNAVAILABLE",
       "class": "Magik::Docs::UnavailableError",
       "fix": "reinstall the gem with `gem install magik`, or set `MAGIK_DOCS_ROOT` to a checkout of https://github.com/developerz-ai/magik",
-      "at": "lib/magik/docs.rb:130"
+      "at": "lib/magik/docs.rb:132"
     },
     {
       "code": "MAGIK_ERROR",
@@ -336,10 +336,10 @@
       "path": "scripts/checks/dummy_parses.rb"
     },
     {
-      "name": "build-spec-mirror",
-      "summary": "The packaged build-spec mirror is a fresh render of the original.",
+      "name": "shipped-mirrors",
+      "summary": "Every packaged docs/ page is a fresh render of its checkout original.",
       "order": 75,
-      "path": "scripts/checks/build_spec_mirror.rb"
+      "path": "scripts/checks/shipped_mirrors.rb"
     },
     {
       "name": "manifest",

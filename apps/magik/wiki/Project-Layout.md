@@ -168,7 +168,7 @@ coincidence — it is the mechanism.
 
 These are **boot-time guardrails**, not lint warnings. The whole point is that the layout and the
 enforcement agree: if the rule can be broken without moving a file, the rule is decoration. See
-[`docs/idea/03-guardrails.md`](https://raw.githubusercontent.com/developerz-ai/magik/main/docs/idea/03-guardrails.md).
+[docs/idea/03-guardrails.md](../docs/idea/03-guardrails.md).
 
 ### Generated versus hand-written
 
@@ -186,7 +186,7 @@ edit this file".
 | `test/**` | you, scaffolded by `magik generate` | yes | yes |
 | `public/htmx.min.js` | the framework, vendored | yes | never — it is replaced on upgrade |
 | `bin/setup`, `bin/check` | the framework, generated once | yes | yes, they are yours after generation |
-| `CLAUDE.md`, `llms.txt`, `docs/FEATURE.md` | **jointly owned** — the framework and you | yes | yes, in the project block. Only the marked framework block is regenerable, by `magik generate agents --update` — [`docs/idea/09-app-scaffold.md`](https://raw.githubusercontent.com/developerz-ai/magik/main/docs/idea/09-app-scaffold.md) |
+| `CLAUDE.md`, `llms.txt`, `docs/FEATURE.md` | **jointly owned** — the framework and you | yes | yes, in the project block. Only the marked framework block is regenerable, by `magik generate agents --update` — [docs/idea/09-app-scaffold.md](../docs/idea/09-app-scaffold.md) |
 | `tmp/**`, `log/**` | the framework | **no**, gitignored | never |
 | `.env` | you | **no**, gitignored | yes. `.env.example` is the committed one |
 
@@ -351,7 +351,7 @@ magik/                         # the checkout root
 
 | Directory | Holds | Must not hold |
 |---|---|---|
-| `lib/magik/<subsystem>/` | one subsystem's implementation | anything another subsystem's boundary forbids — see [`docs/architecture/02-boundaries.md`](https://raw.githubusercontent.com/developerz-ai/magik/main/docs/architecture/02-boundaries.md) |
+| `lib/magik/<subsystem>/` | one subsystem's implementation | anything another subsystem's boundary forbids — see [docs/architecture/02-boundaries.md](../docs/architecture/02-boundaries.md) |
 | `exe/magik` | argument handoff | logic. The binary is a shim so the CLI is testable without spawning a process |
 | `test/magik/` | a test file per `lib/magik/` file, same path | fixtures unrelated to the file under test |
 | `docs/idea/` | decisions and their reasoning | how the code is arranged |
@@ -384,9 +384,9 @@ ruby -Iapps/magik/lib -e 'require "magik"; puts Magik::SUBSYSTEMS.keys.inspect'
 `.claude/` is where the repo keeps the tools an AI agent uses to work on it — subagent definitions and
 slash commands, committed to the tree rather than kept in someone's local config. Magik is an
 AI-first repo: the primary developer is an agent, and phases are landed by agents running
-`/implement-phase` against [`docs/idea/06-phases.md`](https://raw.githubusercontent.com/developerz-ai/magik/main/docs/idea/06-phases.md), gated by
+`/implement-phase` against [docs/idea/06-phases.md](../docs/idea/06-phases.md), gated by
 `bin/check`. Start at [`.claude/README.md`](https://raw.githubusercontent.com/developerz-ai/magik/main/.claude/README.md), and read
-[`docs/idea/07-ai-first.md`](https://raw.githubusercontent.com/developerz-ai/magik/main/docs/idea/07-ai-first.md) for why the repo is arranged this way.
+[docs/idea/07-ai-first.md](../docs/idea/07-ai-first.md) for why the repo is arranged this way.
 
 ## Next
 

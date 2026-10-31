@@ -180,7 +180,7 @@ Refreshes, in place, the AI harness `magik new` emitted into the app. Takes no `
 | `--update` | rewrite the framework-owned harness: `.claude/agents/`, `.claude/commands/` and `.claude/settings.json` whole, since they carry no project content; and in `CLAUDE.md`, `llms.txt` and `docs/FEATURE.md` **only** the marked framework block, leaving the project block untouched. Missing ownership markers is a refusal — `MAGIK_CLI_HARNESS_MARKERS_MISSING` — never a guess at where the boundary was |
 
 It is the `fix:` line a stale harness prints. The ownership rule it implements is
-[`docs/idea/09-app-scaffold.md`](https://raw.githubusercontent.com/developerz-ai/magik/main/docs/idea/09-app-scaffold.md).
+[docs/idea/09-app-scaffold.md](../docs/idea/09-app-scaffold.md).
 
 ### `magik console`
 

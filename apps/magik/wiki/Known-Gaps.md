@@ -28,7 +28,7 @@ magik help                                             # every command that runs
 | Every subsystem module is a documented stub | referencing one loads a module that raises `NotImplementedError` naming the spec section it will implement | `ruby -Iapps/magik/lib -e 'require "magik"; puts Magik::SUBSYSTEMS.keys.inspect'` lists all twenty-one |
 | `apps/magik/dummy/` is a reference app that has never executed | Ledgerline, an invoicing SaaS, is written out in full — but there is no framework to run it against, so **every declaration in it is a claim, not a behaviour**. It is parse-checked and nothing more: `ruby apps/magik/scripts/checks/dummy_parses.rb` | read it as the spec made executable-shaped. `examples/` is still empty |
 | No benchmark exists | the spec targets 1,000 tests in under 10s. Nothing has been measured, because there is no test runner | do not quote a performance number for Magik. There is none to quote |
-| TruffleRuby is barely exercised | the production runtime is TruffleRuby and the development default is CRuby. The only TruffleRuby behaviour anyone has measured is `apps/magik/scripts/probes/runtime.rb` ([results](https://raw.githubusercontent.com/developerz-ai/magik/main/docs/architecture/12-runtime-verification.md)); everything else runs in CI | assume nothing beyond what that page records |
+| TruffleRuby is barely exercised | the production runtime is TruffleRuby and the development default is CRuby. The only TruffleRuby behaviour anyone has measured is `apps/magik/scripts/probes/runtime.rb` ([docs/architecture/12-runtime-verification.md](../docs/architecture/12-runtime-verification.md)); everything else runs in CI | assume nothing beyond what that page records |
 | No swap point has been proven | every swap on this wiki — DB, cache, jobs, search, realtime — is a design commitment with no implementation and no test on either side | the spec requires a **passing test** before a swap is claimed. None exists |
 
 ---
@@ -37,12 +37,12 @@ magik help                                             # every command that runs
 
 These were once a different kind of gap: capability the spec did not describe at all, so building the
 framework exactly as written would still not have produced it. They were found by the coverage audit,
-[`docs/idea/10-saas-coverage.md`](https://raw.githubusercontent.com/developerz-ai/magik/main/docs/idea/10-saas-coverage.md), which pressure-tested the spec's
+[docs/idea/10-saas-coverage.md](../docs/idea/10-saas-coverage.md), which pressure-tested the spec's
 claim to cover "99% of SaaS use cases".
 
 **`As of 2026-08-26` every row below has been accepted into the spec.** That closes a *design* gap
 and nothing else — the constructs are in [`docs/idea/00-build-spec.md`](../docs/idea/00-build-spec.md)
-and drafted in [`docs/idea/02-dsl-surface.md`](https://raw.githubusercontent.com/developerz-ai/magik/main/docs/idea/02-dsl-surface.md), and **not one line of
+and drafted in [docs/idea/02-dsl-surface.md](../docs/idea/02-dsl-surface.md), and **not one line of
 any of them is implemented**, exactly like the rest of the framework. The table is kept because a
 reader deciding whether to trust the spec should be able to see what it was missing and when it
 stopped missing it.
@@ -80,7 +80,7 @@ This is unfinished work, not a defect list. Order and definitions of done are in
 **Two orderings, and this table carries both.** A phase is an *identity* — which capability a
 construct belongs to. A build step is a *position* — when it actually gets written. The spec's ten
 phases and its thirteen build steps are deliberately not the same sequence, and where they disagree
-**build order wins** ([`docs/idea/06-phases.md`](https://raw.githubusercontent.com/developerz-ai/magik/main/docs/idea/06-phases.md)). The rows below are in
+**build order wins** ([docs/idea/06-phases.md](../docs/idea/06-phases.md)). The rows below are in
 delivery order and keep their spec phase number, exactly as `ROADMAP.md` presents them — **nothing
 here renumbers a phase.** That is why phase 9 appears third, phase 7 before phase 6, and phase 4b
 between 4 and 5.

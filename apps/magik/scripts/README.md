@@ -188,7 +188,7 @@ constant at load time.
 8. **Write `test/scripts/<name>_test.rb`**, including the failing case. See below.
 9. **Regenerate the manifest**: `ruby apps/magik/scripts/checks/manifest.rb --write`.
 10. **Run it**: `ruby apps/magik/scripts/checks/<name>.rb`, then `--json`, then `--help`, then
-    `bundle exec rake test` and `bundle exec rubocop`.
+    `bundle exec rake -C apps/magik test` and `bundle exec rubocop`.
 
 Nothing in `bin/check` changes. That is the point of the header.
 
@@ -205,7 +205,7 @@ Each test file covers four things:
 | **Detection** | one test per finding code, asserting the code, the `at`, and that the `fix` names the right file |
 | **Silence** | the correct inputs it must *not* report. One false positive on a page that is right is how a check gets switched off rather than fixed |
 | **Vacuity** | zero inputs is a failure, never a pass |
-| **The real tree** | where the check is green today, the test asserts it stays green, so `rake test` is the build error |
+| **The real tree** | where the check is green today, the test asserts it stays green, so `rake -C apps/magik test` is the build error |
 
 Two shared tests hold every check to the directory's contract, so a new check inherits them:
 [`registry_test.rb`](../test/scripts/registry_test.rb) proves every file here is discoverable, and

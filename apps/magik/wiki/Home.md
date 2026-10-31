@@ -11,7 +11,7 @@ and htmx handles interactivity — there is no second frontend framework, and th
 **Magik is AI-first.** The primary developer is an AI agent, and the design follows from that: one
 uniform DSL grammar across every subsystem, boot-time guardrails as the correction mechanism, errors
 carrying a runnable `fix:` line, convention over configuration, and a surface small enough to fit in
-a context window. The reasoning is [`docs/idea/07-ai-first.md`](https://raw.githubusercontent.com/developerz-ai/magik/main/docs/idea/07-ai-first.md); the
+a context window. The reasoning is [docs/idea/07-ai-first.md](../docs/idea/07-ai-first.md); the
 agent workbench committed to this repo is [`.claude/README.md`](https://raw.githubusercontent.com/developerz-ai/magik/main/.claude/README.md); the agent
 entry point is [`llms.txt`](../llms.txt).
 
@@ -63,12 +63,12 @@ magik help                                             # the commands that actua
 | If you are | Read, in order |
 |---|---|
 | Evaluating whether this is real | [Known gaps](Known-Gaps.md) → [FAQ](FAQ.md) → [`ROADMAP.md`](https://raw.githubusercontent.com/developerz-ai/magik/main/apps/magik/ROADMAP.md) |
-| Understanding the design | [`docs/idea/01-thesis.md`](https://raw.githubusercontent.com/developerz-ai/magik/main/docs/idea/01-thesis.md) → [Models](Models.md) → [Screens and components](Screens-And-Components.md) → [Actions](Actions.md) |
+| Understanding the design | [docs/idea/01-thesis.md](../docs/idea/01-thesis.md) → [Models](Models.md) → [Screens and components](Screens-And-Components.md) → [Actions](Actions.md) |
 | An agent building a SaaS with Magik | [`llms.txt`](../llms.txt) → [Models](Models.md) → [Screens and components](Screens-And-Components.md) → [Actions](Actions.md) → [Testing](Testing.md) |
-| An agent implementing Magik itself | [`llms.txt`](../llms.txt) → [`docs/idea/00-build-spec.md`](../docs/idea/00-build-spec.md) → [`docs/idea/06-phases.md`](https://raw.githubusercontent.com/developerz-ai/magik/main/docs/idea/06-phases.md) → [`.claude/commands/implement-phase.md`](https://raw.githubusercontent.com/developerz-ai/magik/main/.claude/commands/implement-phase.md) |
+| An agent implementing Magik itself | [`llms.txt`](../llms.txt) → [`docs/idea/00-build-spec.md`](../docs/idea/00-build-spec.md) → [docs/idea/06-phases.md](../docs/idea/06-phases.md) → [`.claude/commands/implement-phase.md`](https://raw.githubusercontent.com/developerz-ai/magik/main/.claude/commands/implement-phase.md) |
 | Hitting an error | [Error codes](Error-Codes.md) → [CLI reference](CLI-Reference.md) |
-| Planning to contribute code | [Contributing](Contributing.md) → [`docs/architecture/01-module-map.md`](https://raw.githubusercontent.com/developerz-ai/magik/main/docs/architecture/01-module-map.md) → [`docs/architecture/05-adding-a-feature.md`](https://raw.githubusercontent.com/developerz-ai/magik/main/docs/architecture/05-adding-a-feature.md) |
-| Deciding what to build next | [`ROADMAP.md`](https://raw.githubusercontent.com/developerz-ai/magik/main/apps/magik/ROADMAP.md) → [`docs/idea/06-phases.md`](https://raw.githubusercontent.com/developerz-ai/magik/main/docs/idea/06-phases.md) |
+| Planning to contribute code | [Contributing](Contributing.md) → [docs/architecture/01-module-map.md](../docs/architecture/01-module-map.md) → [docs/architecture/05-adding-a-feature.md](../docs/architecture/05-adding-a-feature.md) |
+| Deciding what to build next | [`ROADMAP.md`](https://raw.githubusercontent.com/developerz-ai/magik/main/apps/magik/ROADMAP.md) → [docs/idea/06-phases.md](../docs/idea/06-phases.md) |
 
 ## The rules everything else follows
 
@@ -103,7 +103,7 @@ architecture decisions, and a page that contradicts one is wrong.
 | [`docs/idea/00-build-spec.md`](../docs/idea/00-build-spec.md) | the source of truth for what Magik is. Everything else elaborates on it and nothing contradicts it |
 | [`docs/idea/`](https://github.com/developerz-ai/magik/tree/main/docs/idea) | **why** — thesis, DSL surface, guardrails, swap points, limits, phases |
 | [`docs/architecture/`](https://github.com/developerz-ai/magik/tree/main/docs/architecture) | **how** — conventions, module map, boundaries, error codes, testing strategy |
-| [`docs/ops/README.md`](https://raw.githubusercontent.com/developerz-ai/magik/main/docs/ops/README.md) | running an app for real. Recommendations only |
+| [docs/ops/README.md](../docs/ops/README.md) | running an app for real. Recommendations only |
 | [`.claude/README.md`](https://raw.githubusercontent.com/developerz-ai/magik/main/.claude/README.md) | the agent workbench: subagent definitions and slash commands, committed to the tree |
 | API docs | <https://developerz-ai.github.io/magik/api/> — YARD, generated from what exists |
 | [`ROADMAP.md`](https://raw.githubusercontent.com/developerz-ai/magik/main/apps/magik/ROADMAP.md) | the ten phases, the thirteen build steps, and the version milestones |

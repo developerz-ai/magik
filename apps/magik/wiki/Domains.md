@@ -161,5 +161,5 @@ machine is a boundary that erodes.
 
 - [Project layout](Project-Layout.md) — the flat-to-domains migration, step by step.
 - [Jobs](Jobs.md) — how events are delivered.
-- [`docs/idea/03-guardrails.md`](https://raw.githubusercontent.com/developerz-ai/magik/main/docs/idea/03-guardrails.md) — why boot-time enforcement.
+- [docs/idea/03-guardrails.md](../docs/idea/03-guardrails.md) — why boot-time enforcement.
 - [CLI reference](CLI-Reference.md) — `magik check`.

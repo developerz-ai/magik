@@ -30,18 +30,18 @@ Before starting, read:
 |---|---|
 | [`docs/idea/00-build-spec.md`](../docs/idea/00-build-spec.md) | the specification. It is the source of truth and nothing contradicts it |
 | [`ROADMAP.md`](https://raw.githubusercontent.com/developerz-ai/magik/main/apps/magik/ROADMAP.md) | what order, and what "done" means per phase |
-| [`docs/architecture/00-conventions.md`](https://raw.githubusercontent.com/developerz-ai/magik/main/docs/architecture/00-conventions.md) | the coding contract |
-| [`docs/architecture/01-module-map.md`](https://raw.githubusercontent.com/developerz-ai/magik/main/docs/architecture/01-module-map.md) | which subsystem owns what |
-| [`docs/architecture/02-boundaries.md`](https://raw.githubusercontent.com/developerz-ai/magik/main/docs/architecture/02-boundaries.md) | what may depend on what |
-| [`docs/architecture/05-adding-a-feature.md`](https://raw.githubusercontent.com/developerz-ai/magik/main/docs/architecture/05-adding-a-feature.md) | the end-to-end loop, with the command per step |
-| [`docs/architecture/04-testing-strategy.md`](https://raw.githubusercontent.com/developerz-ai/magik/main/docs/architecture/04-testing-strategy.md) | how the test harness is meant to work |
+| [docs/architecture/00-conventions.md](../docs/architecture/00-conventions.md) | the coding contract |
+| [docs/architecture/01-module-map.md](../docs/architecture/01-module-map.md) | which subsystem owns what |
+| [docs/architecture/02-boundaries.md](../docs/architecture/02-boundaries.md) | what may depend on what |
+| [docs/architecture/05-adding-a-feature.md](../docs/architecture/05-adding-a-feature.md) | the end-to-end loop, with the command per step |
+| [docs/architecture/04-testing-strategy.md](../docs/architecture/04-testing-strategy.md) | how the test harness is meant to work |
 | [Project layout](Project-Layout.md) | where a new file goes |
 
 ## Working with an agent
 
 Magik is an AI-first repo and the workbench is committed to the tree:
 [`.claude/README.md`](https://raw.githubusercontent.com/developerz-ai/magik/main/.claude/README.md) has the subagents and slash commands, including
-`/implement-phase`. [`docs/idea/07-ai-first.md`](https://raw.githubusercontent.com/developerz-ai/magik/main/docs/idea/07-ai-first.md) explains why the repo
+`/implement-phase`. [docs/idea/07-ai-first.md](../docs/idea/07-ai-first.md) explains why the repo
 is arranged for that.
 
 ## Three house rules worth repeating here

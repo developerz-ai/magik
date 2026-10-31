@@ -17,13 +17,24 @@
 #
 # A link passes when it is absolute (`http://`, `https://`, `mailto:`, `<…>`),
 # a pure `#fragment`, a template placeholder, or a relative path that stays
-# inside the gem root AND names a packaged file. Links to repository-only pages
-# are absolute repository URLs — the same mechanism llms.txt uses — and this
-# check deliberately does not verify those: it is a filesystem test, not a web
-# crawler.
+# inside the gem root AND names a packaged file. Two absolute shapes are judged
+# rather than skipped. A filesystem-absolute target (`/docs/…`) resolves
+# against the reader's filesystem root, never the gem root, so it dangles in an
+# installed gem even though it resolves from the checkout — it is reported as
+# escaping. And a repository URL that points at a page the gem packages, on a
+# moving ref (`…/blob/main/…`, `…/raw/main/…`), is the version-blindness
+# failure docs/architecture/09-shipped-docs.md exists to prevent: the gem
+# carries that page, so an installed gem's reader must be linked to their
+# copy, not to whatever `main` carries that day. Links to repository-only
+# pages are absolute repository URLs — the same mechanism llms.txt uses for
+# what it does not package — and this check deliberately does not verify
+# those: it is a filesystem test, not a web crawler.
 #
-#   MAGIK_DEV_SHIPPED_LINK_ESCAPES     the link climbs out of the gem root
-#   MAGIK_DEV_SHIPPED_LINK_UNPACKAGED  the link stays inside but names an unpackaged file
+#   MAGIK_DEV_SHIPPED_LINK_ESCAPES       the link climbs out of the gem root —
+#                                        including a filesystem-absolute `/…` target
+#   MAGIK_DEV_SHIPPED_LINK_UNPACKAGED    the link stays inside but names an unpackaged file
+#   MAGIK_DEV_SHIPPED_LINK_MUTABLE_MAIN  the link is a repository URL to a packaged page, on
+#                                        a ref that moves
 
 require_relative "../lib/scripts"
 require_relative "../lib/library"
@@ -33,9 +44,24 @@ module MagikScripts
     # Shipped pages' links versus what an installed gem actually contains.
     class ShippedLinks < Check
       # Target prefixes this check never judges: absolute URLs, pure fragments,
-      # and autolinks written with angle brackets.
+      # and autolinks written with angle brackets. A repository URL to a
+      # PACKAGED page is judged first, in {MUTABLE_MAIN} — see {Mutable Main}.
       # @return [Array<String>]
       SKIPPED_PREFIXES = %w[http:// https:// mailto: # <].freeze
+
+      # A repository URL pointing at a moving ref — `blob`/`tree`/`raw` on
+      # `main` or `master` — in this repository. Group 1 is the path it
+      # carries, group 2 any `#fragment`.
+      # @return [Regexp]
+      MUTABLE_MAIN = %r{
+        \Ahttps?://
+        (?:raw\.githubusercontent\.com/developerz-ai/magik/
+          |github\.com/developerz-ai/magik/(?:blob|tree|raw)/)
+        (?:main|master)/
+        ([^)#\s]+)
+        (?:\#([^\s)]*))?
+        \z
+      }x
 
       # Every packaged page, as app-root-relative paths, derived from the one
       # glob list the gemspec also packages by.
@@ -89,15 +115,23 @@ module MagikScripts
       # @return [MagikScripts::Finding, nil]
       def self.verdict(link, page:, base:, packaged:)
         target = link.target
-        return nil if SKIPPED_PREFIXES.any? { |prefix| target.start_with?(prefix) }
         return nil if target.include?("{") || target.include?("$")
 
+        if (main = MUTABLE_MAIN.match(target))
+          return mutable_main(link, page: page, repo_path: main[1], fragment: main[2].to_s, packaged: packaged)
+        end
+        return nil if SKIPPED_PREFIXES.any? { |prefix| target.start_with?(prefix) }
+
         path = target.split("#").first.to_s
-        return nil if path.empty? || path.start_with?("/")
+        return nil if path.empty?
+
+        if path.start_with?("/")
+          return escapes(link, page: page, resolved: path, packaged: packaged, root_absolute: true)
+        end
 
         resolved = resolve(path, base)
         if resolved.start_with?("../")
-          escapes(link, page: page, resolved: resolved)
+          escapes(link, page: page, resolved: resolved, packaged: packaged)
         elsif !packaged.include?(resolved)
           unpackaged(link, page: page, resolved: resolved)
         end
@@ -105,16 +139,23 @@ module MagikScripts
 
       # @param link [MagikScripts::Markdown::Link]
       # @param page [String]
-      # @param resolved [String] where the target lands, app-root-relative
+      # @param resolved [String] where the target lands: the literal `/…` target when
+      #   `root_absolute`, else the app-root-relative (or escaping) path
+      # @param packaged [Array<String>] app-root-relative paths an installed gem contains
+      # @param root_absolute [Boolean] true for a filesystem-absolute `/…` target
       # @return [MagikScripts::Finding]
-      def self.escapes(link, page:, resolved:)
+      def self.escapes(link, page:, resolved:, packaged:, root_absolute: false)
+        shape = if root_absolute
+                  "resolves against the reader's filesystem root, never the gem root"
+                else
+                  "climbs out of the gem root"
+                end
         Finding.new(
           code: "MAGIK_DEV_SHIPPED_LINK_ESCAPES", at: "#{page}:#{link.line}",
-          cause: "#{page}:#{link.line} links to #{link.target.inspect}, which resolves to #{resolved.inspect} " \
-                 "— outside the gem root, so it dangles in an installed gem, where the repository does " \
-                 "not exist",
-          fix: "point the link at a packaged page, or rewrite it as an absolute repository URL " \
-               "(https://raw.githubusercontent.com/developerz-ai/magik/main/...)"
+          cause: "#{page}:#{link.line} links to #{link.target.inspect}, which #{shape} and so dangles in an " \
+                 "installed gem, where neither the repository nor anything above the gem root exists",
+          fix: "in apps/magik/#{page}:#{link.line}, replace #{link.target.inspect} with " \
+               "#{replacement(page: page, candidate: candidate(resolved), link: link, packaged: packaged).inspect}"
         )
       end
 
@@ -127,9 +168,71 @@ module MagikScripts
           code: "MAGIK_DEV_SHIPPED_LINK_UNPACKAGED", at: "#{page}:#{link.line}",
           cause: "#{page}:#{link.line} links to #{link.target.inspect}, which stays inside the gem root but " \
                  "names #{resolved.inspect} — a file `magik.gemspec` does not package",
-          fix: "add #{resolved.inspect} to the packaged globs, or rewrite the link as an absolute " \
-               "repository URL (https://raw.githubusercontent.com/developerz-ai/magik/main/...)"
+          fix: "in apps/magik/#{page}:#{link.line}, point #{link.target.inspect} at a page the gem packages, " \
+               "or name #{resolved.inspect} in Magik::Docs::PACKAGED_GLOBS (apps/magik/lib/magik/docs.rb)"
         )
+      end
+
+      # @param link [MagikScripts::Markdown::Link]
+      # @param page [String]
+      # @param repo_path [String] the repository path the URL carries
+      # @param fragment [String] the URL's `#fragment`, possibly empty
+      # @param packaged [Array<String>] app-root-relative paths an installed gem contains
+      # @return [MagikScripts::Finding, nil] nil when the target is not a packaged page — for
+      #   content the gem does not carry, the repository URL is the only link there is
+      def self.mutable_main(link, page:, repo_path:, fragment:, packaged:)
+        app_rel = repo_path.delete_prefix("apps/magik/")
+        return nil unless packaged.include?(app_rel)
+
+        Finding.new(
+          code: "MAGIK_DEV_SHIPPED_LINK_MUTABLE_MAIN", at: "#{page}:#{link.line}",
+          cause: "#{page}:#{link.line} sends the reader to #{link.target.inspect} for a page this gem " \
+                 "packages at #{app_rel.inspect} — whatever main carries when an installed gem's reader " \
+                 "follows it, which is the version-blindness docs/architecture/09-shipped-docs.md " \
+                 "exists to prevent",
+          fix: "in apps/magik/#{page}:#{link.line}, replace #{link.target.inspect} with " \
+               "#{replacement(page: page, candidate: app_rel, fragment: fragment, packaged: packaged).inspect}"
+        )
+      end
+
+      # The packaged path a violating target should be repointed to, when the
+      # gem carries one: an escaped `../../docs/…` target names the repo-root
+      # original whose packaged copy sits at the same path inside the gem.
+      # Pure.
+      #
+      # @param resolved [String] the finding's resolved target
+      # @return [String] an app-root-relative candidate path
+      def self.candidate(resolved)
+        resolved.start_with?("/") ? resolved.delete_prefix("/") : resolved.gsub(%r{\A(\.\./)+}, "")
+      end
+
+      # The concrete replacement a finding's fix names: the page-relative
+      # spelling of the packaged copy when the gem has it, the repository-URL
+      # shape otherwise. Pure.
+      #
+      # @param page [String] the linking page, app-root-relative
+      # @param candidate [String] the target, app-root-relative
+      # @param packaged [Array<String>] packaged paths
+      # @param link [MagikScripts::Markdown::Link, nil] the violating link, for its fragment
+      # @param fragment [String] a fragment to carry through, when there is no link
+      # @return [String]
+      def self.replacement(page:, candidate:, packaged:, link: nil, fragment: "")
+        bare =
+          if fragment.empty? && link
+            _target, separator, rest = link.target.partition("#")
+            separator.empty? ? "" : rest
+          else
+            fragment
+          end
+        anchor = bare.empty? ? "" : "##{bare}"
+
+        return "an absolute https:// repository URL for #{candidate}#{anchor}" unless packaged.include?(candidate)
+
+        from = File.dirname(page)
+        base = from == "." ? "/" : "/#{from}"
+        rel = Pathname.new(File.expand_path("/#{candidate}")).relative_path_from(Pathname.new(base)).to_s
+
+        "#{rel}#{anchor}"
       end
 
       # @return [MagikScripts::Result]
@@ -180,7 +283,9 @@ module MagikScripts
       # @return [String]
       def expectation
         "every relative link in a packaged page (Magik::Docs::PACKAGED_GLOBS, minus the checkout-only " \
-          "../ spellings) resolves to another packaged file inside the gem root"
+          "../ spellings) resolves to another packaged file inside the gem root, no packaged page links " \
+          "a packaged page through the repository's mutable main, and no target resolves against the " \
+          "reader's filesystem root"
       end
 
       # @return [String]

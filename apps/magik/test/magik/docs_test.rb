@@ -130,11 +130,24 @@ class MagikDocsTest < Minitest::Test
     assert_equal expected, Magik::Docs.find(:models)[:path]
   end
 
-  def test_find_accepts_a_numbered_page_without_its_number
+  # A docs/ page's basename is catalogued twice in a checkout — the original
+  # under its ../../ spelling, the generated mirror at its gem-relative path —
+  # so the shorthand refuses to guess between them, exactly as it does for the
+  # build spec (see the packaging section below). An INSTALLED gem catalogues
+  # only the mirror, where the shorthand is unambiguous.
+  def test_a_docs_page_shorthand_refuses_to_guess_between_the_original_and_its_mirror
+    error = assert_raises(Magik::Docs::AmbiguousPageError) { Magik::Docs.find("dsl-surface") }
+
+    assert_equal "MAGIK_DOCS_AMBIGUOUS_PAGE", error.code
+    assert_includes error.cause_text, "../../docs/idea/02-dsl-surface"
+    assert_includes error.cause_text, "docs/idea/02-dsl-surface"
+  end
+
+  def test_find_accepts_a_numbered_page_by_its_full_path
     expected = "../../docs/idea/02-dsl-surface.md"
 
-    assert_equal expected, Magik::Docs.find("dsl-surface")[:path]
-    assert_equal expected, Magik::Docs.find("02-dsl-surface")[:path]
+    assert_equal expected, Magik::Docs.find("../../docs/idea/02-dsl-surface")[:path]
+    assert_equal expected, Magik::Docs.find("../../docs/idea/02-dsl-surface.md")[:path]
   end
 
   def test_find_raises_a_magik_error_with_a_runnable_fix_for_an_unknown_page
@@ -222,11 +235,12 @@ class MagikDocsTest < Minitest::Test
   end
 
   # The packaging split: the gem ships the app-author manual — wiki/ +
-  # llms.txt — plus the generated build-spec mirror named by
-  # `Magik::Error::DEFAULT_FIX` and every stub's error message, and nothing
-  # from the rest of the repo-root docs/ trees or the repository's process
-  # files (README, LICENSE, CHANGELOG stay at the checkout root).
-  def test_packaged_documentation_is_wiki_llms_txt_and_the_build_spec
+  # llms.txt — plus the generated mirrors of every checkout-root docs/ page
+  # (docs/idea/00-build-spec.md, the path `Magik::Error::DEFAULT_FIX` and
+  # every stub's error message name, among them), and nothing from the
+  # repository's process files (README, LICENSE, CHANGELOG stay at the
+  # checkout root).
+  def test_packaged_documentation_is_wiki_llms_txt_and_the_docs_mirrors
     packaged = gemspec_files
     catalogued_inside = Magik::Docs.pages.map { |page| page[:path] }.reject { |path| path.start_with?("../") }
 

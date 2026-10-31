@@ -45,9 +45,9 @@ Gem::Specification.new do |spec|
   # until it is named below, and any candidate that would resolve outside the
   # gem dir is dropped outright, so a glob aimed at the repository root can
   # never leak into the package. README.md, LICENSE, CHANGELOG.md and the
-  # repo-root docs/ trees stay out — they live at the checkout root, two
-  # levels above this file — with one deliberate exception: the generated
-  # build-spec mirror, docs/idea/00-build-spec.md, named below.
+  # checkout-root ORIGINALS of docs/ stay out — they live at the checkout
+  # root, two levels above this file. What does ship under docs/ is
+  # GENERATED: the mirror tree named below.
   #
   # ## Why the documentation ships inside the gem
   #
@@ -70,43 +70,52 @@ Gem::Specification.new do |spec|
   # ## What ships, and what deliberately does not
   #
   # SHIPS — exe/**, lib/**/*, sig/**/*, llms.txt, wiki/**/*.md, and the
-  # generated build-spec mirror docs/idea/00-build-spec.md:
+  # generated mirrors docs/**/*.md:
   #
   #   * wiki/ is the app author's reference manual. It is the whole point of
   #     shipping docs at all: an installed gem that carries its own manual is
   #     version-matched by construction, and `magik docs path` hands an agent
   #     a directory its ordinary grep and glob tools can read.
   #   * llms.txt is the machine-readable page map the catalogue routes from.
-  #   * docs/idea/00-build-spec.md is a GENERATED mirror of the checkout's
-  #     docs/idea/00-build-spec.md — scripts/checks/build_spec_mirror.rb
-  #     renders it from the original and fails the gate when stale. The path
-  #     is not a nice-to-have: Magik::Error::DEFAULT_FIX and every spec-only
-  #     stub's NotImplementedError message name it, and an installed gem has
-  #     no repository two levels up for that path to resolve against, so
-  #     without the mirror the recovery instruction in every error is
-  #     unusable exactly where errors are handled. The mirror carries the
-  #     original verbatim, with links rewritten to absolute repository URLs
-  #     so they resolve from an installed gem's filesystem.
+  #     Its links to packaged pages are gem-relative, so the map works offline
+  #     inside the gem; only targets the gem does not carry keep repository
+  #     URLs.
+  #   * docs/**/*.md are GENERATED mirrors of every checkout-root docs/ page
+  #     — scripts/checks/shipped_mirrors.rb renders them from the originals
+  #     and fails the gate when any is stale. The path
+  #     docs/idea/00-build-spec.md is not a nice-to-have:
+  #     Magik::Error::DEFAULT_FIX and every spec-only stub's NotImplementedError
+  #     message name it, and an installed gem has no repository two levels up
+  #     for that path to resolve against, so without the mirror the recovery
+  #     instruction in every error is unusable exactly where errors are
+  #     handled. The manual's other design links — wiki pointing at
+  #     04-swap-points.md, the build spec at the DSL surface — have the same
+  #     shape: a repository URL there would send an installed gem's reader to
+  #     mutable main, the version-blindness failure this packaging exists to
+  #     prevent. So every page the manual can link is mirrored, links to
+  #     packaged pages are rewritten gem-relative, and shipped_links.rb fails
+  #     the gate on a packaged page that links a packaged page through main.
   #
   # STAYS AT THE REPOSITORY ROOT — never packaged:
   #
-  #   * the REST of docs/idea/ and docs/architecture/, and docs/ops/ — the
-  #     DSL surface, the guardrails, the architecture notes. They are the
-  #     design record of *this repository* and live two levels above this
-  #     gemspec, outside the gem dir. A checkout catalogue still serves them:
-  #     PACKAGED_GLOBS carries the ../../docs/**/*.md spelling, which
-  #     resolves in a checkout and is dropped here by the "../" reject below
-  #     — so an installed gem neither ships nor advertises those pages.
-  #     docs_test asserts the split.
+  #   * the checkout-root ORIGINALS of docs/ — the source of truth the mirrors
+  #     are rendered from, never edited by hand. A checkout catalogue still
+  #     serves them: PACKAGED_GLOBS carries the ../../docs/**/*.md spelling,
+  #     which resolves in a checkout and is dropped here by the "../" reject
+  #     below — so only the mirrors ship. docs_test asserts the split.
   #   * CONTRIBUTING.md, PUBLISHING.md, ROADMAP.md, SECURITY.md,
   #     CODE_OF_CONDUCT.md, CLAUDE.md/AGENTS.md — this repository's process,
   #     not the DSL.
   #
-  # Shipped pages never carry a relative link that leaves the gem dir: links
-  # to repository-only pages are absolute repository URLs (the mechanism
-  # llms.txt already used), and scripts/checks/shipped_links.rb fails the
-  # gate on any relative link in a packaged page that resolves outside the
-  # gem dir or to an unpackaged file — "nothing dangles" is an assertion, not
+  # Shipped pages never carry a relative link that leaves the gem dir, never
+  # a `/…` target that resolves against the reader's filesystem root, and
+  # never a repository URL to a page the gem packages: links to
+  # repository-only pages are absolute repository URLs (the mechanism
+  # llms.txt keeps for what it does not package), and
+  # scripts/checks/shipped_links.rb fails the gate on any relative link that
+  # resolves outside the gem dir or to an unpackaged file, on any `/…`
+  # target, and on any packaged page linked through the repository's mutable
+  # main — "nothing dangles, nothing goes version-blind" is an assertion, not
   # a claim.
   #   * .claude/ — subagents and slash commands for implementing *this
   #     framework* (bin/check, lib/magik/<subsystem>/). Dropped into a user's
@@ -119,10 +128,10 @@ Gem::Specification.new do |spec|
   # The cost of this decision: a documentation change is now part of a release.
   # Editing wiki/ without cutting a version leaves every installed gem reading
   # the old page, which is the trade for never reading a page that does not
-  # match the code. The build-spec mirror carries the same cost with a guard:
-  # editing the original without rerunning
-  # `ruby apps/magik/scripts/checks/build_spec_mirror.rb --write` fails the
-  # checks step. The repo-root docs/ trees do not carry that cost — from a
+  # match the code. The mirrors carry the same cost with a guard: editing a
+  # checkout-root original without rerunning
+  # `ruby apps/magik/scripts/checks/shipped_mirrors.rb --write` fails the
+  # checks step. The checkout-root originals do not carry that cost — from a
   # checkout they are one ../../ step away, and MAGIK_DOCS_ROOT can point a
   # catalogue at any checkout.
   #

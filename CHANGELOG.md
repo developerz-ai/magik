@@ -55,24 +55,27 @@ the repository being brought back into agreement with it.
   worktree, the file set as the only lock, and `bin/check` run by the coordinator alone. Both are
   adapted from the TypeScript sibling's harness; neither claims any framework behaviour.
 
-- **The build spec ships inside the gem as a generated mirror** — `apps/magik/docs/idea/00-build-spec.md`,
-  rendered from the checkout's original by `ruby apps/magik/scripts/checks/build_spec_mirror.rb`
-  (`--write` regenerates; the check fails when the committed copy is stale). `Magik::Error::DEFAULT_FIX`
-  and every spec-only stub's error message name the path `docs/idea/00-build-spec.md`; an installed gem
-  has no repository around it, so without the mirror every error's recovery instruction was unusable
-  exactly where errors are handled. The mirror carries the original verbatim, with links rewritten to
-  absolute repository URLs so they resolve from an installed gem's filesystem, and the gemspec's
-  file-list filter now sees untracked-but-un-ignored files so a first `--write` is visible to a gate
-  run before the next commit. Re-derive: `ruby apps/magik/scripts/checks/build_spec_mirror.rb`, then
-  `magik docs docs/idea/00-build-spec` and `gem build` + `tar -tf` for the packaged bytes.
+- **Every checkout-root `docs/` page ships inside the gem as a generated mirror** — `apps/magik/docs/**`,
+  rendered from the checkout's originals by `ruby apps/magik/scripts/checks/shipped_mirrors.rb`
+  (`--write` regenerates; the check fails when a committed copy is stale). `Magik::Error::DEFAULT_FIX`
+  and every spec-only stub's error message name the path `docs/idea/00-build-spec.md`, and the shipped
+  manual links the other design pages — wiki pointing at `04-swap-points.md`, the build spec at the DSL
+  surface — so an installed gem now serves the page its own links and fix lines point at instead of
+  whatever `main` carries. Each mirror carries its original verbatim, with links to packaged pages
+  rewritten gem-relative, other prose links as absolute repository URLs, and a provenance banner. The
+  gemspec's file-list filter sees untracked-but-un-ignored files, so a first `--write` is visible to a
+  gate run before the next commit. Re-derive: `ruby apps/magik/scripts/checks/shipped_mirrors.rb`,
+  then `magik docs docs/idea/00-build-spec` and `gem build` + `tar -tf` for the packaged bytes.
 
 - **A shipped-links guard — `apps/magik/scripts/checks/shipped_links.rb`** — every relative link in a
   packaged page (`Magik::Docs::PACKAGED_GLOBS`, minus the checkout-only `../` spellings) must resolve
-  to another packaged file inside the gem root, or the check fails with `MAGIK_DEV_SHIPPED_LINK_ESCAPES`
-  or `MAGIK_DEV_SHIPPED_LINK_UNPACKAGED`. It found 84 links across 17 wiki pages that resolved only
-  from a checkout and dangled in an installed gem; all are rewritten — the build spec to the packaged
-  mirror (`../docs/idea/00-build-spec.md`), the rest to absolute repository URLs, the same mechanism
-  `llms.txt` already used. Re-derive: `ruby apps/magik/scripts/checks/shipped_links.rb`.
+  to another packaged file inside the gem root (`MAGIK_DEV_SHIPPED_LINK_ESCAPES` /
+  `MAGIK_DEV_SHIPPED_LINK_UNPACKAGED`), no packaged page may link a packaged page through the
+  repository's mutable `main` (`MAGIK_DEV_SHIPPED_LINK_MUTABLE_MAIN`), and a filesystem-absolute
+  `/…` target — which resolves against the reader's filesystem root, never the gem root — is
+  reported as escaping. 152 links across `wiki/` and `llms.txt` now point at the in-gem copies; only
+  targets the gem does not carry (ROADMAP, CONTRIBUTING, `.claude/`) keep repository URLs. Re-derive:
+  `ruby apps/magik/scripts/checks/shipped_links.rb`.
 
 ### Changed
 
@@ -229,6 +232,21 @@ the repository being brought back into agreement with it.
 
 ### Fixed
 
+- **A PR touching only `apps/magik/Gemfile` or the root `.rubocop.yml` can no longer skip CI's Ruby
+  jobs.** Neither path matched the `ruby` paths-filter, so a dependency bump or a lint-rule change
+  reached `main` with the affected jobs never run. Both are in the filter now, beside the workspace
+  `Gemfile` and the app `.rubocop.yml` that were already listed.
+- **`apps/magik/scripts/README.md`'s check-authoring sequence runs the suite the way the repo
+  spells it** — `bundle exec rake -C apps/magik test`, not `bundle exec rake test`, which stopped
+  working when the Rakefile moved into `apps/magik`.
+- **The mirror check's and the shipped-links check's failure branches hand the reader a runnable
+  recovery** — `git checkout -- docs` (then the regenerating `--write`) when rendering the mirrors
+  raises, and concrete `in apps/magik/<page>:<line>, replace <target> with <replacement>` edits for
+  a dangling, unpackaged, filesystem-absolute or mutable-`main` link — where both checks used to
+  print advice such as "restore the source and check its links".
+- **`apps/magik/PUBLISHING.md`'s inventory tells release reviewers the truth about `docs/`**: the gem
+  ships the generated mirror tree, the checkout-root originals stay out — not "docs/ is not
+  packaged".
 - **`bin/stop`'s two missing-tool messages now print a command instead of advising one.** They said
   *"install Docker before `bin/setup --services`"* and *"install docker-compose-plugin"* — an
   instruction and a package name, neither of them something a reader can paste, against the repo's

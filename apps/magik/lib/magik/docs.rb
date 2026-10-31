@@ -40,18 +40,20 @@ module Magik
     # a checkout's `magik docs list` includes repository-only pages an
     # installed gem neither ships nor advertises.
     #
-    # Two entries carry their own story. `docs/**/*.md` covers the GENERATED
-    # build-spec mirror, docs/idea/00-build-spec.md — the path
-    # Magik::Error::DEFAULT_FIX and every spec-only stub's error message
-    # name, so an installed gem serves the page its own fix lines point at
-    # (scripts/checks/build_spec_mirror.rb renders and verifies it; in a
-    # checkout the repository original is ALSO catalogued under its ../../
-    # spelling). `../../docs/**/*.md` reaches the repository-root trees —
-    # DSL surface, guardrails, architecture notes — which stay out of the
-    # gem package and live four directories above this file in a checkout.
-    # The gemspec drops every candidate that resolves outside the gem dir,
-    # so the checkout-only spelling never ships. test/magik/docs_test.rb
-    # asserts the split.
+    # Two entries carry their own story. `docs/**/*.md` is the GENERATED
+    # mirror tree — every checkout-root `docs/` page rendered into the gem at
+    # the same path by scripts/checks/shipped_mirrors.rb, which fails the gate
+    # when any mirror is stale. `docs/idea/00-build-spec.md` — the path
+    # Magik::Error::DEFAULT_FIX and every spec-only stub's error message name —
+    # is one of them, and so is every design page the shipped manual links, so
+    # an installed gem serves the page its own links and fix lines point at
+    # instead of whatever `main` carries. In a checkout the repository
+    # originals are ALSO catalogued under their ../../ spelling, and a
+    # basename shorthand that matches both refuses to guess.
+    # `../../docs/**/*.md` reaches those originals, which live four
+    # directories above this file in a checkout. The gemspec drops every
+    # candidate that resolves outside the gem dir, so the checkout-only
+    # spelling never ships. test/magik/docs_test.rb asserts the split.
     #
     # @return [Array<String>] `Dir.glob` patterns
     # @example

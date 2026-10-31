@@ -89,7 +89,7 @@ realtime :redis, url: ENV.fetch("REDIS_URL")
 
 One config key, zero app code changes. That is the swap-point contract, and per the spec it needs a
 passing test on both sides before it is claimed anywhere — see
-[`docs/idea/04-swap-points.md`](https://raw.githubusercontent.com/developerz-ai/magik/main/docs/idea/04-swap-points.md).
+[docs/idea/04-swap-points.md](../docs/idea/04-swap-points.md).
 
 ## What realtime is not
 

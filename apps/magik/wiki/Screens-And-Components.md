@@ -242,8 +242,8 @@ The question everyone asks first: *the kit gives me a `modal`, but I want my own
 
 **Four rungs, and you almost never need the top one.** Take the cheapest rung that fits; each is a
 strict superset of the one below. The reasoning behind the ladder is
-[`docs/idea/08-component-overrides.md`](https://raw.githubusercontent.com/developerz-ai/magik/main/docs/idea/08-component-overrides.md), under the general
-rule in [`docs/idea/04-swap-points.md`](https://raw.githubusercontent.com/developerz-ai/magik/main/docs/idea/04-swap-points.md) — this section is how you use
+[docs/idea/08-component-overrides.md](../docs/idea/08-component-overrides.md), under the general
+rule in [docs/idea/04-swap-points.md](../docs/idea/04-swap-points.md) — this section is how you use
 it.
 
 | Rung | You want | You write | Cost |
@@ -426,7 +426,7 @@ You never write `hx-*` by hand, and you never write a fetch call.
 editing, spreadsheet engines — out of scope. A `chart` is rendered server-side and re-rendered on
 change; it is not a client charting runtime you can drive from JavaScript. If your product needs a
 canvas, Magik is the wrong framework and this page is the place that says so rather than letting you
-find out in month four. See [`docs/idea/05-limits.md`](https://raw.githubusercontent.com/developerz-ai/magik/main/docs/idea/05-limits.md).
+find out in month four. See [docs/idea/05-limits.md](../docs/idea/05-limits.md).
 
 ## Theming
 

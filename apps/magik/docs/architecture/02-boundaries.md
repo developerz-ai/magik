@@ -1,0 +1,170 @@
+# Boundaries
+
+Two boundary systems: the tier rules between Magik's own subsystems, and the domain rules an app declares. Both are meant to fail the build or the boot, never a review.
+
+**Status:** rule one is enforced, rule two is planned. The tier checker exists and runs — `ruby apps/magik/scripts/checks/boundaries.rb` — over an executable copy of the table in [`../../apps/magik/scripts/lib/tiers.rb`](https://raw.githubusercontent.com/developerz-ai/magik/main/apps/magik/scripts/lib/tiers.rb); `bin/check` does not yet run it as a step. The `domain` DSL and component shadowing are unimplemented. Reviewed 2026-08-26.
+
+## Rule one — tiers, inside this repo
+
+**Imports go down a tier only.** Never sideways within a tier, never upward.
+
+```
+tier 0   core
+tier 1   schema, router, i18n, policy
+tier 2   model, render, realtime, jobs
+tier 3   action, ledger, api, auth, notify, pwa
+tier 4   billing, admin, domains
+tier 5   check, testing
+tier 6   cli
+```
+
+The table is duplicated in [`01-module-map.md`](01-module-map.md) and has an executable copy in [`../../apps/magik/scripts/lib/tiers.rb`](https://raw.githubusercontent.com/developerz-ai/magik/main/apps/magik/scripts/lib/tiers.rb). Prose and code must agree; when they diverge, the code is right and the prose is a bug — and `MAGIK_DEV_BOUNDARY_TABLE_DRIFT` is what says so, because [`../../apps/magik/scripts/checks/boundaries.rb`](https://raw.githubusercontent.com/developerz-ai/magik/main/apps/magik/scripts/checks/boundaries.rb) re-parses both documents against the code on every run.
+
+| Rule | Detail |
+|---|---|
+| Down only | `action` (3) may require `model` (2). `model` may not require `action`. |
+| No sideways | `render` may not require `realtime`; they are both tier 2. |
+| Front door only | a subsystem requires `magik/<other>`, never `magik/<other>/internal_file`. Reaching past the front door is a violation even when the tier allows the subsystem. |
+| No exceptions table | the first sideways exception means a tier is wrong. Fix the tier. |
+
+### The edges that shaped the table
+
+Each of these was the tempting sideways import, and the design that removed the need for it:
+
+| Tempting edge | Why it is refused | What happens instead |
+|---|---|---|
+| `render` → `realtime` | `live :orders, on: "orders:{tenant}"` is rendered as an attribute, so `render` needs a channel **name**, not a transport | the channel-name vocabulary is declared in `core`; both sides read it from there |
+| `core` → `check` | boot has to run guardrails, so `core` looks like it needs the rule set | `core` owns the rule *interface* and the runner; each rule ships in the subsystem that owns the concept; `check` (5) owns the static set ([`01-module-map.md`](01-module-map.md)) |
+| `schema` → `model` | a migration generator wants to read model declarations | the generator lives in `cli` (6) and passes a declaration snapshot **into** `schema` as a value |
+| `api` → `action` | REST resources look like actions | `api` resources are generated over `model` + `router`; an app's own callbacks are blocks it supplies |
+| `jobs` → `notify` | notifications deliver through the queue | inverted: `notify` (3) requires `jobs` (2) and enqueues |
+| `model` → `render` | serialization of a `:money` field for the admin | `model` exposes typed values; `render` and `api` decide presentation |
+| `render` → `auth` | a screen has to know whether this actor may see it | refused, and this is the edge that fixes `policy`'s tier. The decision is `policy`'s and `policy` is tier **1**; the *actor* is `auth`'s and arrives as an opaque value the request already resolved. `render` (2) requires `policy` (1) and never `auth` (3) |
+
+**`schema` sits at tier 1, not beside `core` at 0**, because it requires `core` for error codes and column value types. Colloquially both are "the bottom"; the table records the actual direction, so no exception line is needed.
+
+**`policy` sits at tier 1, not beside `auth` at 3**, and the reason is the same rule applied harder. `render` and `realtime` are tier 2 and both must evaluate policies; imports go strictly down, so an evaluator at tier 3 is unreachable from the two surfaces that need it most. `policy` therefore takes the actor as an opaque value — exactly as `router` at tier 1 takes a path without knowing what a screen is — and `auth` at tier 3 supplies that value and never decides. The full argument: [`01-module-map.md`](01-module-map.md#why-policy-is-tier-1).
+
+### How it is enforced
+
+[`../../apps/magik/scripts/checks/boundaries.rb`](https://raw.githubusercontent.com/developerz-ai/magik/main/apps/magik/scripts/checks/boundaries.rb), run directly today and a `bin/check` step once one is wired:
+
+```
+1. read       every apps/magik/lib/magik/**/*.rb
+2. scan       require / require_relative statements and constant references (regex over source — no app boot needed)
+3. resolve    specifier → owning subsystem, or "internal file of another subsystem"
+4. evaluate   tier(importer) > tier(imported)? front door only?
+5. report     one finding per violation: file:line, both subsystems, both tiers, allowed set
+```
+
+| Property | Detail |
+|---|---|
+| Codes | `MAGIK_DEV_BOUNDARY_TIER` (sideways or upward) · `MAGIK_DEV_BOUNDARY_INTERNAL_REQUIRE` (past the front door) · `MAGIK_DEV_BOUNDARY_TABLE_DRIFT` (a document restates the table and no longer agrees with the code). Repo-internal, because a check is something only this checkout can run — the framework codes `MAGIK_BOUNDARY_TIER` and `MAGIK_BOUNDARY_INTERNAL_REQUIRE` stay reserved for the `magik check` that will raise them inside somebody's application ([`03-error-codes.md`](03-error-codes.md#the-dev-namespace-codes-that-never-reach-an-app)) |
+| Cost | a source scan, no boot, no database |
+| Where it runs | `ruby apps/magik/scripts/checks/boundaries.rb`, and CI. Not in `magik server` — a tier violation is a repo defect, not an app one |
+| `--json` | one finding object per violation, same schema as every other check ([`03-error-codes.md`](03-error-codes.md)) |
+
+The third code is the one that keeps this page honest: the table is written three times — here, in [`01-module-map.md`](01-module-map.md), and in `apps/magik/scripts/lib/tiers.rb` — and only the third is authoritative.
+
+## Rule two — domains, inside an app
+
+Spec item 12. The same idea one level up: an app's own modules, with a boundary the boot enforces.
+
+```ruby
+# domains/billing/domain.rb
+domain :Billing do
+  depends_on       :Accounts
+  exposes          :InvoiceSummary, :charge_customer
+  publishes_events :invoice_paid, :invoice_failed
+end
+```
+
+```
+domains/
+  billing/
+    domain.rb              # the declaration above
+    app/                   # the SAME tree as a flat app, one level in
+      models/              # owned by Billing — private unless exposed
+      screens/
+      actions/
+      components/          # domain-scoped component overrides
+    test/
+  accounts/
+    domain.rb
+    app/
+    test/
+```
+
+**A domain contains the same `app/` tree as a flat app** — `app/models/invoice.rb` becomes `domains/billing/app/models/invoice.rb` and nothing inside the file changes. The prescribed layout is [`../../apps/magik/wiki/Project-Layout.md`](../../wiki/Project-Layout.md), demonstrated by [`../../apps/magik/dummy/`](https://github.com/developerz-ai/magik/tree/main/apps/magik/dummy); a generator that invents a path is a bug.
+
+| Declaration | Meaning |
+|---|---|
+| `depends_on` | the domains this one may use. Undeclared use fails at boot, even if `exposes` would have allowed it. |
+| `exposes` | the only constants and methods other domains may reach — the domain's public surface. |
+| `publishes_events` | the events other domains may subscribe to. The decoupled path: a subscriber needs no `depends_on`. |
+
+### What fails, and when
+
+| Violation | When | Code |
+|---|---|---|
+| Referencing another domain's model constant directly | boot | `MAGIK_DOMAIN_BOUNDARY` |
+| Using a domain not in `depends_on` | boot | `MAGIK_DOMAIN_UNDECLARED_DEPENDENCY` |
+| A dependency cycle between domains | boot | `MAGIK_DOMAIN_CYCLE` |
+| Subscribing to an event no domain publishes | boot | `MAGIK_DOMAIN_UNKNOWN_EVENT` |
+| Two domains declaring the same model | boot | `MAGIK_DOMAIN_DUPLICATE_OWNER` |
+
+Boot-time is the whole point: a domain boundary enforced by review erodes at exactly the moment the app is large enough to need it. The intended failure shape:
+
+```
+MAGIK_DOMAIN_BOUNDARY  domains/billing/app/actions/charge.rb:12
+
+  domain :Billing references Accounts::User directly.
+  Accounts exposes: :AccountSummary, :find_account. Billing depends_on: [:Accounts].
+
+  fix: magik check --domains
+```
+
+### Legal paths between domains
+
+| Path | Shape | Coupling |
+|---|---|---|
+| Exposed interface | `Accounts.find_account(id)` | compile-time-ish: `depends_on` required, boot-verified |
+| Published event | `on :invoice_paid do |event| … end` | loose: no `depends_on`, publisher does not know the subscriber |
+| Shared value types | `Magik::Money`, `Magik::Timestamp` — framework types | none |
+| Anything else | — | refused at boot |
+
+An app that declares no domains has exactly one implicit domain, and none of these rules bites. Domains are for the large-app case the spec names; they are not a tax on a small app.
+
+## Rule three — component shadowing
+
+Replacing a kit component is a boundary event too: the registry resolves `component :Modal` to one definition, and every other component composes whatever it resolved to.
+
+| Rule | Detail |
+|---|---|
+| Resolution order | `app/components/` → `domains/<name>/components/` → a `kit :name` gem → the Magik built-in. First match wins, no merging ([`../idea/08-component-overrides.md`](../idea/08-component-overrides.md)). |
+| Scope | a domain-scoped override applies inside that domain only; it never changes another domain's rendering. |
+| Contract | a replacement declaring `satisfies Magik::Kit::X` is verified at boot — missing prop, slot, target or event fails with `MAGIK_COMPONENT_CONTRACT_VIOLATION`. |
+| Visibility | `magik check` prints every shadow and its scope. An override nobody can see is the silent magic the design exists to prevent. |
+
+## Why boundaries at all
+
+| Without | With |
+|---|---|
+| every subsystem eventually requires every other, and the gem cannot be reasoned about or split | the dependency graph is a DAG you can read in one table |
+| domain boundaries hold only while the team is small and disciplined | they hold because the app does not boot otherwise |
+| a component override changes rendering somewhere nobody looked | the shadow is reported and its contract is verified |
+
+---
+
+## About this copy
+
+**Generated file — do not edit.** This page is the packaged mirror of the repository's
+`docs/architecture/02-boundaries.md` at Magik 0.0.1, rendered by
+`apps/magik/scripts/checks/shipped_mirrors.rb`. An installed gem has no repository around it,
+so every link whose target the gem packages points at that packaged copy — version-matched by
+construction — and every other link points at the repository. Regenerate after editing the
+original:
+
+```bash
+ruby apps/magik/scripts/checks/shipped_mirrors.rb --write
+```
