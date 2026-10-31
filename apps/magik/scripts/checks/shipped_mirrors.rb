@@ -433,7 +433,7 @@ module MagikScripts
       # @return [MagikScripts::Result]
       def regenerate
         fresh = self.class.render_all(version: Library.load!::VERSION)
-        fresh.each { |mirror, body| write_mirror(mirror, body) }
+        fresh.each { |mirror, body| self.class.write_mirror(mirror, body) }
 
         ok(expected: expectation,
            got: "wrote #{fresh.size} mirrors under docs/, generated from the checkout's docs/ originals")

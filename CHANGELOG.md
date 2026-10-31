@@ -248,6 +248,13 @@ the repository being brought back into agreement with it.
   failure at all. The shipped-links check keeps its concrete `in apps/magik/<page>:<line>, replace
   <target> with <replacement>` edits for a dangling, unpackaged, filesystem-absolute or
   mutable-`main` link.
+- **`shipped_mirrors.rb --write` regenerates instead of raising `NoMethodError`.** The write path
+  called `write_mirror` on the check instance while the method is defined on the class, so a refresh
+  with sources present died before writing anything — and the suite stayed green, because the routing
+  test stubs `render_all` and never reaches the write. The call now dispatches through `self.class`,
+  and a regeneration test runs a real refresh against a temp checkout laid out like the repository's
+  and asserts the mirrors written there are the fresh renders of their sources. Re-derive:
+  `ruby apps/magik/scripts/checks/shipped_mirrors.rb --write && ruby apps/magik/scripts/checks/shipped_mirrors.rb`
 - **`apps/magik/PUBLISHING.md`'s inventory tells release reviewers the truth about `docs/`**: the gem
   ships the generated mirror tree, the checkout-root originals stay out — not "docs/ is not
   packaged".

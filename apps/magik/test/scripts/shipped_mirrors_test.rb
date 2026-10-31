@@ -1,5 +1,8 @@
 # frozen_string_literal: true
 
+require "fileutils"
+require "tmpdir"
+
 require_relative "helper"
 
 require_relative "../../scripts/checks/shipped_mirrors"
@@ -223,7 +226,50 @@ class MagikScriptsShippedMirrorsTest < Minitest::Test
     refute_includes result.fix, "git checkout"
   end
 
+  # The routing test above stubs `render_all`, so it never reaches the write.
+  # This one runs a real refresh against a temp checkout, so the `--write` path
+  # is exercised to its last line: a write that is skipped, or dispatched to a
+  # method that does not exist on the instance, fails here and not only at the
+  # gate.
+  def test_write_regenerates_the_mirrors_into_the_app_tree
+    MagikScripts::Library.load! # resolve `lib/` through the real root before it is re-rooted
+    source_body = "Regenerated: [`sibling.md`](sibling.md).\n"
+
+    Dir.mktmpdir do |tmp|
+      checkout = File.join(tmp, "repo")
+      app_root = File.join(checkout, "apps/app")
+      FileUtils.mkdir_p([app_root, File.join(checkout, "docs/idea")])
+      File.write(File.join(checkout, "docs/idea/regenerated.md"), source_body)
+
+      result = with_repo_root(app_root) { Mirrors.new(write: true).run }
+
+      assert_equal MagikScripts::Result::PASS, result.status, result.got
+      assert_includes result.got, "wrote 1 mirror"
+
+      mirror = File.join(app_root, "docs/idea/regenerated.md")
+
+      assert_path_exists mirror
+      assert_equal Mirrors.render(source_body, version: Magik::VERSION,
+                                               source: "../../docs/idea/regenerated.md"),
+                   File.read(mirror)
+    end
+  end
+
   private
+
+  # Run the block with {MagikScripts::Repo} rooted at `app_root`, restoring the
+  # real root afterwards — the same singleton-method swap the routing test
+  # applies to `render_all`. The temp layout mirrors the real one — a checkout
+  # with the app two levels down, `tmp/repo/apps/app` beside `tmp/repo/docs` —
+  # so `sources` globs the checkout two levels above the root, `read_source`
+  # reads it there, and `write_mirror` writes the mirror into the app tree.
+  def with_repo_root(app_root)
+    original_root = MagikScripts::Repo.method(:root)
+    MagikScripts::Repo.define_singleton_method(:root) { Pathname.new(app_root) }
+    yield
+  ensure
+    MagikScripts::Repo.define_singleton_method(:root, original_root)
+  end
 
   # A refresh failure as the check's rescue receives it.
   #
