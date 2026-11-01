@@ -232,6 +232,16 @@ the repository being brought back into agreement with it.
 
 ### Fixed
 
+- **The build-step smoke test's child runs the gate on plain rubygems, not inside the
+  suite's bundle.** `CheckScriptTest` spawns `bin/check` with a PATH holding nothing but
+  its `gem` stub, and Open3's partial-environment form inherits everything else — under
+  `bundle exec`, how CI runs the suite, that carries `RUBYOPT=-rbundler/setup` and
+  `BUNDLE_GEMFILE`, so the child re-entered Bundler before `bin/check` ran a line and died
+  evaluating the gemspec's file list with no `git` on that PATH (`Bundler::GemspecError`,
+  all four engine jobs). The child now deletes the variables Bundler injects (`BUNDLE*`,
+  `RUBYOPT`, `RUBYLIB`, `GEM_HOME`, `GEM_PATH`) and inherits the rest untouched, and the
+  file passes `rake -C apps/magik rubocop`, which the moved copy did not (nine
+  autocorrectable offenses). Re-derive: `bundle exec rake -C apps/magik rubocop`.
 - **A PR touching only `apps/magik/Gemfile` or the root `.rubocop.yml` can no longer skip CI's Ruby
   jobs.** Neither path matched the `ruby` paths-filter, so a dependency bump or a lint-rule change
   reached `main` with the affected jobs never run. Both are in the filter now, beside the workspace

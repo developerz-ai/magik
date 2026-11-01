@@ -38,9 +38,11 @@ class CheckScriptTest < Minitest::Test
       # target. That is the instant a symlink race would fire, so that is the
       # moment the assertion reads.
       argv, target, mode = File.readlines(log).map(&:strip)
+
       assert_equal "build", argv.split("\t").first, "the stub ran the build, not something else"
 
       staging = File.dirname(target)
+
       refute_equal Dir.tmpdir, staging,
                    "the artifact must never sit directly in the shared system tmpdir, where " \
                    "another local user can plant a symlink at a predictable name"
@@ -52,15 +54,16 @@ class CheckScriptTest < Minitest::Test
                    "other local user can reach the path gem build writes to"
 
       data = JSON.parse(out)
-      assert_equal true, data["ok"]
+
+      assert(data["ok"])
       assert_equal "pass", data.dig("steps", 0, "status")
 
       # Nothing survives the run: no artifact, no staging directory, and never
       # again the fixed shared-tmpdir name the step once used.
-      refute File.exist?(target), "the smoke artifact is cleaned up"
-      refute File.exist?(staging), "the private staging directory is cleaned up"
-      refute File.exist?(File.join(Dir.tmpdir, "magik-gem-build-smoke.gem")),
-             "the fixed shared-tmpdir name is gone for good"
+      refute_path_exists target, "the smoke artifact is cleaned up"
+      refute_path_exists staging, "the private staging directory is cleaned up"
+      refute_path_exists File.join(Dir.tmpdir, "magik-gem-build-smoke.gem"),
+                         "the fixed shared-tmpdir name is gone for good"
     end
   end
 
@@ -69,12 +72,12 @@ class CheckScriptTest < Minitest::Test
   # Runs bin/check with `gem` resolved to a stub that records its argv, the
   # --output target and the mode of the target's directory at write time, then
   # produces the artifact so the step's pass path completes. stdout and stderr
-  # are captured separately: stdout carries the JSON the case parses.
+  # are captured separately: stdout carries the JSON the case parses. bin/check's
+  # arguments are forwarded anonymously.
   #
-  # @param args [Array<String>] bin/check's arguments
   # @param gem_log [String] where the stub appends what it saw
   # @return [Array(String, String, Integer)] stdout, stderr, exit status
-  def run_check(*args, gem_log:)
+  def run_check(*, gem_log:)
     bin = File.dirname(gem_log)
     File.write(File.join(bin, "gem"), <<~RUBY)
       #!#{RUBY}
@@ -90,7 +93,20 @@ class CheckScriptTest < Minitest::Test
     RUBY
     FileUtils.chmod(0o755, File.join(bin, "gem"))
 
-    out, err, status = Open3.capture3({ "PATH" => bin }, RUBY, CHECK, *args)
+    # The suite runs under `bundle exec` — on CI and inside bin/check's own test
+    # step alike — and Bundler injects itself into every child: RUBYOPT carries
+    # `-rbundler/setup` and BUNDLE_GEMFILE names the root Gemfile. This child's
+    # PATH holds nothing but the stub, so a bundler boot dies evaluating the
+    # gemspec's `git ls-files` file list — Bundler::GemspecError, "No such file
+    # or directory - git" — before bin/check runs a line. A nil value deletes a
+    # variable from the child's environment, so the gate under test runs on
+    # plain rubygems, exactly as it does for a developer outside the bundle;
+    # everything else (HOME, TMPDIR) is inherited untouched.
+    injected = /\A(?:BUNDLE|RUBYOPT|RUBYLIB|GEM_HOME|GEM_PATH)/
+    env = ENV.to_h { |key, value| injected.match?(key) ? [key, nil] : [key, value] }
+    env["PATH"] = bin
+
+    out, err, status = Open3.capture3(env, RUBY, CHECK, *)
     [out, err, status.exitstatus]
   end
 end
