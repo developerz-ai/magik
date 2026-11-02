@@ -14,11 +14,11 @@ ledgers, APIs and admin — server-rendered on TruffleRuby, with your agent doin
 
 [The spec — the source of truth](docs/idea/00-build-spec.md) ·
 [Why AI-first](docs/idea/07-ai-first.md) ·
-[Roadmap](ROADMAP.md) ·
+[Roadmap](apps/magik/ROADMAP.md) ·
 [Docs](docs/idea/) ·
-[Wiki](wiki/Home.md) ·
+[Wiki](apps/magik/wiki/Home.md) ·
 [API reference](https://developerz-ai.github.io/magik/api/) ·
-[llms.txt](llms.txt)
+[llms.txt](apps/magik/llms.txt)
 
 </div>
 
@@ -71,10 +71,10 @@ trapped*. It is the same mechanism.
 >
 > `0.0.1` is a name reservation on RubyGems and nothing more — see [CHANGELOG.md](CHANGELOG.md).
 > Nothing here has been benchmarked, deployed, or run against a database, and this file will say so
-> until that changes. `As of 2026-08-26`; re-derive with `ruby -Ilib exe/magik version --json` and
+> until that changes. `As of 2026-08-26`; re-derive with `ruby -Iapps/magik/lib apps/magik/exe/magik version --json` and
 > `gem list -r magik --all`.
 
-> **If you are a coding agent, start with [`llms.txt`](llms.txt)** — the whole repository as one link
+> **If you are a coding agent, start with [`llms.txt`](apps/magik/llms.txt)** — the whole repository as one link
 > map, and the shortest route to knowing which parts exist. Then read
 > [`CLAUDE.md`](CLAUDE.md), the working contract for changes made inside this repo, and
 > [`.claude/README.md`](.claude/README.md) for the agents and slash commands this repo ships.
@@ -146,7 +146,7 @@ wants to help.
 
 **State `As of 2026-08-26`: none of the above is implemented.** It is a design, written down before
 the code so the shape is fixed while changing it is still cheap. Re-derive what is real with
-`ruby -Ilib exe/magik help` and `rake test`.
+`ruby -Iapps/magik/lib apps/magik/exe/magik help` and `rake -C apps/magik test`.
 
 ## Choosing a framework is normally a one-way door
 
@@ -310,7 +310,7 @@ MAGIK_LEDGER_UNBALANCED: ledger :Payouts does not balance
 ```
 
 → [the full guardrail catalogue](docs/idea/03-guardrails.md) ·
-[the error codes](wiki/Error-Codes.md)
+[the error codes](apps/magik/wiki/Error-Codes.md)
 
 ## Phases
 
@@ -329,11 +329,11 @@ The build order from [the spec](docs/idea/00-build-spec.md). One status column, 
 | 8 · i18n, PWA, Notifications | `locales`, `translatable:`, timezone-safe timestamps, `pwa`, `notification`, email production | not implemented |
 | 9 · Testing | a Minitest-compiling `test` DSL, inferred factories, thread-parallel runner, `magik test` | not implemented |
 
-Re-derive the status of any subsystem rather than trusting this table: `ruby -Ilib exe/magik help`
-for the CLI's real surface, `rake test` for what is proven, and
-`grep -rln NotImplementedError lib/magik` for what is still a stub.
+Re-derive the status of any subsystem rather than trusting this table: `ruby -Iapps/magik/lib apps/magik/exe/magik help`
+for the CLI's real surface, `rake -C apps/magik test` for what is proven, and
+`grep -rln NotImplementedError apps/magik/lib/magik` for what is still a stub.
 → [docs/idea/06-phases.md](docs/idea/06-phases.md) for what each phase contains ·
-[ROADMAP.md](ROADMAP.md) for the sequencing and what a phase must demonstrate before it closes.
+[ROADMAP.md](apps/magik/ROADMAP.md) for the sequencing and what a phase must demonstrate before it closes.
 
 ## The architecture decisions
 
@@ -343,7 +343,7 @@ repository exists in this order — changing one is a change to
 
 | Decision | The rule | Why it is not negotiable |
 |---|---|---|
-| **Runtime** | TruffleRuby. Concurrency is real, parallel OS threads — no GVL | the performance ceiling that makes a Ruby framework worth building now, and it is measured rather than assumed ([the evidence](docs/architecture/12-runtime-verification.md), re-derivable from `scripts/probes/`). CRuby ≥ 3.2 is supported for development tooling only, never as a production target |
+| **Runtime** | TruffleRuby. Concurrency is real, parallel OS threads — no GVL | the performance ceiling that makes a Ruby framework worth building now, and it is measured rather than assumed ([the evidence](docs/architecture/12-runtime-verification.md), re-derivable from `apps/magik/scripts/probes/`). CRuby ≥ 3.2 is supported for development tooling only, never as a production target |
 | **Server** | Rack + Puma, single mode: one process, one thread pool | TruffleRuby runs threads in parallel, so one process uses every core it is given — and it has no `fork`, so there are no clustered workers to reason about. More capacity is more containers |
 | **Database** | Sequel, never ActiveRecord. Explicit queries, no lazy-loading magic | an N+1 you cannot see is an N+1 you cannot fix |
 | **No SPA framework** | server-rendered HTML plus htmx attributes, compiled from the DSL. No React, Vue or Ember — ever | one language, one render path, no client build step |
@@ -436,7 +436,7 @@ can raise, so an agent can look up a spelling without a web search. **`magik hel
 says which is which:
 
 ```sh
-ruby -Ilib exe/magik help    # every command, with its status
+ruby -Iapps/magik/lib apps/magik/exe/magik help    # every command, with its status
 ```
 
 Your generated project also gets `bin/` and `scripts/` directories of its own, so the agent working
@@ -452,12 +452,12 @@ file is.
 
 | What ships | Detail |
 |---|---|
-| **Zero runtime dependencies** | the gem loads nothing but the standard library. The gems Magik intends to wrap are listed in [`magik.gemspec`](magik.gemspec) as comments, to be added by the phase that needs each one |
-| `lib/magik.rb` | plain `autoload` over a `Magik::SUBSYSTEMS` map, so requiring `magik` reads one file |
+| **Zero runtime dependencies** | the gem loads nothing but the standard library. The gems Magik intends to wrap are listed in [`magik.gemspec`](apps/magik/magik.gemspec) as comments, to be added by the phase that needs each one |
+| `apps/magik/lib/magik.rb` | plain `autoload` over a `Magik::SUBSYSTEMS` map, so requiring `magik` reads one file |
 | `Magik::Error` | real and tested: a stable `MAGIK_*` code, a cause, and a runnable `fix:` line, with a `to_h` for `--json`. The convention, working, before any catalogue exists |
 | `magik version` · `magik help` · `magik docs` | a working CLI, all with `--json`. `help` lists every spec'd command and marks it `ready` or `planned`; `docs` serves the documentation packaged inside the gem |
 | 20 subsystem stubs | one per planned subsystem, each exposing `SPEC_PHASE`, `DSL_SURFACE` and `STATUS`, with a `.define` that raises `NotImplementedError` naming the spec |
-| the test suite | Minitest, **passing on bare Ruby with no bundle** — `rake test` |
+| the test suite | Minitest, **passing on bare Ruby with no bundle** — `rake -C apps/magik test` |
 
 That is the whole of it. There is no `App.define`, no `model`, no `screen`, no `action`, no `policy`,
 no `layout`, no router, no server, no database code.
@@ -469,24 +469,24 @@ This repository is the framework, not an app built with it.
 ```sh
 bin/setup        # dependencies and the local toolchain, idempotent
 bin/check        # THE GATE — the same steps CI runs. Green means the tree is shippable
-rake test        # the suite alone; works on bare Ruby, no bundle needed
+rake -C apps/magik test        # the suite alone; works on bare Ruby, no bundle needed
 ```
 
 | Task | Command |
 |---|---|
 | the gate, as CI runs it | `bin/check` · one step: `bin/check --only test` · as data: `bin/check --json` |
-| every rake task | `rake -T` — `build`, `check`, `docs:coverage`, `rubocop`, `test`, `yard` |
-| tests | `rake test` |
-| lint | `rake rubocop` (RuboCop comes from `bundle install`) |
-| docs | `rake yard` · coverage: `rake docs:coverage` |
-| the CLI, from source | `ruby -Ilib exe/magik version --json` · `ruby -Ilib exe/magik help` |
+| every rake task | `rake -C apps/magik -T` — `build`, `check`, `docs:coverage`, `rubocop`, `test`, `yard` |
+| tests | `rake -C apps/magik test` |
+| lint | `rake -C apps/magik rubocop` (RuboCop comes from `bundle install`) |
+| docs | `rake -C apps/magik yard` · coverage: `rake -C apps/magik docs:coverage` |
+| the CLI, from source | `ruby -Iapps/magik/lib apps/magik/exe/magik version --json` · `ruby -Iapps/magik/lib apps/magik/exe/magik help` |
 | a console | `bin/console` |
 | the dev loop — rerun the tests on save | `bin/dev` · one pass: `bin/dev --once` |
-| release pre-flight (prints, never publishes) | `bin/release` · [PUBLISHING.md](PUBLISHING.md) |
-| Postgres and friends, in containers | `docker/compose.yml` · [`.devcontainer/`](.devcontainer/) |
+| release pre-flight (prints, never publishes) | `bin/release` · [PUBLISHING.md](apps/magik/PUBLISHING.md) |
+| Postgres and friends, in containers | `apps/magik/docker/compose.yml` · [`.devcontainer/`](.devcontainer/) |
 
-`rake test` needs nothing but Ruby and Rake. RuboCop and YARD are development dependencies — run
-`bin/setup` (or `bundle install`) before `rake rubocop` or `rake yard`, or the task aborts with the
+`rake -C apps/magik test` needs nothing but Ruby and Rake. RuboCop and YARD are development dependencies — run
+`bin/setup` (or `bundle install`) before `rake -C apps/magik rubocop` or `rake -C apps/magik yard`, or the task aborts with the
 install hint rather than pretending to pass.
 
 TruffleRuby is the production runtime and is **not** assumed to be installed locally; anything
@@ -517,16 +517,16 @@ One hop per question.
 | why a decision was made | [docs/idea/](docs/idea/) |
 | how a subsystem is meant to work | [docs/architecture/](docs/architecture/) |
 | running an app for real | [docs/ops/README.md](docs/ops/README.md) |
-| the reference manual | [wiki/Home.md](wiki/Home.md) |
-| the generated API docs | [developerz-ai.github.io/magik/api/](https://developerz-ai.github.io/magik/api/) — built by [`docs.yml`](.github/workflows/docs.yml) from `rake yard` |
-| where code goes in an app you build | [wiki/Project-Layout.md](wiki/Project-Layout.md) · [dummy/](dummy/) — an invoicing/billing SaaS |
-| what is planned, in what order | [ROADMAP.md](ROADMAP.md) |
-| the machine-readable repo map | [llms.txt](llms.txt) |
+| the reference manual | [wiki/Home.md](apps/magik/wiki/Home.md) |
+| the generated API docs | [developerz-ai.github.io/magik/api/](https://developerz-ai.github.io/magik/api/) — built by [`docs.yml`](.github/workflows/docs.yml) from `rake -C apps/magik yard` |
+| where code goes in an app you build | [wiki/Project-Layout.md](apps/magik/wiki/Project-Layout.md) · [dummy/](apps/magik/dummy/) — an invoicing/billing SaaS |
+| what is planned, in what order | [ROADMAP.md](apps/magik/ROADMAP.md) |
+| the machine-readable repo map | [llms.txt](apps/magik/llms.txt) |
 | the contract for changing this repo | [CLAUDE.md](CLAUDE.md) (`AGENTS.md` is a symlink to it) |
 | how to contribute | [CONTRIBUTING.md](CONTRIBUTING.md) · [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md) |
 | reporting a vulnerability | [SECURITY.md](SECURITY.md) |
 | what changed | [CHANGELOG.md](CHANGELOG.md) |
-| how a release is cut and published | [PUBLISHING.md](PUBLISHING.md) |
+| how a release is cut and published | [PUBLISHING.md](apps/magik/PUBLISHING.md) |
 
 ## Never claimed
 

@@ -57,7 +57,7 @@ The five the spec names explicitly, plus seven the same rule catches by implicat
 | **Storage** | Shrine, local disk | uploads work before an S3 account exists | S3 and compatibles via Shrine — candidate | not implemented |
 | **Billing** | Stripe | the widest coverage of the plan shapes `billing` declares | Paddle (named in the spec) — candidate | not implemented |
 | **Mail transport** | SMTP | the one transport every provider speaks | Postmark, SES, Resend — candidates | not implemented |
-| **Throttle store** | Postgres | rate limits are counters, and decision 9 forbids a counter living in a process — so this is a seam by construction. [`../../wiki/API-And-Webhooks.md`](../../wiki/API-And-Webhooks.md) already names it; this page did not | Redis — candidate | not implemented |
+| **Throttle store** | Postgres | rate limits are counters, and decision 9 forbids a counter living in a process — so this is a seam by construction. [`../../apps/magik/wiki/API-And-Webhooks.md`](../../apps/magik/wiki/API-And-Webhooks.md) already names it; this page did not | Redis — candidate | not implemented |
 | **Bot challenge** | none — off by default | a CAPTCHA has a real accessibility and privacy cost, so imposing one on every app is the wrong opinion. The vendor space is volatile on both price and policy, which is exactly what item 11 exists to survive | Turnstile, hCaptcha, reCAPTCHA — candidates | not implemented |
 | **JSON codec** | `ruby/json` from the standard library | the fast path is engine-dependent: `ruby/json` selects a pure-Ruby generator under TruffleRuby, and the C-extension alternatives do not name TruffleRuby as a supported platform. A dependency that is a C extension, or that reaches for a runtime primitive, is a seam until a probe says otherwise on the production engine ([`../architecture/10-performance-defaults.md`](../architecture/10-performance-defaults.md)) | `use :json, :oj` — candidate, and only where a probe shows it loads and wins on the production engine | not implemented |
 | **Media processing** | a media service | transcoding, packaging and adaptive delivery are a specialist product. A framework that builds one has become a media company ([`10-saas-coverage.md`](10-saas-coverage.md)) | Mux, Cloudflare Stream, Bunny — candidates; `ffmpeg` in a job for teams that want no vendor, at the cost of a dedicated queue, a machine shape and the input-validation burden | not implemented |
@@ -91,7 +91,7 @@ Escape hatches that promise more than they deliver are the failure mode being av
 | # | Step |
 |---|---|
 | 1 | Write the conformance suite first — the behaviour every backend for this seam must exhibit, including failure modes. |
-| 2 | Implement the interface under `lib/magik/<subsystem>/backends/<name>.rb` ([`../architecture/01-module-map.md`](../architecture/01-module-map.md)). |
+| 2 | Implement the interface under `apps/magik/lib/magik/<subsystem>/backends/<name>.rb` ([`../architecture/01-module-map.md`](../architecture/01-module-map.md)). |
 | 3 | Register it so `use :<seam>, :<name>` resolves, and so an unknown name raises with the list of known ones. |
 | 4 | Run the suite against **every** backend for the seam in CI, not just the new one. |
 | 5 | Boot an example app on it with a zero-line app diff. |

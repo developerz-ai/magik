@@ -25,8 +25,8 @@
   "forwardPorts": [3000, 5432, 6379],
   "portsAttributes": {
     "3000": { "label": "magik server (planned — nothing listens yet)", "onAutoForward": "silent" },
-    "5432": { "label": "postgres (docker/compose.yml)", "onAutoForward": "silent" },
-    "6379": { "label": "redis (docker/compose.yml, swap profile)", "onAutoForward": "silent" }
+    "5432": { "label": "postgres (apps/magik/docker/compose.yml)", "onAutoForward": "silent" },
+    "6379": { "label": "redis (apps/magik/docker/compose.yml, swap profile)", "onAutoForward": "silent" }
   },
   "customizations": {
     "vscode": {

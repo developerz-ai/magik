@@ -2,7 +2,7 @@
 
 An adversarial test of one sentence in [`00-build-spec.md`](00-build-spec.md): that Magik covers *"99% of SaaS use cases (CRUD apps, dashboards, fintech, ecommerce, marketplaces) without the user needing to 'graduate' to another stack."*
 
-**Status:** spec only. This page audits a specification, not an implementation. Nothing described as present is *built* — "covered" throughout means *the grammar has a construct for it and the docs specify its behaviour*, and every such construct is `planned` ([`../../wiki/Known-Gaps.md`](../../wiki/Known-Gaps.md)). Nothing on this page has been measured, run, or tested. Reviewed 2026-08-26.
+**Status:** spec only. This page audits a specification, not an implementation. Nothing described as present is *built* — "covered" throughout means *the grammar has a construct for it and the docs specify its behaviour*, and every such construct is `planned` ([`../../apps/magik/wiki/Known-Gaps.md`](../../apps/magik/wiki/Known-Gaps.md)). Nothing on this page has been measured, run, or tested. Reviewed 2026-08-26.
 
 ## Verdict
 
@@ -47,7 +47,7 @@ Being adversarial about a spec means saying where the adversarial reading fails.
 
 | Area | Why it holds |
 |---|---|
-| **N+1 and debugging** | this is the best-designed part of the spec and the owner's instinct to check it was already answered. Prevention over detection: there is no lazy loading at all, so `MAGIK_MODEL_LAZY_ASSOCIATION` raises where other frameworks issue a silent query ([`../../wiki/Models.md`](../../wiki/Models.md)). On top of that, [`../architecture/06-observability.md`](../architecture/06-observability.md) specifies same-shape-N-times detection in the dev trace, `magik check --scale` in CI, `magik explain query` showing the injected tenant predicate, and a per-request trace tree that most frameworks structurally cannot assemble. **No gap is manufactured here** |
+| **N+1 and debugging** | this is the best-designed part of the spec and the owner's instinct to check it was already answered. Prevention over detection: there is no lazy loading at all, so `MAGIK_MODEL_LAZY_ASSOCIATION` raises where other frameworks issue a silent query ([`../../apps/magik/wiki/Models.md`](../../apps/magik/wiki/Models.md)). On top of that, [`../architecture/06-observability.md`](../architecture/06-observability.md) specifies same-shape-N-times detection in the dev trace, `magik check --scale` in CI, `magik explain query` showing the injected tenant predicate, and a per-request trace tree that most frameworks structurally cannot assemble. **No gap is manufactured here** |
 | **Money and compliance** | `:money` as integer minor units refused at the type system, boot-time ledger balance analysis, `audited`, `immutable_after:`, `idempotent_by:`. The fintech claim in the mission sentence is the one the spec earns most convincingly |
 | **Tenancy** | injected rather than remembered, plus `--scale` warnings for query sites that escape it. Retrofitted tenancy is the migration nobody survives, and the spec does not defer it |
 
@@ -65,7 +65,7 @@ The tension it must respect is the one the thesis already names: opinionated def
 
 ## The coverage table
 
-Sixty-eight surfaces a real SaaS needs across its whole life. **Covered** = a construct exists in the grammar and its behaviour is specified. **Partial** = named somewhere but with a hole a first app hits. **Absent** = nothing in `docs/` or `wiki/` addresses it.
+Sixty-eight surfaces a real SaaS needs across its whole life. **Covered** = a construct exists in the grammar and its behaviour is specified. **Partial** = named somewhere but with a hole a first app hits. **Absent** = nothing in `docs/` or `apps/magik/wiki/` addresses it.
 
 Classification column uses the four categories from the gap analysis below: **(a)** in scope, existing phase; **(b)** in scope, needs a new primitive or phase; **(c)** out of scope, belongs in [`05-limits.md`](05-limits.md); **(d)** not the framework's job.
 
@@ -89,7 +89,7 @@ Classification column uses the four categories from the gap analysis below: **(a
 |---|---|---|---|---|
 | 8 | Screens, routing by convention, actions | Covered | phase 2 | — |
 | 9 | Component kit (12 components) | Covered | phase 2 | — |
-| 10 | **Application shell — sidebar, topbar, nav, breadcrumbs** | **Absent** | when counted, `sidebar`, `app shell` and `breadcrumb` occurred zero times in `docs/` or `wiki/` | **(b)** |
+| 10 | **Application shell — sidebar, topbar, nav, breadcrumbs** | **Absent** | when counted, `sidebar`, `app shell` and `breadcrumb` occurred zero times in `docs/` or `apps/magik/wiki/` | **(b)** |
 | 11 | **Responsiveness, mobile navigation, breakpoints, touch targets** | **Absent** | one occurrence of `responsive` in the whole tree, describing `grid` | **(b)** with 10 |
 | 12 | Dashboard composition | Partial | `grid`, `stat`, `chart`, `card` exist as parts; nothing composes them | (a) phase 2 |
 | 13 | Empty, loading and error states | Partial | `empty:` on `data_table`, nothing else | (a) phase 2 |
@@ -374,22 +374,22 @@ The bar is deliberately high. The spec's design rule is that new capability arri
 
 **This is the most serious gap in the specification.** Not the largest, not the most visible: the most serious, because it is the only one that is simultaneously (i) absent, (ii) unretrofittable, (iii) a security property rather than a convenience, and (iv) already being invented by the first app that tried.
 
-**The evidence that it is already being invented.** [`../../dummy/`](../../dummy/README.md) is the reference app, written against the spec before the framework. It reaches for authorization four times and has to make the DSL up each time:
+**The evidence that it is already being invented.** [`apps/magik/dummy/`](../../apps/magik/dummy/README.md) is the reference app, written against the spec before the framework. It reaches for authorization four times and has to make the DSL up each time:
 
 ```ruby
-# dummy/app/actions/issue_invoice.rb
+# apps/magik/dummy/app/actions/issue_invoice.rb
 authorize { |user, params| user.can?(:issue, Invoice.find(params[:invoice_id])) }
 
-# dummy/app/actions/record_payment.rb
+# apps/magik/dummy/app/actions/record_payment.rb
 authorize { |user, _| user.can?(:record_payment) }
 
-# dummy/app/channels/invoices.rb
+# apps/magik/dummy/app/channels/invoices.rb
 authorize { |user| user.can?(:read, Invoice) }
 ```
 
-`authorize` appears nowhere in [`02-dsl-surface.md`](02-dsl-surface.md). `can?` appears nowhere. The role `:owner` appears in `dummy/config/app.rb` as `two_factor :totp, required_for: [:owner]` with nothing anywhere that declares a role set. **This is the predicted failure happening in the reference app: the first real app invented an authorization system, and the second will invent a different one.** It also invented three different arities for the same block.
+`authorize` appears nowhere in [`02-dsl-surface.md`](02-dsl-surface.md). `can?` appears nowhere. The role `:owner` appears in `apps/magik/dummy/config/app.rb` as `two_factor :totp, required_for: [:owner]` with nothing anywhere that declares a role set. **This is the predicted failure happening in the reference app: the first real app invented an authorization system, and the second will invent a different one.** It also invented three different arities for the same block.
 
-**The guardrail catalogue was already reaching for the construct.** [`../../wiki/Auth-Billing-Admin.md`](../../wiki/Auth-Billing-Admin.md) specifies a boot guardrail, `MAGIK_ADMIN_UNPROTECTED`, on the rule that *"an admin panel with no declared access rule is a boot failure"* — written when there was no way to declare an access rule, so it could only ever fail or be quietly dropped. **A guardrail catalogue containing a rule no app can satisfy is the strongest possible internal evidence that a primitive is missing.** `policy` is what makes the rule satisfiable, and `MAGIK_POLICY_UNDECLARED` is what it becomes — one code covering every surface rather than a special case for the admin.
+**The guardrail catalogue was already reaching for the construct.** [`../../apps/magik/wiki/Auth-Billing-Admin.md`](../../apps/magik/wiki/Auth-Billing-Admin.md) specifies a boot guardrail, `MAGIK_ADMIN_UNPROTECTED`, on the rule that *"an admin panel with no declared access rule is a boot failure"* — written when there was no way to declare an access rule, so it could only ever fail or be quietly dropped. **A guardrail catalogue containing a rule no app can satisfy is the strongest possible internal evidence that a primitive is missing.** `policy` is what makes the rule satisfiable, and `MAGIK_POLICY_UNDECLARED` is what it becomes — one code covering every surface rather than a special case for the admin.
 
 **Why nothing existing can absorb it.** Taking each candidate seriously:
 
@@ -480,9 +480,9 @@ The admin's protection is then `MAGIK_POLICY_UNDECLARED` like every other surfac
 
 #### b2 — `layout`: the application shell as a primitive
 
-**The component kit was a list of components with no layout primitives at all.** `button, form, field, data_table, modal, toast, card, list, grid, tabs, stat, chart` — twelve things that go *inside* a page, and nothing that *is* a page. When this was counted, `sidebar`, `app shell`, `breakpoint` and `breadcrumb` occurred zero times across `docs/` and `wiki/`, and `responsive` occurred once, describing `grid`. Grepping for them now finds the construct this section argued for, which is the only reason the count moved.
+**The component kit was a list of components with no layout primitives at all.** `button, form, field, data_table, modal, toast, card, list, grid, tabs, stat, chart` — twelve things that go *inside* a page, and nothing that *is* a page. When this was counted, `sidebar`, `app shell`, `breakpoint` and `breadcrumb` occurred zero times across `docs/` and `apps/magik/wiki/`, and `responsive` occurred once, describing `grid`. Grepping for them now finds the construct this section argued for, which is the only reason the count moved.
 
-**The evidence, again from the reference app.** `dummy/app/screens/dashboard.rb` and `dummy/app/screens/invoices.rb` both open their `body` directly with content — a `grid` in one, a `tabs` in the other. Neither has a sidebar, a header, a nav or a link to the other. **There is no way to navigate Ledgerline.** The reference application for a framework that claims to cover 99% of SaaS has no navigation, because the grammar has no way to declare any. Nobody noticed, which is the point: an absence in a grammar is invisible until someone tries to use the product.
+**The evidence, again from the reference app.** `apps/magik/dummy/app/screens/dashboard.rb` and `apps/magik/dummy/app/screens/invoices.rb` both open their `body` directly with content — a `grid` in one, a `tabs` in the other. Neither has a sidebar, a header, a nav or a link to the other. **There is no way to navigate Ledgerline.** The reference application for a framework that claims to cover 99% of SaaS has no navigation, because the grammar has no way to declare any. Nobody noticed, which is the point: an absence in a grammar is invisible until someone tries to use the product.
 
 **Why nothing existing can absorb it.**
 
@@ -707,7 +707,7 @@ Stated plainly because the audit was asked to check it and the answer is favoura
 | A request trace most frameworks cannot build | screen → state → query → render → job → broadcast with per-node timings and the dominant node marked, because everything descends from one declaration. `--json` on all of it |
 | `magik explain query` | shows the SQL including the framework-injected tenant predicate — the framework writes part of the query, so it is obliged to show it |
 
-The only gaps worth naming here are small and belong to (a): there is no specified way to **assert** the absence of N+1 in a test (`assert_queries(3) { … }`), and the eager-loading spelling is inconsistent across the docs (`eager(:customer)` in [`02-dsl-surface.md`](02-dsl-surface.md) and the wiki, `includes(:customer)` in `dummy/app/screens/invoices.rb`) — one of the two is wrong and the reference app is the place that will teach whichever survives.
+The only gaps worth naming here are small and belong to (a): there is no specified way to **assert** the absence of N+1 in a test (`assert_queries(3) { … }`), and the eager-loading spelling is inconsistent across the docs (`eager(:customer)` in [`02-dsl-surface.md`](02-dsl-surface.md) and the wiki, `includes(:customer)` in `apps/magik/dummy/app/screens/invoices.rb`) — one of the two is wrong and the reference app is the place that will teach whichever survives.
 
 ### Layout, responsiveness, dashboards, admin, theming, accessibility
 
@@ -806,7 +806,7 @@ The spec names exactly one mechanism — `rate_limit by: :plan` for the API in p
 | Output escaping | **framework guarantee, with `raw` as the single named hatch** | already true in spirit — the app writes no HTML — but it must be *stated* as a guarantee and `raw` must be the one auditable exception, which `magik check` already counts |
 | **Honeypot + submission timing on every `form`** | **framework default, on** | this is the recommendation to argue for hardest. It is zero-dependency, needs no third party, sends nothing to a vendor, has **no accessibility cost** when the field is properly hidden from assistive technology, and catches most naive bots. It is precisely a Magik-shaped opinionated default: invisible, free, and off only by explicit declaration |
 | Login throttling and lockout | **framework default on the generated `auth` flow** | a signup and login flow generated by `auth` with no throttling is a credential-stuffing target the moment it is public |
-| Per-IP / per-actor / per-action throttling generally | **one declaration, over a new seam** | `action :export_all, throttle: { by: :actor, max: 3, per: "1h" }`. **Item 9 (stateless app servers) means the counter cannot live in process**, so it needs a backend — which makes it a swap point by construction. Postgres default, Redis alternative. Note that [`../../wiki/API-And-Webhooks.md`](../../wiki/API-And-Webhooks.md) already names a "rate-limit store" seam that [`04-swap-points.md`](04-swap-points.md) does not list; that inconsistency is fixed by adding the row |
+| Per-IP / per-actor / per-action throttling generally | **one declaration, over a new seam** | `action :export_all, throttle: { by: :actor, max: 3, per: "1h" }`. **Item 9 (stateless app servers) means the counter cannot live in process**, so it needs a backend — which makes it a swap point by construction. Postgres default, Redis alternative. Note that [`../../apps/magik/wiki/API-And-Webhooks.md`](../../apps/magik/wiki/API-And-Webhooks.md) already names a "rate-limit store" seam that [`04-swap-points.md`](04-swap-points.md) does not list; that inconsistency is fixed by adding the row |
 | **Enumeration resistance** | **framework default, not a setting** | identical response and identical timing for "no such account" and "wrong password", and for a reset request whether or not the address exists. This is always got wrong when it is not a default, and there is no legitimate app that wants the other behaviour |
 | Email verification | already generated by `auth` — keep | — |
 | Disposable-domain blocking | **one declaration, off by default** | `auth do signup_domains block: :disposable end`. Off by default because it is a product decision with false positives, and a framework that silently rejects a real user's address is worse than one that does nothing |
@@ -859,7 +859,7 @@ The ordering principle: **anything that wraps every surface must land before the
 
 ### What this changes about 1.0
 
-[`../../ROADMAP.md`](../../ROADMAP.md) defines `1.0.0` as all phases green plus three executable proofs. This audit argued for a **fourth**, because the first three can all be true of an application that is insecure and unusable, and it is now the spec's sixth success criterion:
+[`../../apps/magik/ROADMAP.md`](../../apps/magik/ROADMAP.md) defines `1.0.0` as all phases green plus three executable proofs. This audit argued for a **fourth**, because the first three can all be true of an application that is insecure and unusable, and it is now the spec's sixth success criterion:
 
 > **A generated app is safe and usable on its first run**, proven by: a cross-tenant actor is denied by every generated surface in a test; the generated shell renders correctly at 375px in a test; the generated signup form throttles and does not reveal whether an account exists.
 
@@ -893,4 +893,4 @@ reader of this page knows where to go for the decision rather than the argument:
 | The seams, including the ones this audit adds | [`04-swap-points.md`](04-swap-points.md) |
 | The limits, including the ones this audit adds | [`05-limits.md`](05-limits.md) |
 | Where the (a) items landed | [`06-phases.md`](06-phases.md) |
-| The (b) items as tracked gaps | [`../../wiki/Known-Gaps.md`](../../wiki/Known-Gaps.md) |
+| The (b) items as tracked gaps | [`../../apps/magik/wiki/Known-Gaps.md`](../../apps/magik/wiki/Known-Gaps.md) |

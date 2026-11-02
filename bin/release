@@ -7,10 +7,10 @@
 # not run `gem push`, and it never will: a release is a deliberate human act,
 # and a script that performs one on your behalf is a script that performs one by
 # accident. What it does is check the three things that are always out of sync
-# — lib/magik/version.rb, the git tag, and CHANGELOG.md — and then hand you the
+# — apps/magik/lib/magik/version.rb, the git tag, and CHANGELOG.md — and then hand you the
 # exact commands to paste, in order.
 #
-# The authoritative procedure is PUBLISHING.md. This script is the fast check
+# The authoritative procedure is apps/magik/PUBLISHING.md. This script is the fast check
 # that you are ready to follow it.
 #
 #   bin/release            check, then print the commands
@@ -46,7 +46,7 @@ if ARGV.include?("-h") || ARGV.include?("--help")
       bin/gem-login    cache a rubygems.org key          (once per machine)
       bin/gem-push     publish                           (irreversible)
 
-    See PUBLISHING.md for the authoritative procedure and for who is allowed to
+    See apps/magik/PUBLISHING.md for the authoritative procedure and for who is allowed to
     run the last one.
 
     Options:
@@ -84,7 +84,7 @@ end
 
 # --- version ---------------------------------------------------------------
 
-version_file = "lib/magik/version.rb"
+version_file = "apps/magik/lib/magik/version.rb"
 version =
   (File.read(version_file)[/VERSION\s*=\s*["']([^"']+)["']/, 1] if File.exist?(version_file))
 
@@ -206,11 +206,11 @@ puts
 
 unless failed.empty?
   puts "NOT READY: #{failed.size} check#{"s" unless failed.size == 1} failed. Fix them, then re-run bin/release."
-  puts "The full procedure — including who may publish — is in PUBLISHING.md."
+  puts "The full procedure — including who may publish — is in apps/magik/PUBLISHING.md."
   exit 1
 end
 
-puts "READY. bin/release runs none of these. Read PUBLISHING.md, then paste them yourself:"
+puts "READY. bin/release runs none of these. Read apps/magik/PUBLISHING.md, then paste them yourself:"
 puts <<~COMMANDS
 
   # 1. package the artifact — offline, repeatable, safe to redo
@@ -228,6 +228,6 @@ puts <<~COMMANDS
   git push origin #{tag}
 
 COMMANDS
-puts "PUBLISHING.md is the authority on the order of 3 and 4, and on whether CI"
+puts "apps/magik/PUBLISHING.md is the authority on the order of 3 and 4, and on whether CI"
 puts "publishes for you. Do not run a command because a script printed it."
 exit 0

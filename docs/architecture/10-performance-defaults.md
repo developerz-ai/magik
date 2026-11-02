@@ -42,7 +42,7 @@ CRuby-specific techniques, named so nobody wastes an afternoon:
 | **Bootsnap** | caches CRuby bytecode via `RubyVM::InstructionSequence`, which is CRuby-specific |
 | **GVL-shaped thread-pool arithmetic** | TruffleRuby's README states it "does not have a global interpreter lock and runs both Ruby code and thread-safe native extensions in parallel" ([README](https://github.com/oracle/truffleruby/blob/master/README.md)). The reasoning that produces "5 threads per Puma worker" — thread count as a hedge against a lock — does not transfer. Magik does run Puma; it does not inherit Puma's GVL-shaped arithmetic ([§2.1](#21-connection-pooling-under-a-thread-pool--baked-in)) |
 
-`As of 2026-08-26`. TruffleRuby-specific behaviour is verified by [`scripts/probes/runtime.rb`](../../scripts/probes/runtime.rb) and in CI, never asserted from a laptop's CRuby ([`12-runtime-verification.md`](12-runtime-verification.md)).
+`As of 2026-08-26`. TruffleRuby-specific behaviour is verified by [`apps/magik/scripts/probes/runtime.rb`](../../apps/magik/scripts/probes/runtime.rb) and in CI, never asserted from a laptop's CRuby ([`12-runtime-verification.md`](12-runtime-verification.md)).
 
 ---
 
@@ -143,7 +143,7 @@ Sequel's defaults are `:max_connections` 4 and `:pool_timeout` 5 seconds ([openi
 |---|---|
 | Puma mode | **single mode.** One process, one thread pool. `workers N` does not apply |
 | How you get more capacity | more containers. That is the ops story already ([`../ops/README.md`](../ops/README.md)): stateless app servers behind a load balancer |
-| Why that is the right shape rather than a concession | clustered mode exists because of the GVL — one process cannot use more than one core. TruffleRuby has no GVL and its threads were measured genuinely parallel (`ruby scripts/probes/runtime.rb`). One process *does* use the cores |
+| Why that is the right shape rather than a concession | clustered mode exists because of the GVL — one process cannot use more than one core. TruffleRuby has no GVL and its threads were measured genuinely parallel (`ruby apps/magik/scripts/probes/runtime.rb`). One process *does* use the cores |
 | What is still unmeasured | how many concurrent connections one Puma process on TruffleRuby holds. Named as owed work in [`12-runtime-verification.md`](12-runtime-verification.md) |
 
 **Magik's default: the pool is a declared ceiling, and the total is checked, not assumed.**
@@ -339,7 +339,7 @@ The core of this is already designed elsewhere and is not restated:
 
 | Already covered | Where |
 |---|---|
-| No lazy loading — an unloaded association raises `MAGIK_MODEL_LAZY_ASSOCIATION` rather than issuing a silent query | [`../../wiki/Models.md`](../../wiki/Models.md), [`../idea/05-limits.md`](../idea/05-limits.md) |
+| No lazy loading — an unloaded association raises `MAGIK_MODEL_LAZY_ASSOCIATION` rather than issuing a silent query | [`../../apps/magik/wiki/Models.md`](../../apps/magik/wiki/Models.md), [`../idea/05-limits.md`](../idea/05-limits.md) |
 | N+1, slow query, unscoped query and missing-index detection, in the dev trace and in `magik check --scale` | [`06-observability.md`](06-observability.md) |
 | Why all four are warnings rather than boot failures | [`../idea/03-guardrails.md`](../idea/03-guardrails.md) |
 
@@ -439,7 +439,7 @@ Keep-alive is the operative concern: **a held-open connection occupies a pool th
 
 Spec item 11 names **cache backend** as a required swap point, [`../idea/04-swap-points.md`](../idea/04-swap-points.md) gives it a row (default: in-process memory) and states the app-facing call as `cache.fetch`, and [`../idea/02-dsl-surface.md`](../idea/02-dsl-surface.md) shows `use :cache, :memory` in `App.define`.
 
-**There is no caching construct in the DSL.** The seam exists with no grammar on top of it, which is the one combination the design is supposed to make impossible: a backend nobody can address from a declaration. `wiki/Actions.md` already refers in passing to "the cache it invalidates" — a behaviour with no page defining it.
+**There is no caching construct in the DSL.** The seam exists with no grammar on top of it, which is the one combination the design is supposed to make impossible: a backend nobody can address from a declaration. `apps/magik/wiki/Actions.md` already refers in passing to "the cache it invalidates" — a behaviour with no page defining it.
 
 This is flagged, not filled. Adding a construct is a spec change and belongs in [`../idea/00-build-spec.md`](../idea/00-build-spec.md) first, in its own commit, with the argument ([`00-conventions.md`](00-conventions.md)).
 
@@ -514,9 +514,9 @@ That is a legitimate design only because of one property of the production runti
 | | |
 |---|---|
 | TruffleRuby has no GVL | its README: it "does not have a global interpreter lock and runs both Ruby code and thread-safe native extensions in parallel" ([README](https://github.com/oracle/truffleruby/blob/master/README.md)) |
-| Threads there are genuinely parallel | measured on a warmed workload a JIT cannot fold away: `ruby scripts/probes/runtime.rb`, several times faster on four threads than on one, where CRuby is not faster at all. **Cite the probe, never the ratio** — it moves run to run with machine load, and the results table lives in [`12-runtime-verification.md`](12-runtime-verification.md) |
-| Parallelism survives the IO path | `pg` releases the runtime lock while a query is in flight: eight threads each issuing a one-second query finish in about one second, not eight — `scripts/probes/pg_concurrency.rb`, every engine tested. This is the load-bearing half, because a request spends its life in IO rather than in Ruby |
-| The evidence | `ruby scripts/probes/runtime.rb` — method, results and limits in [`12-runtime-verification.md`](12-runtime-verification.md), `As of 2026-08-26` |
+| Threads there are genuinely parallel | measured on a warmed workload a JIT cannot fold away: `ruby apps/magik/scripts/probes/runtime.rb`, several times faster on four threads than on one, where CRuby is not faster at all. **Cite the probe, never the ratio** — it moves run to run with machine load, and the results table lives in [`12-runtime-verification.md`](12-runtime-verification.md) |
+| Parallelism survives the IO path | `pg` releases the runtime lock while a query is in flight: eight threads each issuing a one-second query finish in about one second, not eight — `apps/magik/scripts/probes/pg_concurrency.rb`, every engine tested. This is the load-bearing half, because a request spends its life in IO rather than in Ruby |
+| The evidence | `ruby apps/magik/scripts/probes/runtime.rb` — method, results and limits in [`12-runtime-verification.md`](12-runtime-verification.md), `As of 2026-08-26` |
 
 **`fork` is not available on TruffleRuby**, which is why the process count is a container count (§2.1) and why nothing in this repo has a forked-worker mode.
 
@@ -524,7 +524,7 @@ That is a legitimate design only because of one property of the production runti
 
 **What is not settled, and this page must not imply it is:** there is no cheap-per-idle-connection primitive on this runtime. A connection costs a thread while it is served and a file descriptor while it is held. Realtime is many mostly-idle connections, the probe measured CPU-bound parallelism, and the two are different questions. The owed measurement is specified in [`12-runtime-verification.md`](12-runtime-verification.md).
 
-One TruffleRuby detail that matters for the database driver: "Native extensions are by default considered thread-unsafe for maximum compatibility with CRuby and use the global extension lock (unless `--cexts-lock=false` is used). Extensions can mark themselves as thread-safe either by using `rb_ext_ractor_safe()` or `rb_ext_thread_safe()`" ([compatibility.md](https://github.com/oracle/truffleruby/blob/master/doc/user/compatibility.md)). A global lock around every query would erase the parallelism the runtime was chosen for, so this was the largest unverified assumption on the page — and it is **now measured rather than assumed**: `scripts/probes/pg_concurrency.rb` runs N threads, one connection each, each issuing `SELECT pg_sleep(1)`, and **the queries overlap on every engine tested** ([`12-runtime-verification.md`](12-runtime-verification.md), `As of 2026-08-26`). `pg` releases the lock. `pg` is also CI-tested on TruffleRuby by its own maintainers ("Add support for TruffleRuby. It is regularly tested as part of our CI", 1.3.0), so neither the driver nor the lock is now the doubt — but the result is engine-and-version specific, and re-running the probe after a major is how it stays true.
+One TruffleRuby detail that matters for the database driver: "Native extensions are by default considered thread-unsafe for maximum compatibility with CRuby and use the global extension lock (unless `--cexts-lock=false` is used). Extensions can mark themselves as thread-safe either by using `rb_ext_ractor_safe()` or `rb_ext_thread_safe()`" ([compatibility.md](https://github.com/oracle/truffleruby/blob/master/doc/user/compatibility.md)). A global lock around every query would erase the parallelism the runtime was chosen for, so this was the largest unverified assumption on the page — and it is **now measured rather than assumed**: `apps/magik/scripts/probes/pg_concurrency.rb` runs N threads, one connection each, each issuing `SELECT pg_sleep(1)`, and **the queries overlap on every engine tested** ([`12-runtime-verification.md`](12-runtime-verification.md), `As of 2026-08-26`). `pg` releases the lock. `pg` is also CI-tested on TruffleRuby by its own maintainers ("Add support for TruffleRuby. It is regularly tested as part of our CI", 1.3.0), so neither the driver nor the lock is now the doubt — but the result is engine-and-version specific, and re-running the probe after a major is how it stays true.
 
 ### 7.3 `frozen_string_literal` — baked in
 
@@ -662,8 +662,8 @@ Everything else on this page has a command rather than a number:
 | Did that index get used? | `magik explain query <Scope>` |
 | Where did this request go? | the request trace, `--json` |
 | Is anything unscoped, unbounded, or unindexed? | `magik check --scale --json` |
-| Do threads actually run in parallel on TruffleRuby? | `ruby scripts/probes/runtime.rb` on each engine — **answered 2026-08-26**, [`12-runtime-verification.md`](12-runtime-verification.md) |
-| Do concurrent queries overlap, or does `pg` hold the runtime lock? | `DATABASE_URL=… ruby scripts/probes/pg_concurrency.rb` — **answered 2026-08-26**: they overlap |
+| Do threads actually run in parallel on TruffleRuby? | `ruby apps/magik/scripts/probes/runtime.rb` on each engine — **answered 2026-08-26**, [`12-runtime-verification.md`](12-runtime-verification.md) |
+| Do concurrent queries overlap, or does `pg` hold the runtime lock? | `DATABASE_URL=… ruby apps/magik/scripts/probes/pg_concurrency.rb` — **answered 2026-08-26**: they overlap |
 | How many idle realtime connections does one Puma process hold there? | **unresolved** — the measurement is specified in [`12-runtime-verification.md`](12-runtime-verification.md) and has not been run |
 
 ---
@@ -684,7 +684,7 @@ Everything else about the concurrency model is settled by measurement ([`12-runt
 
 Detailed in §7.2, and **resolved 2026-08-26**. TruffleRuby serialises native extensions behind a global lock unless they mark themselves thread-safe, and if `pg` did not get that lock lifted, every query in the process would serialise and the threading argument for database work would collapse — while the CPU-parallelism measurement stayed true and irrelevant.
 
-The probe was small and it ran: N threads, one connection each, `SELECT pg_sleep(1)` on each. Wall clock is one query, not N — the queries overlap, so **`pg` releases the lock** ([`../../scripts/probes/pg_concurrency.rb`](../../scripts/probes/pg_concurrency.rb), results in [`12-runtime-verification.md`](12-runtime-verification.md)). This row stays on the page rather than being deleted, because the answer is version-specific and re-running the probe after a `pg` or TruffleRuby major is what keeps it honest.
+The probe was small and it ran: N threads, one connection each, `SELECT pg_sleep(1)` on each. Wall clock is one query, not N — the queries overlap, so **`pg` releases the lock** ([`../../apps/magik/scripts/probes/pg_concurrency.rb`](../../apps/magik/scripts/probes/pg_concurrency.rb), results in [`12-runtime-verification.md`](12-runtime-verification.md)). This row stays on the page rather than being deleted, because the answer is version-specific and re-running the probe after a `pg` or TruffleRuby major is what keeps it honest.
 
 ### 3. The default cache backend is a poor fragment-cache backend
 
@@ -696,7 +696,7 @@ Detailed in §6. `use :cache, :memory` is right for "an app with no Redis"; it i
 
 ### 5. A code-naming drift worth fixing — **resolved 2026-08-26**
 
-`wiki/Error-Codes.md` reserved `MAGIK_PAGINATION_UNBOUNDED`, which did not fit the `MAGIK_<SUBSYSTEM>_<CONDITION>` format from [`03-error-codes.md`](03-error-codes.md) — `pagination` is not a subsystem in [`01-module-map.md`](01-module-map.md). It is now `MAGIK_API_PAGINATION_UNBOUNDED`, and it was not the only one: the catalogue clean-up of that date renamed forty-nine spellings and collapsed sixteen second names for guardrails the spec had already named. The token set is now closed and [`../../scripts/checks/error_codes.rb`](../../scripts/checks/error_codes.rb) enforces it, so the next such drift fails the gate rather than waiting for a reader to notice it.
+`apps/magik/wiki/Error-Codes.md` reserved `MAGIK_PAGINATION_UNBOUNDED`, which did not fit the `MAGIK_<SUBSYSTEM>_<CONDITION>` format from [`03-error-codes.md`](03-error-codes.md) — `pagination` is not a subsystem in [`01-module-map.md`](01-module-map.md). It is now `MAGIK_API_PAGINATION_UNBOUNDED`, and it was not the only one: the catalogue clean-up of that date renamed forty-nine spellings and collapsed sixteen second names for guardrails the spec had already named. The token set is now closed and [`../../apps/magik/scripts/checks/error_codes.rb`](../../apps/magik/scripts/checks/error_codes.rb) enforces it, so the next such drift fails the gate rather than waiting for a reader to notice it.
 
 ---
 

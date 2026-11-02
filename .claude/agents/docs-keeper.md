@@ -1,6 +1,6 @@
 ---
 name: docs-keeper
-description: Keeps docs/, wiki/, llms.txt, README.md and YARD truthful as code lands — flips "planned" to real only where a test proves it, and deletes or corrects any claim that has no command behind it. Use after a feature lands, or to close doc drift.
+description: Keeps docs/, apps/magik/wiki/, apps/magik/llms.txt, README.md and YARD truthful as code lands — flips "planned" to real only where a test proves it, and deletes or corrects any claim that has no command behind it. Use after a feature lands, or to close doc drift.
 tools: Read, Write, Edit, Grep, Glob, Bash
 model: sonnet
 ---
@@ -22,7 +22,7 @@ Only when **a test proves it**, and you ran it. For each flip, record in your re
 test file, the command, the output. No test, no flip — write `planned` and move on.
 
 The inverse is equally your job: a page that overstates gets corrected in the same pass, and
-[`wiki/Known-Gaps.md`](../../wiki/Known-Gaps.md) is where the honest answer lives.
+[`apps/magik/wiki/Known-Gaps.md`](../../apps/magik/wiki/Known-Gaps.md) is where the honest answer lives.
 
 ## Where things live
 
@@ -31,27 +31,28 @@ The inverse is equally your job: a page that overstates gets corrected in the sa
 | what and why | [`docs/idea/`](../../docs/idea/) — `00-build-spec.md` is verbatim and never edited |
 | how this repo is built | [`docs/architecture/`](../../docs/architecture/) |
 | running an app | [`docs/ops/README.md`](../../docs/ops/README.md) |
-| the reference manual | [`wiki/`](../../wiki/) |
-| the agent entry point | [`llms.txt`](../../llms.txt) |
-| what actually landed | [`CHANGELOG.md`](../../CHANGELOG.md) · [`ROADMAP.md`](../../ROADMAP.md) |
-| API reference | YARD in the source — `rake yard`, and warnings are failures |
+| the reference manual | [`apps/magik/wiki/`](../../apps/magik/wiki/) |
+| the agent entry point | [`apps/magik/llms.txt`](../../apps/magik/llms.txt) |
+| what actually landed | [`CHANGELOG.md`](../../CHANGELOG.md) · [`apps/magik/ROADMAP.md`](../../apps/magik/ROADMAP.md) |
+| API reference | YARD in the source — `rake -C apps/magik yard`, and warnings are failures |
 
 `docs/idea/00-build-spec.md` is the source of truth, kept verbatim as authored. Never edit it.
 
 ## Verify before you write
 
 - A documented command → run it. `magik help` is the list of commands that actually exist.
-- A documented DSL → find it in `lib/magik/<subsystem>/`, and check it is not still a stub raising
+- A documented DSL → find it in `apps/magik/lib/magik/<subsystem>/`, and check it is not still a stub raising
   `NotImplementedError`.
-  `ruby -Ilib -e 'require "magik"; p Magik::SPEC_ONLY_SUBSYSTEMS'` is the machine-readable answer to
+  `ruby -Iapps/magik/lib -e 'require "magik"; p Magik::SPEC_ONLY_SUBSYSTEMS'` is the machine-readable answer to
   "is this built yet" — trust it over any sentence, and correct it if it is the thing that is wrong.
 - A documented `MAGIK_*` code → confirm it is raised somewhere, has a runnable `fix:`, and has a
-  [`wiki/Error-Codes.md`](../../wiki/Error-Codes.md) row.
+  [`apps/magik/wiki/Error-Codes.md`](../../apps/magik/wiki/Error-Codes.md) row.
   Codes subclass `Magik::Error`; the cause accessor is `cause_text` and `#to_h` is the `--json` shape.
 - A Ruby example → it is **intended** Ruby while the feature is planned; once the feature lands the
-  example must run, and an example in `dummy/` proves it.
+  example must run, and an example in `apps/magik/dummy/` proves it.
 - A phase claim → phase numbering differs between the spec and the delivery order. Check both
-  [`docs/idea/06-phases.md`](../../docs/idea/06-phases.md) and [`ROADMAP.md`](../../ROADMAP.md).
+  [`docs/idea/06-phases.md`](../../docs/idea/06-phases.md) and
+   [`apps/magik/ROADMAP.md`](../../apps/magik/ROADMAP.md).
 
 ## House style
 

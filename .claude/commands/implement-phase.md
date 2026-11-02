@@ -9,21 +9,23 @@ allowed-tools: Read, Write, Edit, Glob, Grep, Bash, Agent, Task, SendMessage
 ## Target
 $ARGUMENTS
 
-**Nothing in Magik is built.** Every `lib/magik/*.rb` is a documented stub raising
-`NotImplementedError`. Done means: the phase's exit criteria in [`ROADMAP.md`](../../ROADMAP.md) are
-each true, proven by a test you ran, with `bin/check` green. Not "the code is written".
+**Nothing in Magik is built.** Every `apps/magik/lib/magik/*.rb` is a documented stub raising
+`NotImplementedError`. Done means: the phase's exit criteria in
+[`apps/magik/ROADMAP.md`](../../apps/magik/ROADMAP.md) are each true, proven by a test you ran, with
+`bin/check` green. Not "the code is written".
 
 The seam: each stub exposes `SPEC_PHASE`, `DSL_SURFACE`, `STATUS` and a `.define` that raises;
 `Magik::SPEC_ONLY_SUBSYSTEMS` lists every one. **A phase is landed when its subsystems have left
 that list**, with tests behind them — check it at the start and at the end:
-`ruby -Ilib -e 'require "magik"; p Magik::SPEC_ONLY_SUBSYSTEMS'`.
+`ruby -Iapps/magik/lib -e 'require "magik"; p Magik::SPEC_ONLY_SUBSYSTEMS'`.
 
 ## 1. Reconcile the numbering before anything else
 
 The spec's phases and the delivery order are **not the same sequence** — spec Phase 9 (testing) is
 delivered third. Say in one line which phase you are building, under which numbering, and what its
 exit criteria are. Sources: [`docs/idea/00-build-spec.md`](../../docs/idea/00-build-spec.md) ·
-[`docs/idea/06-phases.md`](../../docs/idea/06-phases.md) · [`ROADMAP.md`](../../ROADMAP.md).
+[`docs/idea/06-phases.md`](../../docs/idea/06-phases.md) ·
+[`apps/magik/ROADMAP.md`](../../apps/magik/ROADMAP.md).
 
 ## 2. Distrust the paperwork
 
@@ -39,9 +41,9 @@ Implementing before the shape exists produces a DSL discovered one keyword at a 
 
 ## 4. Slice by subsystem, then fan out
 
-`lib/magik/<subsystem>/` **is** the lock: `core, cli, model, schema, render, action, router,
-realtime, jobs, ledger, api, auth, billing, admin, i18n, pwa, notify, testing, domains, check`. A
-slice owns its subsystem and its mirrored `test/magik/<subsystem>/`.
+`apps/magik/lib/magik/<subsystem>/` **is** the lock: `core, cli, model, schema, render, action,
+router, realtime, jobs, ledger, api, auth, billing, admin, i18n, pwa, notify, testing, domains,
+check`. A slice owns its subsystem and its mirrored `apps/magik/test/magik/<subsystem>/`.
 
 - **One checkout, never a worktree.** At most 4 workers; one is often right.
 - Every brief names: the exclusive file set, who holds the neighbouring paths, the house
@@ -49,13 +51,14 @@ slice owns its subsystem and its mirrored `test/magik/<subsystem>/`.
   `tenant_id` · htmx not SPA · `MAGIK_*` with a runnable `fix:` · nothing that is not spec-backed),
   and **two legal moves when stuck**: decide and flag it, or stop and report. A subagent cannot ask
   the user.
-- Agents run `rake test TEST=<their file>`; **only you run `bin/check`**, once, at the end.
+- Agents run `rake -C apps/magik test TEST=<their file>`; **only you run `bin/check`**, once, at the end.
 - Roster: `spec-implementer` · `dsl-designer` · `guardrail-author` · `test-writer` ·
   `swap-point-prover` · `cli-author` · `docs-keeper` · `spec-auditor` (read-only).
 - **Every slice you name, you must dispatch.** A named-but-unlaunched slice makes the others defer
   work to a teammate who does not exist.
-- Keep an unowned bucket: `lib/magik.rb`, `CHANGELOG.md`, `llms.txt`, `wiki/Error-Codes.md`,
-  `dummy/`. Homeless findings are the ones silently dropped.
+- Keep an unowned bucket: `apps/magik/lib/magik.rb`, `CHANGELOG.md`, `apps/magik/llms.txt`,
+  `apps/magik/wiki/Error-Codes.md`, `apps/magik/dummy/`. Homeless findings are the ones silently
+  dropped.
 
 ## 5. Land it
 
@@ -65,9 +68,9 @@ slice owns its subsystem and its mirrored `test/magik/<subsystem>/`.
 2. Every guardrail the phase names has a test that fires **and** one that proves it does not
    over-fire.
 3. Every swap point the phase names is proven against both backends, or stays `planned`.
-4. `dummy/` exercises the new constructs; `wiki/` and `docs/` flip `planned` → real **only where a
-   test proves it**; `CHANGELOG.md` records what landed; `ROADMAP.md` exit criteria ticked only if
-   true.
+4. `apps/magik/dummy/` exercises the new constructs; `apps/magik/wiki/` and `docs/` flip `planned`
+   → real **only where a test proves it**; `CHANGELOG.md` records what landed;
+   `apps/magik/ROADMAP.md` exit criteria ticked only if true.
 
 ## Stop for
 

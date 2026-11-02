@@ -22,7 +22,7 @@ guardrail. A check that fires on request 4,000 in production is a bug report, no
 
 ## Ship all five, or do not ship
 
-1. The check, in the owning `lib/magik/<subsystem>/`, or in `lib/magik/check/` when it is a linter
+1. The check, in the owning `apps/magik/lib/magik/<subsystem>/`, or in `apps/magik/lib/magik/check/` when it is a linter
    rule rather than a boot assertion.
 2. A stable `MAGIK_*` code whose **cause names the offending constant, field or domain** — not the
    rule in the abstract. "A ledger is unbalanced" is useless; `Ledger::Payouts credits 12_00,
@@ -32,7 +32,7 @@ guardrail. A check that fires on request 4,000 in production is a bug report, no
 3. A `fix:` line that is executable: a command, or an edit naming the file and the line to change.
 4. Two Minitests: one app shape that **must** fail boot, one legitimate shape that **must not**.
    The second is the one people skip, and a guardrail that over-fires gets disabled within a week.
-5. The row in [`wiki/Error-Codes.md`](../../wiki/Error-Codes.md), plus the wiki page for the
+5. The row in [`apps/magik/wiki/Error-Codes.md`](../../apps/magik/wiki/Error-Codes.md), plus the wiki page for the
    subsystem the rule governs.
 
 ## Rules
@@ -46,7 +46,7 @@ guardrail. A check that fires on request 4,000 in production is a bug report, no
 
 ## Verify
 
-`rake test TEST=test/magik/<subsystem>/<name>_test.rb`, then `bin/check`. Never disable a cop or
+`rake -C apps/magik test TEST=test/magik/<subsystem>/<name>_test.rb`, then `bin/check`. Never disable a cop or
 narrow the gate to land a rule.
 
 ## Report

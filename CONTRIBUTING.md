@@ -18,7 +18,7 @@ bin/check      # the gate. Green means the tree is shippable
 ```
 
 Requirements: **CRuby ≥ 3.2** and Bundler. Nothing else is assumed. Postgres and friends are
-available through [`docker/compose.yml`](docker/compose.yml) and
+available through [`docker/compose.yml`](apps/magik/docker/compose.yml) and
 [`.devcontainer/`](.devcontainer/) if you want them, and `bin/setup` names anything missing.
 
 **TruffleRuby is the production runtime and is not required locally.** It is not expected to be
@@ -29,17 +29,17 @@ installed on a contributor's machine; anything TruffleRuby-specific is verified 
 |---|---|
 | `bin/setup` | fresh clone to working |
 | **`bin/check`** | **the gate — run this before every push** |
-| `rake test` | the Minitest suite — runs on bare Ruby, no bundle needed |
-| `rake yard` | the API docs, published to <https://developerz-ai.github.io/magik/api/> · coverage: `rake docs:coverage` |
-| `rake -T` | every task available — `build`, `check`, `docs:coverage`, `rubocop`, `test`, `yard` |
-| `rake rubocop` | lint · `bundle exec rubocop -A` to autocorrect |
+| `rake -C apps/magik test` | the Minitest suite — runs on bare Ruby, no bundle needed |
+| `rake -C apps/magik yard` | the API docs, published to <https://developerz-ai.github.io/magik/api/> · coverage: `rake -C apps/magik docs:coverage` |
+| `rake -C apps/magik -T` | every task available — `build`, `check`, `docs:coverage`, `rubocop`, `test`, `yard` |
+| `rake -C apps/magik rubocop` | lint · `bundle exec rubocop -A apps/magik` to autocorrect |
 | `bin/release` | the release pre-flight — it prints the commands and runs none of them |
 | `bin/console` | an IRB session with the gem loaded |
 | `bin/dev` | rerun `bin/check --only test` on every change · `--once` for a single pass |
-| `ruby -Ilib exe/magik version --json` | the CLI, from source |
+| `ruby -Iapps/magik/lib apps/magik/exe/magik version --json` | the CLI, from source |
 
 **`bin/` is not the gem.** Nothing in it ships, and no app author can reach one of these scripts —
-`exe/magik` is the binary. Neither can they reach [`scripts/checks/`](scripts/README.md). So both
+`apps/magik/exe/magik` is the binary. Neither can they reach [`scripts/checks/`](apps/magik/scripts/README.md). So both
 speak the repository's other namespace, and there are only two:
 
 > A `MAGIK_` code is either a **framework** code, whose token comes from the closed set and which an
@@ -52,9 +52,9 @@ the same shape a framework error uses, so that it is searchable the same way: `M
 finding a check emits carries the same token — `MAGIK_DEV_MANIFEST_DRIFT`,
 `MAGIK_DEV_CHANGELOG_HEADING`, `MAGIK_DEV_BOUNDARY_TIER` — and on a red gate that prefix is signal:
 it says *this is about the repository, not about your app*. Both are deliberately absent from
-[`wiki/Error-Codes.md`](wiki/Error-Codes.md) — which is the app author's manual — and
-`ruby scripts/checks/error_codes.rb` holds all of them to the format and refuses one that turns up
-in a catalogue. A new refusal in `bin/`, or a new finding under `scripts/`, takes a `MAGIK_DEV_*`
+[`wiki/Error-Codes.md`](apps/magik/wiki/Error-Codes.md) — which is the app author's manual — and
+`ruby apps/magik/scripts/checks/error_codes.rb` holds all of them to the format and refuses one that turns up
+in a catalogue. A new refusal in `bin/`, or a new finding under `apps/magik/scripts/`, takes a `MAGIK_DEV_*`
 code and a row in
 [`docs/architecture/03-error-codes.md`](docs/architecture/03-error-codes.md#the-dev-namespace-codes-that-never-reach-an-app).
 
@@ -66,10 +66,10 @@ as data, `--list` names the steps. CI runs the same thing
 CI-only step. If a check is worth running before a merge, it belongs in `bin/check` where you can
 run it too.
 
-`rake test` passing is not the gate. A change that lints clean, tests green and leaves `rake yard`
+`rake -C apps/magik test` passing is not the gate. A change that lints clean, tests green and leaves `rake -C apps/magik yard`
 with an undocumented public method is not done.
 
-`rake test` needs only Ruby and Rake. **RuboCop and YARD come from `bundle install`** and their
+`rake -C apps/magik test` needs only Ruby and Rake. **RuboCop and YARD come from `bundle install`** and their
 tasks abort with an install hint when the gem is missing — an aborted task is not a passing one, so
 run `bin/setup` before claiming the gate is green.
 
@@ -108,7 +108,7 @@ it is a fair discussion to have — in the open, before any code.
 Read them in the spec rather than from that list —
 [`docs/idea/00-build-spec.md`](docs/idea/00-build-spec.md) § "Non-negotiable Architecture
 Decisions" is the wording that counts, and two of them carry a measurement rather than an argument:
-`ruby scripts/probes/runtime.rb --json` is what decisions 1 and 2 rest on.
+`ruby apps/magik/scripts/probes/runtime.rb --json` is what decisions 1 and 2 rest on.
 
 ## Code rules
 
@@ -122,21 +122,21 @@ send a PR back:
 | **Minitest, never RSpec** | `test/`, files named `*_test.rb`. There is no `spec/` |
 | **Sequel, never ActiveRecord** | wrapped, never hidden. Explicit queries |
 | **A test that would catch a real regression** | `assert true` is not a test. A bug fix starts with the failing test that reproduces it |
-| **YARD on every public method** | `@param`, `@return`, `@raise`, and an `@example` on anything a user calls. `rake yard` clean |
+| **YARD on every public method** | `@param`, `@return`, `@raise`, and an `@example` on anything a user calls. `rake -C apps/magik yard` clean |
 | **Errors carry a `MAGIK_*` code** | `MAGIK_<SUBSYSTEM>_<CONDITION>` plus a concrete cause and a **runnable** `fix:` line. A `fix:` that gives advice instead of a command is a defect |
 | **No unimplemented behaviour claimed** | stubs `raise NotImplementedError` with a message naming the phase. Never a plausible empty answer |
 | **No float money** | integer cents, in code, in fixtures, in examples |
-| **RuboCop owns style** | do not argue with the formatter, run `bundle exec rubocop -A` |
+| **RuboCop owns style** | do not argue with the formatter, run `bundle exec rubocop -A apps/magik` |
 | **New dependencies need a reason in the PR** | the spec's "libraries to wrap" list is the default answer |
 | **Date-stamp claims that can rot** | `As of 2026-08-26`, beside the command that re-derives them |
 
 ## Docs are part of the change
 
-- **YARD** on every public method you add or touch. `rake yard` is in the gate.
+- **YARD** on every public method you add or touch. `rake -C apps/magik yard` is in the gate.
 - **A doc page** when the shape is new: `docs/architecture/` for how a subsystem works,
-  [`wiki/`](wiki/) for the reference manual, `docs/idea/` only when the *rationale* changed.
+  [`wiki/`](apps/magik/wiki/) for the reference manual, `docs/idea/` only when the *rationale* changed.
 - **Fix the status tables you just invalidated.** [`README.md`](README.md), [`CLAUDE.md`](CLAUDE.md)
-  and [`ROADMAP.md`](ROADMAP.md) all carry rows that say "not implemented". Landing a feature and
+  and [`ROADMAP.md`](apps/magik/ROADMAP.md) all carry rows that say "not implemented". Landing a feature and
   leaving those rows behind is the single most likely defect in this repository right now — a
   status outliving its fact is worse than no status.
 
@@ -146,7 +146,7 @@ send a PR back:
 [`CHANGELOG.md`](CHANGELOG.md), in the same PR.** Keep a Changelog format:
 `Added` / `Changed` / `Deprecated` / `Removed` / `Fixed` / `Security`.
 
-`## [Unreleased]` *is* the release notes — [`PUBLISHING.md`](PUBLISHING.md) promotes that section
+`## [Unreleased]` *is* the release notes — [`PUBLISHING.md`](apps/magik/PUBLISHING.md) promotes that section
 verbatim at release time. Write it for the person upgrading, not for the person who wrote the code.
 
 ## Branches and commits

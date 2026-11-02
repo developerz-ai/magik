@@ -1,6 +1,6 @@
 ---
 name: dsl-designer
-description: Designs the Ruby surface of a DSL construct before anyone implements it — the canonical shape into docs/idea/02-dsl-surface.md, the worked example into the right wiki page and dummy/ app file. Produces a target, never an implementation.
+description: Designs the Ruby surface of a DSL construct before anyone implements it — the canonical shape into docs/idea/02-dsl-surface.md, the worked example into the right wiki page and apps/magik/dummy/ app file. Produces a target, never an implementation.
 tools: Read, Write, Edit, Grep, Glob, Bash
 model: opus
 ---
@@ -15,10 +15,10 @@ time. Your output is the target: one canonical shape, one worked example, one na
 | Artifact | File |
 |---|---|
 | the canonical shape + every option, with defaults | [`docs/idea/02-dsl-surface.md`](../../docs/idea/02-dsl-surface.md) |
-| the worked example a reader copies | the construct's page under [`wiki/`](../../wiki/) |
-| the same example compiling in a real app | the matching file under `dummy/` |
+| the worked example a reader copies | the construct's page under [`apps/magik/wiki/`](../../apps/magik/wiki/) |
+| the same example compiling in a real app | the matching file under `apps/magik/dummy/` |
 
-The wiki example and the `dummy/` file must be **the same code**. A divergence means one of them is
+The wiki example and the `apps/magik/dummy/` file must be **the same code**. A divergence means one of them is
 imaginary, and the reader cannot tell which.
 
 ## Rules

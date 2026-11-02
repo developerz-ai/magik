@@ -2,7 +2,7 @@
 
 The rules every Ruby file in this repo obeys, and the design rules the framework asks its users to obey too.
 
-**Status:** mostly planned. `lib/` holds `Magik::Error`, the CLI's implemented commands and one spec-only stub per subsystem; no DSL construct exists, and most checks named here are checks somebody still has to write. Re-derive what is a stub with `grep -rln NotImplementedError lib/magik`. Reviewed 2026-08-26.
+**Status:** mostly planned. `apps/magik/lib/` holds `Magik::Error`, the CLI's implemented commands and one spec-only stub per subsystem; no DSL construct exists, and most checks named here are checks somebody still has to write. Re-derive what is a stub with `grep -rln NotImplementedError apps/magik/lib/magik`. Reviewed 2026-08-26.
 
 Rationale lives in [`../idea/01-thesis.md`](../idea/01-thesis.md). This file is the rules.
 
@@ -25,7 +25,7 @@ The single most important rule in this repo while it is empty.
 |---|---|
 | Every construct traces to the spec | a PR adding DSL, a CLI command or a guardrail names the [`../idea/00-build-spec.md`](../idea/00-build-spec.md) section it implements. |
 | The spec wins | where a doc and the spec disagree, the doc is wrong and gets fixed. |
-| Extending the spec is a spec change | a genuinely new idea edits the spec first, in its own commit, with the argument. Inventing behaviour in `lib/` and documenting it afterwards is how a framework acquires surface nobody chose. |
+| Extending the spec is a spec change | a genuinely new idea edits the spec first, in its own commit, with the argument. Inventing behaviour in `apps/magik/lib/` and documenting it afterwards is how a framework acquires surface nobody chose. |
 | Stubs over fakes | an unimplemented method raises `NotImplementedError` naming the spec section and the phase. A plausible-looking fake is worse than an empty file. |
 
 ```ruby
@@ -41,7 +41,7 @@ SOLID is a written contract here, in **two** places: the framework's internals, 
 
 ### SRP, concretely for Ruby
 
-**One class, one reason to change.** In this repo that means many small objects under `lib/magik/<subsystem>/`, each with a name that says what it does and a public surface you can hold in your head.
+**One class, one reason to change.** In this repo that means many small objects under `apps/magik/lib/magik/<subsystem>/`, each with a name that says what it does and a public surface you can hold in your head.
 
 The smell, and the split:
 
@@ -69,14 +69,14 @@ A ceiling is not a budget to spend. Crossing one means the split was due earlier
 
 | Letter | In Magik | Consequence you can check |
 |---|---|---|
-| **Open/closed** | the swap points are the extension seams ([`../idea/04-swap-points.md`](../idea/04-swap-points.md)). New behaviour arrives as a new object registered with the framework — never as a new branch in a `case` inside an existing one. | a `case` statement over backend names in `lib/` is a defect. The registry does the dispatch. |
+| **Open/closed** | the swap points are the extension seams ([`../idea/04-swap-points.md`](../idea/04-swap-points.md)). New behaviour arrives as a new object registered with the framework — never as a new branch in a `case` inside an existing one. | a `case` statement over backend names in `apps/magik/lib/` is a defect. The registry does the dispatch. |
 | **Liskov** | a backend must satisfy the seam's contract test — which is the spec's "a swap ships proven, not promised" rule stated as a type property. | one conformance suite per seam, run against every backend in CI. A backend that needs its own special-cased test has broken the seam. |
 | **Interface segregation** | a subsystem depends on the narrow role it uses, not on the whole neighbouring module. `render` needs a channel *name*, not the realtime subsystem — so the channel-name vocabulary lives in `core` and `render` never requires `realtime`. | the tier rules in [`02-boundaries.md`](02-boundaries.md). A `require` that exists to reach one method is a role that belongs lower down. |
 | **Dependency inversion** | subsystems depend on an abstraction the app configures at boot — the DB adapter, the job backend, the realtime backend, the cache. `jobs` knows a queue role; it does not know Postgres. | this is *why* swap points can exist at all. A subsystem naming a concrete product outside its `backends/` directory is a defect. |
 
 ### The same rules apply to app code — including code Magik generates
 
-A generator emits code somebody will read, review and extend, so it obeys this contract exactly as `lib/` does. A generator that emits a 400-line god object, or a second write path, has shipped the smell rather than the shape. The DSL is designed so that a Magik app falls into SRP by default:
+A generator emits code somebody will read, review and extend, so it obeys this contract exactly as `apps/magik/lib/` does. A generator that emits a 400-line god object, or a second write path, has shipped the smell rather than the shape. The DSL is designed so that a Magik app falls into SRP by default:
 
 | App-level rule | How the framework makes it the default |
 |---|---|
@@ -86,7 +86,7 @@ A generator emits code somebody will read, review and extend, so it obeys this c
 | A screen renders and holds nothing | the stateless guardrail refuses the alternative at boot ([`../idea/03-guardrails.md`](../idea/03-guardrails.md)) |
 | A domain owns its models | boundary enforcement refuses the reach-across at boot ([`02-boundaries.md`](02-boundaries.md)) |
 
-The app-side layout and a worked example live in [`../../wiki/Project-Layout.md`](../../wiki/Project-Layout.md) and the [`../../dummy/`](../../dummy/) reference app.
+The app-side layout and a worked example live in [`../../apps/magik/wiki/Project-Layout.md`](../../apps/magik/wiki/Project-Layout.md) and the [`../../apps/magik/dummy/`](../../apps/magik/dummy/) reference app.
 
 ## DSL design rules: R1–R10
 
@@ -118,21 +118,21 @@ Settled before implementation, because a renamed option is free now and a semver
 | **D3** | A field subset | **`fields`, `filterable`, `sortable`, `searchable`, `writable`** — five declarations, one vocabulary, identical on `api`, `admin_panel`, `data_table` and `screen`. `per_page:` stays an option: a scalar setting is not a field subset | R1, R9 |
 | **D4** | Uniqueness | they stay apart. **`unique:`** on a `field` is a database constraint and nothing else; a job's dedupe key is **`idempotent_by`**, the same word `action` already uses | R1, R10 |
 
-**Enforcement, not prose.** A `scripts/checks/` step over the option tables asserts that every option in [`../idea/02-dsl-surface.md`](../idea/02-dsl-surface.md) appears in `magik describe --json` and vice versa. It does not exist yet, and per this repo's own rule a convention with no check does not exist either.
+**Enforcement, not prose.** An `apps/magik/scripts/checks/` step over the option tables asserts that every option in [`../idea/02-dsl-surface.md`](../idea/02-dsl-surface.md) appears in `magik describe --json` and vice versa. It does not exist yet, and per this repo's own rule a convention with no check does not exist either.
 
 ## File layout
 
-One gem, subsystems under `lib/magik/<subsystem>/`. Not a multi-gem monorepo — extraction stays possible, and is not promised.
+One gem, subsystems under `apps/magik/lib/magik/<subsystem>/`. Not a multi-gem monorepo — extraction stays possible, and is not promised.
 
 ```
-lib/magik.rb                          # requires core, defines Magik::VERSION entry point
-lib/magik/version.rb
-lib/magik/<subsystem>.rb              # the subsystem's front door: requires its files, defines its namespace
-lib/magik/<subsystem>/errors.rb       # this subsystem's MAGIK_* codes
-lib/magik/<subsystem>/<concern>.rb    # one responsibility each
-lib/magik/<subsystem>/backends/<name>.rb   # only where the subsystem owns a swap point
-exe/magik                             # the CLI binary
-test/magik/<subsystem>/<concern>_test.rb
+apps/magik/lib/magik.rb                          # requires core, defines Magik::VERSION entry point
+apps/magik/lib/magik/version.rb
+apps/magik/lib/magik/<subsystem>.rb              # the subsystem's front door: requires its files, defines its namespace
+apps/magik/lib/magik/<subsystem>/errors.rb       # this subsystem's MAGIK_* codes
+apps/magik/lib/magik/<subsystem>/<concern>.rb    # one responsibility each
+apps/magik/lib/magik/<subsystem>/backends/<name>.rb   # only where the subsystem owns a swap point
+apps/magik/exe/magik                             # the CLI binary
+apps/magik/test/magik/<subsystem>/<concern>_test.rb
 ```
 
 | Rule | Detail |
@@ -140,7 +140,7 @@ test/magik/<subsystem>/<concern>_test.rb
 | Subsystem names | exactly the twenty-one in [`01-module-map.md`](01-module-map.md), which are exactly the keys of `Magik::SUBSYSTEMS`. A new one is an architecture change, not a file. |
 | File names | `snake_case.rb`, matching the class or module they define. |
 | One class per file | except a tiny value object used only by its neighbour. |
-| Front door | `lib/magik/<subsystem>.rb` is the only file another subsystem may require. Reaching into `lib/magik/model/dataset.rb` from `lib/magik/api/` is a boundary violation even when the tier allows the subsystem ([`02-boundaries.md`](02-boundaries.md)). |
+| Front door | `apps/magik/lib/magik/<subsystem>.rb` is the only file another subsystem may require. Reaching into `apps/magik/lib/magik/model/dataset.rb` from `apps/magik/lib/magik/api/` is a boundary violation even when the tier allows the subsystem ([`02-boundaries.md`](02-boundaries.md)). |
 | `require_relative` inside a subsystem, `require` across | so the dependency direction is visible in the first ten lines of every file. |
 
 ## Ruby style
@@ -155,7 +155,7 @@ test/magik/<subsystem>/<concern>_test.rb
 | Frozen state | constants holding collections are `.freeze`d. The declaration registry is frozen when boot completes — that is what makes the stateless guardrail checkable, and what keeps a thread-parallel test run honest ([`04-testing-strategy.md`](04-testing-strategy.md)). |
 | Mutable globals | none after boot. No `$globals`, no class-level mutable accumulators outside the registry. |
 | Comments | explain **why**. Never what. |
-| Lint | RuboCop plus `rubocop-minitest`, `rubocop-rake`, `rubocop-performance`. The config in the repo root is the arbiter; disabling a cop inline needs a comment naming the reason. |
+| Lint | RuboCop plus `rubocop-minitest`, `rubocop-rake`, `rubocop-performance`. The config at `apps/magik/.rubocop.yml` is the arbiter; disabling a cop inline needs a comment naming the reason. |
 
 ### Runtime
 
@@ -163,12 +163,12 @@ test/magik/<subsystem>/<concern>_test.rb
 |---|---|
 | Production target | TruffleRuby. |
 | Development floor | CRuby ≥ 3.2 (`required_ruby_version = ">= 3.2"`). |
-| TruffleRuby-specific behaviour | verified by `ruby scripts/probes/runtime.rb` and in CI, never asserted from a laptop ([`12-runtime-verification.md`](12-runtime-verification.md)). |
+| TruffleRuby-specific behaviour | verified by `ruby apps/magik/scripts/probes/runtime.rb` and in CI, never asserted from a laptop ([`12-runtime-verification.md`](12-runtime-verification.md)). |
 | Concurrency | real, parallel OS threads. TruffleRuby has no GVL, so **anything shared between threads must be frozen or synchronised**. Do not add mutable shared state to a subsystem without saying how the server and the test runner are meant to survive it. |
 
 ## YARD on every public method
 
-Documentation is a shipping requirement, not a later pass. `.yardopts` at the root drives it; CI publishes to GitHub Pages.
+Documentation is a shipping requirement, not a later pass. `apps/magik/.yardopts` drives it; CI publishes to GitHub Pages.
 
 ```ruby
 # Declares a background job.
@@ -216,7 +216,7 @@ raise Magik::Ledger::UnbalancedEntry.new(
 |---|---|
 | Code format | `MAGIK_` + `SUBSYSTEM` + `_CONDITION`, screaming snake. |
 | Stability | a shipped code is stable forever. Agents and log pipelines match on it. |
-| Registration | in `lib/magik/<subsystem>/errors.rb`, one catalogue entry per code. |
+| Registration | in `apps/magik/lib/magik/<subsystem>/errors.rb`, one catalogue entry per code. |
 | Renderings | one object, three outputs: terminal, `--json`, dev error page. |
 
 Full design: [`03-error-codes.md`](03-error-codes.md). Diagnostics around it: [`06-observability.md`](06-observability.md).
@@ -227,7 +227,7 @@ Minitest and Rake. Never RSpec — a spec decision, and the reasoning is in [`..
 
 | Rule | Detail |
 |---|---|
-| Location | `test/magik/<subsystem>/<concern>_test.rb`, mirroring `lib/`. |
+| Location | `apps/magik/test/magik/<subsystem>/<concern>_test.rb`, mirroring `apps/magik/lib/`. |
 | Naming | `class DefinitionTest < Magik::TestCase`, methods `test_<what_it_proves>`. |
 | Bar | every test must be able to fail for a real reason. `assert true` is worse than no test. |
 | Determinism | frozen clock, seeded randomness, no network. An unmocked socket fails the test. |

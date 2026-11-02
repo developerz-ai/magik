@@ -4,8 +4,8 @@
 harness — `CLAUDE.md`, `AGENTS.md`, `llms.txt`, `.claude/agents/`, `.claude/commands/`, `docs/` — is
 part of what the framework generates, not something the user assembles afterwards.
 
-**Status:** the templates in [`lib/magik/cli/templates/app/`](../../lib/magik/cli/templates/app/README.md)
-are real files. `magik new` is **planned and not implemented**, so nothing here has ever been
+**Status:** the templates in [`apps/magik/lib/magik/cli/templates/app/`](../../apps/magik/lib/magik/cli/templates/app/README.md)
+are real files — and every path inside them (`CLAUDE.md`, `bin/check`, `scripts/checks/`, `docs/`, `Gemfile`) describes a **generated app at that app's own root**, never this repository's tree. `magik new` is **planned and not implemented**, so nothing here has ever been
 rendered by the CLI, and a generated app could not run if it were. Reviewed 2026-08-26.
 
 This page is one level out from [`07-ai-first.md`](07-ai-first.md), which argues why *the framework*
@@ -41,7 +41,7 @@ idea of the whole scaffold. They differ in every property that matters.
 | Frequency | once | once, then re-runnable as the product changes | continuously |
 | Produces | a *generic but complete* app harness | *this project's* architecture, plan and conventions | declarations, tests, screens |
 | Owned by | the framework | the project | the project |
-| Verified by | **unit tests** — [`test/magik/app_templates_test.rb`](../../test/magik/app_templates_test.rb) | review, by the person interviewed | `magik check` + `magik test` |
+| Verified by | **unit tests** — [`apps/magik/test/magik/app_templates_test.rb`](../../apps/magik/test/magik/app_templates_test.rb) | review, by the person interviewed | `magik check` + `magik test` |
 
 That last row is the reason the split earns its keep. Stage 1 is a pure function, so it can be
 tested exhaustively and cheaply: the manifest matches the directory, every template parses and
@@ -51,7 +51,7 @@ which only the user can answer. **Putting them in one step would make the testab
 
 ### Stage 1 — static boilerplate
 
-`magik new myapp` copies [`lib/magik/cli/templates/app/`](../../lib/magik/cli/templates/app/README.md)
+`magik new myapp` copies [`apps/magik/lib/magik/cli/templates/app/`](../../apps/magik/lib/magik/cli/templates/app/README.md)
 and interpolates a documented variable set with ERB from the standard library. No prompts, no
 network, no model. Every choice is a flag with a default, so `--dry-run` and the real run cannot
 disagree.
@@ -79,7 +79,7 @@ It is whether the file can be written *correctly today*. Tooling is static confi
 `config/app.rb`, `app/**`, `db/**`, `locales/**` and `public/**` must be generated against a
 `model`/`screen`/`action` DSL that does not exist, and a code template written before its DSL is a
 template that ships wrong. Those are exactly the rows in the *"what a generated app has that this
-does not"* table in [`dummy/README.md`](../../dummy/README.md).
+does not"* table in [`apps/magik/dummy/README.md`](../../apps/magik/dummy/README.md).
 
 ### The tooling half genuinely works
 
@@ -136,7 +136,7 @@ rule that accepts an explicit acknowledgement rather than forbidding). Each spli
 by breaking the app has no negative case**.
 
 One deliberate departure from the framework repo's check library: an app check may report
-`not_applicable`, a pass that says why. There, an empty corpus is always a failure — `lib/magik/**`
+`not_applicable`, a pass that says why. There, an empty corpus is always a failure — `apps/magik/lib/magik/**`
 matching nothing means a directory moved and the check went quiet. Here, a flat app with no
 `domains/` and a new app with no migrations are ordinary. The distinction is *absence by design*
 versus *a glob that should have matched*; the second is still a failure.
@@ -252,12 +252,12 @@ MAGIK_CLI_HARNESS_STALE: CLAUDE.md's framework block was written by magik 0.0.1;
 here and not yet in the catalogue**
 ([`../architecture/03-error-codes.md`](../architecture/03-error-codes.md)).
 The command is `magik generate agents --update`, an addition to the `generate` kinds in
-[`../../wiki/CLI-Reference.md`](../../wiki/CLI-Reference.md); if Phase 1 grows a broader
+[`../../apps/magik/wiki/CLI-Reference.md`](../../apps/magik/wiki/CLI-Reference.md); if Phase 1 grows a broader
 `magik upgrade`, it delegates to the same code path rather than becoming a second one.
 
 None of this is implemented. What is implemented is the part that makes it *possible*: the markers
 are in the templates, the version stamp is in the markers, the ownership rule is in the manifest,
-and [the test suite](../../test/magik/app_templates_test.rb) fails if any of the three drifts.
+and [the test suite](../../apps/magik/test/magik/app_templates_test.rb) fails if any of the three drifts.
 
 ## The DSL is not in the model's training data
 
@@ -290,7 +290,7 @@ asserts it: no agent or command file may ship without routing to the local docs.
 
 ## The two-way contract
 
-The generated agents encode the app layout ([`../../wiki/Project-Layout.md`](../../wiki/Project-Layout.md))
+The generated agents encode the app layout ([`../../apps/magik/wiki/Project-Layout.md`](../../apps/magik/wiki/Project-Layout.md))
 and the boot-time guardrails ([`03-guardrails.md`](03-guardrails.md)), which means an agent working
 in a Magik app is corrected by `magik check` rather than by a reviewer three days later. That is the
 [`07-ai-first.md`](07-ai-first.md) argument — guardrails as the correction signal an agent can act
@@ -332,7 +332,7 @@ and no agent owns either. The tiling rule says which way it goes: `app/layouts/`
 is its own concern rather than `action-author`'s, because a policy guards reads as much as writes and
 `ls app/policies/` should be the complete list of authorization rules the way `ls app/actions/` is the
 complete list of writes. The agent templates in
-[`lib/magik/cli/templates/app/.claude/agents/`](../../lib/magik/cli/templates/app/README.md) predate
+[`apps/magik/lib/magik/cli/templates/app/.claude/agents/`](../../apps/magik/lib/magik/cli/templates/app/README.md) predate
 both constructs and are owed that change.
 
 | Command | Does | Reads |
@@ -378,8 +378,8 @@ person finds it by pasting.
 
 | Claim | How to check it | State |
 |---|---|---|
-| the templates exist and are internally consistent | `rake test TEST=test/magik/app_templates_test.rb` | **real** — manifest, ERB parse and render, JSON, YAML, frontmatter, markers, budgets, no secrets |
-| the tooling half runs on a fresh app | `cd lib/magik/cli/templates/app && ./bin/check --list` | **real** — the test suite runs `bin/check` over the seeded checks and requires it green |
+| the templates exist and are internally consistent | `rake -C apps/magik test TEST=test/magik/app_templates_test.rb` | **real** — manifest, ERB parse and render, JSON, YAML, frontmatter, markers, budgets, no secrets |
+| the tooling half runs on a fresh app | `cd apps/magik/lib/magik/cli/templates/app && ./bin/check --list` | **real** — the test suite runs `bin/check` over the seeded checks and requires it green |
 | `magik new` writes them into a directory | `magik help` | **not implemented** |
 | `magik generate agents --update` refreshes a framework block | — | **not implemented**, and no marker-merge code exists |
 | `magik check` reports a stale harness | — | **not implemented**. `MAGIK_CLI_HARNESS_STALE` is a reserved name |
@@ -394,10 +394,10 @@ in [`.claude/agents/cli-author.md`](../../.claude/agents/cli-author.md).
 
 - [`07-ai-first.md`](07-ai-first.md) — the same argument for the framework itself, and the two agent
   audiences this scaffold serves the second of.
-- [`../../wiki/Project-Layout.md`](../../wiki/Project-Layout.md) — the app tree the templates encode.
-- [`../../lib/magik/cli/templates/app/README.md`](../../lib/magik/cli/templates/app/README.md) — the
+- [`../../apps/magik/wiki/Project-Layout.md`](../../apps/magik/wiki/Project-Layout.md) — the app tree the templates encode.
+- [`../../apps/magik/lib/magik/cli/templates/app/README.md`](../../apps/magik/lib/magik/cli/templates/app/README.md) — the
   template set, its ERB variables and the rules for adding to it.
-- [`../../dummy/README.md`](../../dummy/README.md) — the reference app, and what a generated app has
+- [`../../apps/magik/dummy/README.md`](../../apps/magik/dummy/README.md) — the reference app, and what a generated app has
   that it deliberately does not.
-- [`../../scripts/`](../../scripts/) — the framework repo's own check library, whose contract the
+- [`../../apps/magik/scripts/`](../../apps/magik/scripts/) — the framework repo's own check library, whose contract the
   generated `scripts/lib/scripts.rb` mirrors.

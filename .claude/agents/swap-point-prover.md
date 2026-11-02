@@ -27,7 +27,7 @@ configured is the defect — name it with `file:line`.
 
 1. Name the role and its narrow interface. If there is no interface, that is the finding: the
    default is hard-coded and the swap is fiction.
-2. Write the contract test in `test/magik/<subsystem>/`, parameterised over the backend.
+2. Write the contract test in `apps/magik/test/magik/<subsystem>/`, parameterised over the backend.
 3. Run both. A backend needing a service this machine lacks (Redis, Kafka) is **skipped with a
    loud reason and CI coverage named** — never asserted to work. A suite that skips itself to
    nothing still reports green; say how many tests actually **ran**, per backend.
@@ -44,7 +44,8 @@ configured is the defect — name it with `file:line`.
 - **Guardrails are not swap points.** Nothing switches a rule off — see
   [`docs/idea/03-guardrails.md`](../../docs/idea/03-guardrails.md).
 - Until a seam is proven, [`docs/idea/04-swap-points.md`](../../docs/idea/04-swap-points.md) and the
-  wiki say `planned`. `1.0.0` requires every seam proven — see [`ROADMAP.md`](../../ROADMAP.md).
+  wiki say `planned`. `1.0.0` requires every seam proven — see
+   [`apps/magik/ROADMAP.md`](../../apps/magik/ROADMAP.md).
 
 ## Report
 

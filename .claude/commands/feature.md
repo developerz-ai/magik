@@ -31,9 +31,10 @@ is invention rather than derivation.
    importing its shape.
 
 2. **Distrust the paperwork.** The spec reads like documentation for a working framework and is a
-   **plan**. Before planning off any status claim — `CLAUDE.md`, `README.md`, `ROADMAP.md`, a `docs/`
-   page — check it against the code and `git log`: `ruby -Ilib -e 'require "magik"; p
-   Magik::SPEC_ONLY_SUBSYSTEMS'`, `grep -rln NotImplementedError lib/magik`, `rake test`. Delegate to
+   **plan**. Before planning off any status claim — `CLAUDE.md`, `README.md`,
+   `apps/magik/ROADMAP.md`, a `docs/` page — check it against the code and `git log`:
+   `ruby -Iapps/magik/lib -e 'require "magik"; p Magik::SPEC_ONLY_SUBSYSTEMS'`,
+   `grep -rln NotImplementedError apps/magik/lib/magik`, `rake -C apps/magik test`. Delegate to
    `spec-auditor` when the surface is wide. **Say which claims you falsified** and fix those docs in
    the same change — nobody should re-implement shipped work or "fix" working code.
 
@@ -68,7 +69,7 @@ is invention rather than derivation.
    fix anything. It changes what you fix and what you can drop.
 
 8. **Verify.** Run the full gate **once, yourself**: `bin/check`. Prove it from the outside too —
-   `ruby -Ilib exe/magik <cmd>` for CLI surface, `/dummy-app` when the change should make the
+   `ruby -Iapps/magik/lib apps/magik/exe/magik <cmd>` for CLI surface, `/dummy-app` when the change should make the
    reference app get further. Green gate **and** the new test failing without the fix is the bar.
 
 9. **PR + merge — one PR in flight at a time, start to finish.** Parallel *building* is the point of
@@ -93,13 +94,14 @@ is invention rather than derivation.
    merge red right after a rebase.
 
 10. **Leave the trail straight**, in the same change: `CHANGELOG.md` under `## [Unreleased]`, YARD
-    with an `@example` on every public method, the `docs/architecture/` or `wiki/` page when the shape
-    is new, and **every status row you just made wrong** — `README.md`, `ROADMAP.md`, `CLAUDE.md`,
-    `llms.txt`, this harness. `docs-keeper` flips `planned` → real **only where a test proves it**.
+    with an `@example` on every public method, the `docs/architecture/` or `apps/magik/wiki/` page when the shape
+    is new, and **every status row you just made wrong** — `README.md`, `apps/magik/ROADMAP.md`,
+    `CLAUDE.md`, `apps/magik/llms.txt`, this harness. `docs-keeper` flips `planned` → real **only where a test proves it**.
     Record any non-obvious decision in
     [`docs/idea/13-decisions.md`](../../docs/idea/13-decisions.md): what, instead of what, why in
     terms of a constraint that already existed, what would reopen it. When the defect could recur,
-    land the guard in the same PR — a boot-time guardrail, a `scripts/checks/*.rb` assertion, a test.
+    land the guard in the same PR — a boot-time guardrail, a `apps/magik/scripts/checks/*.rb`
+   assertion, a test.
 
 ## The hive
 
@@ -117,18 +119,19 @@ second wave re-cut by the first wave's findings, or a second PR — never a fift
 says so. A nested spawn is not counted against the four and inherits no file lock, so a grandchild
 edits paths nobody claimed and you find out at `git status`.
 
-- **You coordinate; you do not code.** You own git, the ledger and the merge. Editing `lib/`
+- **You coordinate; you do not code.** You own git, the ledger and the merge. Editing `apps/magik/lib/`
   yourself takes a slice from someone who had room for it.
-- **The file set is the lock**, and the slice is `lib/magik/<subsystem>/` plus its mirrored
-  `test/magik/<subsystem>/`. Two agents that must edit one file are ONE slice. An agent needing a file
-  it does not own **stops and reports** — never edits across the line, never negotiates peer-to-peer.
+- **The file set is the lock**, and the slice is `apps/magik/lib/magik/<subsystem>/` plus its
+  mirrored `apps/magik/test/magik/<subsystem>/`. Two agents that must edit one file are ONE slice. An
+  agent needing a file it does not own **stops and reports** — never edits across the line, never
+  negotiates peer-to-peer.
 - **Every slice you name, you must dispatch.** Briefs tell agents who holds which paths, so a
   named-but-unlaunched slice makes them defer work to somebody who does not exist. Reconcile the
   roster against the dispatched set before reading any report.
-- **Keep an unowned bucket and expect to fill it mid-run**: `lib/magik.rb`, `magik.gemspec`,
-  `CHANGELOG.md`, `llms.txt`, `wiki/Error-Codes.md`, `scripts/checks/`, `dummy/`,
-  `.github/workflows/`. A homeless finding is the one quietly dropped — assign it the moment a report
-  says "the real fix is outside my set".
+- **Keep an unowned bucket and expect to fill it mid-run**: `apps/magik/lib/magik.rb`,
+  `apps/magik/magik.gemspec`, `CHANGELOG.md`, `apps/magik/llms.txt`, `apps/magik/wiki/Error-Codes.md`,
+  `apps/magik/scripts/checks/`, `apps/magik/dummy/`, `.github/workflows/`. A homeless finding is the
+  one quietly dropped — assign it the moment a report says "the real fix is outside my set".
 - **Agents are teammates, not one-shot jobs.** New work in a held area goes to that agent by
   `SendMessage`; it keeps its context and its lock. An agent dying is not the run dying — its work is
   uncommitted in the shared tree, and `SendMessage` resumes it from its transcript. `git status` and
@@ -165,7 +168,7 @@ noise. Whole-repo green is the coordinator's job and nobody else's.
 
 | | Agent, per iteration | Coordinator, once at the end |
 |---|---|---|
-| tests | `rake test TEST=test/magik/<its own file>_test.rb` | `bin/check` |
+| tests | `rake -C apps/magik test TEST=test/magik/<its own file>_test.rb` | `bin/check` |
 | lint | `bundle exec rubocop <the files it edited>` | covered by `bin/check` |
 | docs | `bundle exec yard stats --list-undoc` when otherwise done | covered by `bin/check` |
 

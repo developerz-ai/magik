@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # bin/stop — the teardown half of the setup→dev→check cycle: stop what
 # `bin/setup --services` started (the local Postgres, plus any swap-profile
-# Redis, from docker/compose.yml).
+# Redis, from apps/magik/docker/compose.yml).
 #
 # Contract: idempotent, exit 0 when nothing runs, never remove data. This stops
 # containers only — never `down`, never `-v` — so the named Postgres and Redis
@@ -23,9 +23,9 @@ fi
 
 # --profile swap so Redis (the swap profile) stops alongside the default
 # Postgres; plain `stop`, so containers and their volumes survive untouched.
-if docker compose -f docker/compose.yml --profile swap stop; then
+if docker compose -f apps/magik/docker/compose.yml --profile swap stop; then
   echo "bin/stop: stopped the docker compose project (containers kept, volumes kept — no data removed)"
 else
-  echo "bin/stop: docker compose stop failed — containers may still be running; fix: docker compose -f docker/compose.yml ps" >&2
+  echo "bin/stop: docker compose stop failed — containers may still be running; fix: docker compose -f apps/magik/docker/compose.yml ps" >&2
 fi
 exit 0

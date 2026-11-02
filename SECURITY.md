@@ -52,7 +52,7 @@ realistic reports against it are **supply-chain shaped**, and they are in scope:
 - a workflow in [`.github/workflows/`](.github/workflows/) that could be made to publish, leak a
   token, or run untrusted code from a fork;
 - anything that would let a third party publish a gem named `magik`, or attach a trusted publisher
-  to it — see [`PUBLISHING.md`](PUBLISHING.md);
+  to it — see [`PUBLISHING.md`](apps/magik/PUBLISHING.md);
 - a dependency or an action pinned in a way that lets it change under us.
 
 Out of scope: the *absence* of a security control in a framework subsystem that does not exist yet.

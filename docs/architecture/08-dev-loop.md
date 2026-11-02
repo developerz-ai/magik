@@ -35,7 +35,7 @@ magik server --report=reload     # prints ms per reload and what triggered it
 | initializers and `config/` | they configure long-lived objects — pools, backends, the logger |
 | `Gemfile` / `Gemfile.lock` | the loaded gem set is a property of the process |
 | migrations | a schema change is applied with `magik migrate`, and the reloader re-reads the schema afterwards |
-| the framework's own `lib/magik/` | when developing Magik itself, not an app |
+| the framework's own `apps/magik/lib/magik/` | when developing Magik itself, not an app |
 
 **Refused loudly, never stale.** When a change lands in a file that cannot be hot-reloaded, the dev server does not quietly serve the old code: it prints what changed, why it needs a restart, and the command — and, with `--restart-on-boot-change`, restarts itself. The rule from the spec applies here too: no silent failure.
 

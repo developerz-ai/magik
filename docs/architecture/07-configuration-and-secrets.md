@@ -10,7 +10,7 @@ Five layers, **most specific last**. A value from a later layer replaces the sam
 
 | # | Layer | Where | Contains | Environments |
 |---|---|---|---|---|
-| 1 | Framework defaults | `lib/magik/core/` | timeouts, pool sizes, log level | all |
+| 1 | Framework defaults | `apps/magik/lib/magik/core/` | timeouts, pool sizes, log level | all |
 | 2 | App declarations | `config/app.rb`, `config/<env>.rb` | non-secret app settings, seam selection (`use :cache, …`) | all |
 | 3 | Encrypted credentials | `config/credentials/<env>.yml.enc` | secrets: API keys, provider tokens, signing keys | all |
 | 4 | Environment variables | the process environment | anything, and the only production secret path in a twelve-factor deploy | all |

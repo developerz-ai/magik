@@ -16,13 +16,13 @@ and fold the reports together yourself. Do not read files an agent will report b
 
 ## Ground truth order
 
-1. `lib/magik/<subsystem>/` — does it still raise `NotImplementedError`? A stub is not a feature.
-   Machine-readable: `ruby -Ilib -e 'require "magik"; p Magik::SPEC_ONLY_SUBSYSTEMS'`. Diff that
+1. `apps/magik/lib/magik/<subsystem>/` — does it still raise `NotImplementedError`? A stub is not a feature.
+   Machine-readable: `ruby -Iapps/magik/lib -e 'require "magik"; p Magik::SPEC_ONLY_SUBSYSTEMS'`. Diff that
    constant against reality **in both directions** — a working subsystem still listed, or an absent
    one still raising, is a finding by itself.
-2. `rake test` — a claim with no test behind it is a claim.
-3. `ruby -Ilib exe/magik help` — the commands that actually exist.
-   `ruby -Ilib exe/magik version --json` is the stable status line.
+2. `rake -C apps/magik test` — a claim with no test behind it is a claim.
+3. `ruby -Iapps/magik/lib apps/magik/exe/magik help` — the commands that actually exist.
+   `ruby -Iapps/magik/lib apps/magik/exe/magik version --json` is the stable status line.
 4. `git log --oneline` — what merged.
 
 Docs come last, and only to be checked against the above.
@@ -33,9 +33,9 @@ Docs come last, and only to be checked against the above.
 [`02-dsl-surface.md`](../../docs/idea/02-dsl-surface.md) constructs ·
 [`03-guardrails.md`](../../docs/idea/03-guardrails.md) rules ·
 [`04-swap-points.md`](../../docs/idea/04-swap-points.md) seams ·
-[`wiki/Error-Codes.md`](../../wiki/Error-Codes.md) · [`ROADMAP.md`](../../ROADMAP.md) ·
-[`wiki/Known-Gaps.md`](../../wiki/Known-Gaps.md) · [`README.md`](../../README.md) ·
-[`llms.txt`](../../llms.txt) · every `wiki/` example.
+[`apps/magik/wiki/Error-Codes.md`](../../apps/magik/wiki/Error-Codes.md) · [`apps/magik/ROADMAP.md`](../../apps/magik/ROADMAP.md) ·
+[`apps/magik/wiki/Known-Gaps.md`](../../apps/magik/wiki/Known-Gaps.md) · [`README.md`](../../README.md) ·
+[`apps/magik/llms.txt`](../../apps/magik/llms.txt) · every `apps/magik/wiki/` example.
 
 Reconcile phase numbering against [`docs/idea/06-phases.md`](../../docs/idea/06-phases.md) — the
 spec's order and the delivery order differ — before calling anything late.

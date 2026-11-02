@@ -12,7 +12,7 @@ truth, so changing it is a decision, not a side effect.
 -->
 
 - Spec section:
-- Subsystem (`lib/magik/<name>/`):
+- Subsystem (`apps/magik/lib/magik/<name>/`):
 
 ## Checklist
 
@@ -29,7 +29,7 @@ truth, so changing it is a decision, not a side effect.
       passing-test counts, no present tense about a future feature.
 - [ ] **Errors carry a code.** Every new raise is a `Magik::Error` with a stable `MAGIK_*` code, a
       cause, and a runnable `fix:` line. No bare `RuntimeError`.
-- [ ] **Tests added** under `test/`, and they would catch a real regression. Minitest, never RSpec.
+- [ ] **Tests added** under `apps/magik/test/`, and they would catch a real regression. Minitest, never RSpec.
 - [ ] **Stubs raise, they do not pretend.** A not-yet-built path raises `NotImplementedError` with
       a message that says what it will do — never returns a plausible-looking fake.
 

@@ -2,7 +2,7 @@ blank_issues_enabled: false
 
 contact_links:
   - name: 🗺️ "Feature X does not work" — that is expected, here is why
-    url: https://github.com/developerz-ai/magik/blob/main/ROADMAP.md
+    url: https://github.com/developerz-ai/magik/blob/main/apps/magik/ROADMAP.md
     about: >-
       Magik is pre-alpha. As of 2026-08-26 every DSL in the spec — model, screen, action, channel,
       job, ledger, api, auth, billing, admin_panel — is unimplemented. Nothing is missing by

@@ -1,19 +1,19 @@
 # Module map
 
-Twenty-one subsystems under `lib/magik/`, one reason to change each, mapped to the spec phase they serve.
+Twenty-one subsystems under `apps/magik/lib/magik/`, one reason to change each, mapped to the spec phase they serve.
 
-**Status:** not implemented. Every subsystem below is a spec-only stub — a front-door file exposing `SPEC_PHASE`, `DSL_SURFACE` and `STATUS`, whose `.define` raises `NotImplementedError` — in front of a planned directory and a planned public surface. Re-derive the list with `ruby -Ilib -e 'require "magik"; puts Magik::SUBSYSTEMS.keys.join(" ")'` and the stub list with `grep -rln NotImplementedError lib/magik`. Reviewed 2026-08-26.
+**Status:** not implemented. Every subsystem below is a spec-only stub — a front-door file exposing `SPEC_PHASE`, `DSL_SURFACE` and `STATUS`, whose `.define` raises `NotImplementedError` — in front of a planned directory and a planned public surface. Re-derive the list with `ruby -Iapps/magik/lib -e 'require "magik"; puts Magik::SUBSYSTEMS.keys.join(" ")'` and the stub list with `grep -rln NotImplementedError apps/magik/lib/magik`. Reviewed 2026-08-26.
 
 ## The shape
 
 **One gem.** `magik` ships every subsystem; they are directories, not gems. Extraction stays possible later and is not promised.
 
 ```
-lib/magik.rb
-lib/magik/<subsystem>.rb            # front door — the only file another subsystem may require
-lib/magik/<subsystem>/…             # one responsibility per file
-lib/magik/<subsystem>/errors.rb     # this subsystem's MAGIK_* codes
-lib/magik/<subsystem>/backends/…    # only where the subsystem owns a swap point
+apps/magik/lib/magik.rb
+apps/magik/lib/magik/<subsystem>.rb            # front door — the only file another subsystem may require
+apps/magik/lib/magik/<subsystem>/…             # one responsibility per file
+apps/magik/lib/magik/<subsystem>/errors.rb     # this subsystem's MAGIK_* codes
+apps/magik/lib/magik/<subsystem>/backends/…    # only where the subsystem owns a swap point
 ```
 
 If two things in a subsystem change for different reasons, they are two objects inside it — not two subsystems. Adding a subsystem is an architecture change: it needs a tier, a public surface, and a row here.
@@ -34,7 +34,7 @@ tier 6   cli
 
 There is no exceptions column, on purpose. The first sideways exception is a signal that a tier is wrong; argue the tier instead.
 
-The executable copy of this table is [`../../scripts/lib/tiers.rb`](../../scripts/lib/tiers.rb), and [`../../scripts/checks/boundaries.rb`](../../scripts/checks/boundaries.rb) re-parses this page and [`02-boundaries.md`](02-boundaries.md) against it on every run. When prose and code diverge, the code is right and the prose is the bug.
+The executable copy of this table is [`../../apps/magik/scripts/lib/tiers.rb`](../../apps/magik/scripts/lib/tiers.rb), and [`../../apps/magik/scripts/checks/boundaries.rb`](../../apps/magik/scripts/checks/boundaries.rb) re-parses this page and [`02-boundaries.md`](02-boundaries.md) against it on every run. When prose and code diverge, the code is right and the prose is the bug.
 
 ### Why `policy` is tier 1
 
@@ -71,8 +71,8 @@ Authorization is deliberately **not** a swap point ([`../idea/04-swap-points.md`
 | `admin` | 4 | 7 | the `admin_panel` DSL and the generated CRUD admin | `admin_panel`, `Magik::Admin.mount` | be a second app with its own auth or rendering path | not implemented |
 | `domains` | 4 | item 12 | the `domain` DSL, the dependency graph, and boot-time boundary enforcement | `domain`, `Magik::Domains.graph`, `Magik::Domains.enforce!` | be optional — an app with no domains has one implicit domain | not implemented |
 | `check` | 5 | item 12 | the static rule set behind `magik check`, `--scale` heuristics, finding formatting, `--json` | `Magik::Check.run`, `Magik::Check::Finding` | duplicate a boot guardrail — it runs the same rule objects without a server | not implemented |
-| `testing` | 5 | 9 | the `test` DSL over Minitest, factories, helpers, the parallel runner, transactional isolation | `test`, `Magik::TestCase`, `perform_action`, `render_screen`, `assert_enqueued` | be required from `lib/` production code paths | not implemented |
-| `cli` | 6 | 1 | `exe/magik` — the command surface, generators, the dev server, `magik worker`, `magik console`, `magik describe` | `Magik::Cli.start`, the command classes | contain framework logic — it composes subsystems and prints; hand-maintain a second copy of the grammar (`magik describe` **serializes the option tables**, [below](#the-option-tables-and-magik-describe)) | not implemented |
+| `testing` | 5 | 9 | the `test` DSL over Minitest, factories, helpers, the parallel runner, transactional isolation | `test`, `Magik::TestCase`, `perform_action`, `render_screen`, `assert_enqueued` | be required from `apps/magik/lib/` production code paths | not implemented |
+| `cli` | 6 | 1 | `apps/magik/exe/magik` — the command surface, generators, the dev server, `magik worker`, `magik console`, `magik describe` | `Magik::Cli.start`, the command classes | contain framework logic — it composes subsystems and prints; hand-maintain a second copy of the grammar (`magik describe` **serializes the option tables**, [below](#the-option-tables-and-magik-describe)) | not implemented |
 
 The **Phase** column names a spec phase ([`../idea/06-phases.md`](../idea/06-phases.md)). `item 12` is the spec's *Domain module system* architecture decision rather than a numbered phase; it is built at build-order step 13.
 
@@ -120,13 +120,13 @@ Each seam is owned by exactly one subsystem, and every backend lives under that 
 
 | Seam | Owner | Directory |
 |---|---|---|
-| Database | `core` (connection) + `model`/`schema` (dialect) | `lib/magik/core/backends/` |
-| Cache | `core` | `lib/magik/core/backends/` |
-| Jobs | `jobs` | `lib/magik/jobs/backends/` |
-| Realtime | `realtime` | `lib/magik/realtime/backends/` |
-| Search | `model` | `lib/magik/model/backends/` |
-| Storage | `model` (uploads via Shrine) | `lib/magik/model/backends/` |
-| Billing provider | `billing` | `lib/magik/billing/backends/` |
-| Component kit | `render` | `lib/magik/render/kit/` + the override registry ([`../idea/08-component-overrides.md`](../idea/08-component-overrides.md)) |
+| Database | `core` (connection) + `model`/`schema` (dialect) | `apps/magik/lib/magik/core/backends/` |
+| Cache | `core` | `apps/magik/lib/magik/core/backends/` |
+| Jobs | `jobs` | `apps/magik/lib/magik/jobs/backends/` |
+| Realtime | `realtime` | `apps/magik/lib/magik/realtime/backends/` |
+| Search | `model` | `apps/magik/lib/magik/model/backends/` |
+| Storage | `model` (uploads via Shrine) | `apps/magik/lib/magik/model/backends/` |
+| Billing provider | `billing` | `apps/magik/lib/magik/billing/backends/` |
+| Component kit | `render` | `apps/magik/lib/magik/render/kit/` + the override registry ([`../idea/08-component-overrides.md`](../idea/08-component-overrides.md)) |
 
 Rules for adding one: [`../idea/04-swap-points.md`](../idea/04-swap-points.md).

@@ -5,7 +5,7 @@
 >
 > **Status:** spec only. Nothing in this document is implemented. `As of 2026-08-26` the repository
 > contains a name-reservation gem and documentation; no construct, guardrail or command described
-> below exists ([`../../wiki/Known-Gaps.md`](../../wiki/Known-Gaps.md)).
+> below exists ([`../../apps/magik/wiki/Known-Gaps.md`](../../apps/magik/wiki/Known-Gaps.md)).
 
 ## Mission
 
@@ -67,10 +67,10 @@ machine load, and a number copied into prose is a number a re-run contradicts.
 | | |
 |---|---|
 | Production runtime | **TruffleRuby**, verified on **24.2.1** and on **34.0.1** (2026-04-26, `like ruby 3.4.9`). Its threads are genuinely parallel: N threads over N cores finish CPU-bound work several times faster than one thread does. That is what makes thread-per-request the correct server model, and Puma the correct server |
-| Parallelism holds through the IO path | this is the load-bearing half, because a request spends its life in IO rather than in Ruby. **`pg` releases the runtime lock on every engine tested** — eight threads each issuing a one-second query finish in about one second, not eight — so concurrent queries overlap instead of serialising. CPU parallelism behind a serialising driver would be a queue wearing a thread pool. Probe: [`../../scripts/probes/pg_concurrency.rb`](../../scripts/probes/pg_concurrency.rb) |
+| Parallelism holds through the IO path | this is the load-bearing half, because a request spends its life in IO rather than in Ruby. **`pg` releases the runtime lock on every engine tested** — eight threads each issuing a one-second query finish in about one second, not eight — so concurrent queries overlap instead of serialising. CPU parallelism behind a serialising driver would be a queue wearing a thread pool. Probe: [`../../apps/magik/scripts/probes/pg_concurrency.rb`](../../apps/magik/scripts/probes/pg_concurrency.rb) |
 | Development runtime | **CRuby ≥ 3.2**, for tooling only: the CLI, the linter, the docs build, the test suite of the gem itself. **It is not a production target.** Its threads do not parallelise CPU-bound work at all — the global lock — so decision 1 is not true there, and a CRuby production deploy would be a different framework wearing the same name |
 | **There is no `fork`** | TruffleRuby does not implement it: `Process.respond_to?(:fork)` is `false` and calling it raises. Two consequences, both design rather than caveat. **Puma runs in single mode** — no clustered workers — so capacity comes from more containers rather than more processes on a box ([`../ops/README.md`](../ops/README.md)). And **the test runner has exactly one worker model, a thread** (phase 9), because there is no forked worker to fall back to |
-| Provenance | method, full results and the CI matrix: [`../architecture/12-runtime-verification.md`](../architecture/12-runtime-verification.md). The probes are [`../../scripts/probes/runtime.rb`](../../scripts/probes/runtime.rb) and [`../../scripts/probes/pg_concurrency.rb`](../../scripts/probes/pg_concurrency.rb); re-derive with `ruby scripts/probes/runtime.rb --json`, once per engine |
+| Provenance | method, full results and the CI matrix: [`../architecture/12-runtime-verification.md`](../architecture/12-runtime-verification.md). The probes are [`../../apps/magik/scripts/probes/runtime.rb`](../../apps/magik/scripts/probes/runtime.rb) and [`../../apps/magik/scripts/probes/pg_concurrency.rb`](../../apps/magik/scripts/probes/pg_concurrency.rb); re-derive with `ruby apps/magik/scripts/probes/runtime.rb --json`, once per engine |
 | Staleness | every fact above is engine-version specific and dated `As of 2026-08-26`. A runtime release can move any of it, and **the probes are the mechanism for noticing.** A claim about the runtime that is not re-derivable from them does not belong in this file |
 
 **The open cost, named rather than papered over.** An OS thread is not free per idle connection.
@@ -394,7 +394,7 @@ that file and running `ruby -c` over the concatenation. Reading a block is not a
 keyword that cannot be a method name, or a brace block that binds to the wrong receiver, is invisible
 to a reader and obvious to a parser.
 
-**Enforcement:** these are data, not prose. A `scripts/checks/` step over the option tables asserts
+**Enforcement:** these are data, not prose. An `apps/magik/scripts/checks/` step over the option tables asserts
 that every option in [`02-dsl-surface.md`](02-dsl-surface.md) appears in `magik describe --json` and
 vice versa. A convention that is not a check does not exist.
 
@@ -465,7 +465,7 @@ is what makes an unprotected admin panel a boot failure rather than a documented
   generated signup form throttles and does not reveal whether an account exists
 
 The last criterion is the fourth executable proof required for `1.0.0`, beside the three
-[`../../ROADMAP.md`](../../ROADMAP.md) names. It exists because the five above it can all be true of
+[`../../ROADMAP.md`](../../apps/magik/ROADMAP.md) names. It exists because the five above it can all be true of
 an application that is insecure and unusable.
 
 ## Build Order

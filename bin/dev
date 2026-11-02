@@ -20,7 +20,8 @@ Usage: bin/dev [--step STEP] [--once] [--help]
 
 Reruns `bin/check --only test` every time a watched file changes.
 
-Watched: lib/ exe/ test/ Rakefile Gemfile magik.gemspec
+Watched: apps/magik/lib/ apps/magik/exe/ apps/magik/test/
+         apps/magik/Rakefile apps/magik/Gemfile apps/magik/magik.gemspec
 
 Options:
   --step STEP  Run a different bin/check step instead of `test`
@@ -52,8 +53,8 @@ while [ $# -gt 0 ]; do
   shift
 done
 
-WATCH_PATHS=(lib exe test)
-WATCH_FILES=(Rakefile Gemfile magik.gemspec)
+WATCH_PATHS=(apps/magik/lib apps/magik/exe apps/magik/test)
+WATCH_FILES=(apps/magik/Rakefile apps/magik/Gemfile apps/magik/magik.gemspec)
 
 echo "==> bin/dev: rerunning \`bin/check --only ${STEP}\` on change"
 echo "    watching: ${WATCH_PATHS[*]} ${WATCH_FILES[*]}"

@@ -5,7 +5,7 @@
 #   truffleruby   THE PRODUCTION TARGET. Non-negotiable architecture decision 1
 #                 in docs/idea/00-build-spec.md: Magik runs on TruffleRuby, and
 #                 its concurrency is REAL PARALLEL OS THREADS — no global lock,
-#                 measured rather than assumed by scripts/probes/runtime.rb.
+#                 measured rather than assumed by apps/magik/scripts/probes/runtime.rb.
 #                 That is precisely why decision 2 is Rack + Puma with a thread
 #                 per request, and why there are no forked workers anywhere in
 #                 the design: TruffleRuby implements no `fork`.
@@ -21,7 +21,7 @@
 # Run the suite on both before you claim a change works:
 #
 #   bin/check                              # CRuby, the fast answer
-#   truffleruby -Ilib -Itest test/...      # TruffleRuby, the real answer
+#   truffleruby -Iapps/magik/lib -Iapps/magik/test apps/magik/test/...  # TruffleRuby, the real answer
 #
 # The base image already ships CRuby, rbenv, bundler, git and a non-root
 # `vscode` user, so this file only adds TruffleRuby.
@@ -37,7 +37,7 @@ FROM mcr.microsoft.com/devcontainers/ruby:1-${RUBY_VERSION}-bookworm
 #
 # As of 2026-08-26 this pin IS verified: 34.0.1 was installed and exercised on
 # this machine (truffleruby 34.0.1, like ruby 3.4.9, Oracle GraalVM JVM), and
-# both scripts/probes/runtime.rb and scripts/probes/pg_concurrency.rb were run
+# both apps/magik/scripts/probes/runtime.rb and apps/magik/scripts/probes/pg_concurrency.rb were run
 # against it. See docs/architecture/12-runtime-verification.md.
 #
 # Keep this current. The pin was 24.2.1 until a stale build nearly produced a
@@ -46,8 +46,8 @@ FROM mcr.microsoft.com/devcontainers/ruby:1-${RUBY_VERSION}-bookworm
 ARG TRUFFLERUBY_VERSION=34.0.1
 ARG TARGETARCH=amd64
 
-# Postgres client tools: `psql` against docker/compose.yml, and pg_isready for
-# the "is it actually up" step in docker/README.md. No server — the server is a
+# Postgres client tools: `psql` against apps/magik/docker/compose.yml, and pg_isready for
+# the "is it actually up" step in apps/magik/docker/README.md. No server — the server is a
 # container of its own.
 RUN apt-get update \
   && export DEBIAN_FRONTEND=noninteractive \
