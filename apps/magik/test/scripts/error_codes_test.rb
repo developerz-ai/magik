@@ -552,3 +552,338 @@ class MagikScriptsFindingCodesTest < Minitest::Test
     findings.first
   end
 end
+
+# The fifth rule: the `magik` commands the shipped manual's fix cells name. A
+# fix cell is a promise — "run this and the problem goes away" — and the
+# promise is false when the command is not in the CLI registry: the reader
+# pastes it and gets MAGIK_CLI_UNKNOWN_COMMAND instead.
+class MagikScriptsFixCommandsTest < Minitest::Test
+  Fixes = MagikScripts::Checks::FixCommands
+
+  # The check under test, reading fixture fix cells instead of the real
+  # manual's — the half of the rule that decides which cells to read.
+  class FixtureErrorCodes < MagikScripts::Checks::ErrorCodes
+    # @param commands [Array<String>] the commands the fixture cell names
+    # @param cells [Array<MagikScripts::Checks::FixCommands::Cell>, nil] the
+    #   cells the fixture manual carries; nil means the one cell naming
+    #   `commands`, and an empty array means a manual with no fix column
+    def initialize(commands: [], cells: nil, **)
+      super(**)
+      @commands = commands
+      @cells = cells
+    end
+
+    private
+
+    # @return [Array<MagikScripts::Checks::FixCommands::Cell>]
+    def fix_cells
+      return @cells unless @cells.nil?
+
+      [Fixes::Cell.new(page: "wiki/Error-Codes.md", line: 3, commands: @commands)]
+    end
+  end
+
+  def test_a_fix_cell_naming_an_unregistered_command_is_reported
+    page = <<~MD
+      | Code | Fix |
+      |---|---|
+      | `MAGIK_POLICY_UNKNOWN_VERB` | `magik registry --kind policy --json` lists every verb |
+    MD
+    finding = only(cells(page), %w[check])
+
+    assert_equal "MAGIK_DEV_ERROR_FIX_UNKNOWN_COMMAND", finding.code
+    assert_equal "p.md:3", finding.at
+    assert_includes finding.cause, "Magik::CLI::COMMANDS"
+    assert_includes finding.fix, "p.md:3"
+  end
+
+  def test_a_fix_cell_naming_a_registered_command_is_silent
+    assert_empty audit(cells(page_with("magik check --scale")), %w[check])
+  end
+
+  # `planned` counts. `magik help` listing a command as planned is itself the
+  # documentation that it exists as an idea, and running it exits
+  # MAGIK_CLI_COMMAND_NOT_IMPLEMENTED — a promise the binary keeps.
+  def test_a_planned_command_is_allowed
+    assert_includes registered, "check"
+
+    assert_empty audit(cells(page_with("magik check --scale")), registered)
+  end
+
+  # The registry decides, not the design page: a command planned in a design
+  # document is not a command, so a cell naming one is the finding.
+  def test_a_command_that_is_only_planned_in_a_design_document_is_reported
+    finding = only(cells(page_with("magik registry --json")), %w[check])
+
+    assert_equal "MAGIK_DEV_ERROR_FIX_UNKNOWN_COMMAND", finding.code
+  end
+
+  # A command in an example is an illustration; a command in a fix cell is an
+  # instruction, and only the instruction has to run.
+  def test_a_command_outside_a_fix_column_is_not_read
+    page = <<~MD
+      | Code | Means | Fix |
+      |---|---|---|
+      | `MAGIK_POLICY_UNKNOWN_VERB` | `magik registry --json` | correct the verb |
+    MD
+
+    assert_empty audit(cells(page), %w[check])
+  end
+
+  def test_a_command_in_a_fenced_block_is_not_read
+    page = <<~MD
+      ```text
+      | Code | Fix |
+      |---|---|
+      | `MAGIK_POLICY_UNKNOWN_VERB` | `magik registry --json` |
+      ```
+    MD
+
+    assert_empty Fixes.cells(page, "p.md")
+  end
+
+  # A run of pipe lines with no separator row is not a table: there is no
+  # header to read a fix column from, so the block contributes no cell.
+  def test_a_block_with_no_separator_row_reads_no_cell
+    page = <<~MD
+      | Code | Fix |
+      | `MAGIK_POLICY_UNKNOWN_VERB` | `magik registry --json` |
+    MD
+
+    assert_empty cells(page)
+  end
+
+  # A block whose first line is the separator has no header above it. Read
+  # without the guard, the row *below* the separator is taken for the header —
+  # the block's last row, wrapped around — and a table with no header at all
+  # yields a fix column nobody wrote.
+  def test_a_block_whose_first_line_is_the_separator_reads_no_cell
+    page = <<~MD
+      |---|---|
+      | Code | Fix |
+    MD
+
+    assert_empty cells(page)
+  end
+
+  # The framework's own name in prose is not a command. `the magik gem` is a
+  # sentence about what this repository ships, and reading `gem` out of it as
+  # a subcommand would report a promise the reader was never given.
+  def test_the_name_of_the_framework_in_prose_is_not_a_command
+    page = <<~MD
+      | Code | Fix |
+      |---|---|
+      | `MAGIK_POLICY_UNKNOWN_VERB` | read the magik gem's own policy file |
+    MD
+
+    assert_empty cells(page).flat_map(&:commands)
+  end
+
+  # The name after the binary is one token: `magik check_scale` is a command
+  # the registry does not have, not `check` with a suffix to ignore. Reading
+  # `check` out of it would clear a command the CLI cannot run, and reading
+  # nothing out of it would let the cell past the gate unremarked — so the
+  # whole token is captured and the registry rejects it.
+  def test_a_command_token_is_read_whole_and_held_to_the_registry
+    page = <<~MD
+      | Code | Fix |
+      |---|---|
+      | `MAGIK_POLICY_UNKNOWN_VERB` | `magik check_scale` |
+    MD
+
+    assert_equal %w[check_scale], cells(page).first.commands
+
+    finding = only(cells(page), %w[check])
+
+    assert_equal "MAGIK_DEV_ERROR_FIX_UNKNOWN_COMMAND", finding.code
+    assert_includes finding.cause, "magik check_scale"
+  end
+
+  # The unknown-command finding carries a `fix:` of its own, and that fix is a
+  # command: the registry to read, and the cell to edit. An instruction to
+  # edit the manual leaves an agent with nothing to run.
+  def test_the_unknown_command_finding_carries_a_runnable_fix
+    page = <<~MD
+      | Code | Fix |
+      |---|---|
+      | `MAGIK_POLICY_UNKNOWN_VERB` | `magik registry --json` |
+    MD
+    finding = only(cells(page), %w[check])
+
+    assert_includes finding.fix, "ruby -Iapps/magik/lib apps/magik/exe/magik help --json"
+    assert_includes finding.fix, "p.md:3"
+  end
+
+  # The other branch of the command pattern: a cell that *begins* with the
+  # command, unbackticked. The manual writes every command in backticks, so
+  # this shape is the easy one to lose — and a cell written without them must
+  # still name a command the registry lists.
+  def test_a_cell_that_begins_with_an_unbackticked_command_is_read
+    page = <<~MD
+      | Code | Fix |
+      |---|---|
+      | `MAGIK_SCALE_UNSCOPED_QUERY` | magik check --scale |
+    MD
+
+    assert_equal %w[check], cells(page).first.commands
+  end
+
+  # And the command that branch finds is held to the registry like any other:
+  # matching the cell's first word is not a softer rule.
+  def test_an_unbackticked_command_is_held_to_the_registry
+    page = <<~MD
+      | Code | Fix |
+      |---|---|
+      | `MAGIK_POLICY_UNKNOWN_VERB` | magik registry --json |
+    MD
+
+    assert_equal "MAGIK_DEV_ERROR_FIX_UNKNOWN_COMMAND", only(cells(page), %w[check]).code
+  end
+
+  # The column is found by its header, not by its position: two tables on the
+  # same page put it in different places.
+  def test_the_fix_column_is_found_by_its_header_not_its_position
+    page = <<~MD
+      | Fix | Code |
+      |---|---|
+      | `magik registry --json` | `MAGIK_POLICY_UNKNOWN_VERB` |
+    MD
+
+    assert_equal %w[registry], cells(page).first.commands
+  end
+
+  def test_a_fix_column_headed_with_a_colon_is_read
+    page = <<~MD
+      | Code | fix: |
+      |---|---|
+      | `MAGIK_POLICY_UNKNOWN_VERB` | `magik registry --json` |
+    MD
+
+    assert_equal %w[registry], cells(page).first.commands
+  end
+
+  # The manual writes `\|` inside a fix cell — `can :read do \|actor,
+  # invoice\|` — and a naive split cuts the cell in half and shifts every
+  # later one, which would hide a command written after the escape.
+  def test_a_fix_cell_whose_pipes_are_escaped_is_read_whole
+    page = <<~MD
+      | Code | Fix |
+      |---|---|
+      | `MAGIK_POLICY_NULL_PASSES` | deny the `nil` — `can :read do \\|actor, invoice\\| then run `magik check` |
+    MD
+
+    assert_equal %w[check], cells(page).first.commands
+  end
+
+  # The corrected advice is pinned: the manual the framework ships names no
+  # command the CLI does not have. The assertion fails if the rule stops
+  # reading the page — the corpus would be empty — and if a cell regresses.
+  def test_the_real_manual_names_no_unregistered_command
+    found = Fixes.cells(MagikScripts::Repo.read(Fixes::MANUAL), Fixes::MANUAL)
+
+    refute_empty found, "the rule read no fix cells from #{Fixes::MANUAL}"
+    assert_empty Fixes.audit(cells: found, commands: registered)
+  end
+
+  # A corpus that quietly shrinks is the failure mode `Check#nothing_scanned`
+  # exists to prevent: a rule that matches nothing must not look like a rule
+  # that found nothing wrong.
+  def test_the_real_manual_names_commands_at_all
+    found = Fixes.cells(MagikScripts::Repo.read(Fixes::MANUAL), Fixes::MANUAL)
+
+    refute_empty found.flat_map(&:commands)
+  end
+
+  # The rule is worth what the check does with it, so this drives
+  # `ErrorCodes#run` end to end: a fix cell naming a command the registry does
+  # not have must fail the check, with the code and the cell to edit.
+  def test_the_check_fails_on_a_fix_cell_naming_an_unregistered_command
+    result = FixtureErrorCodes.new(commands: ["registry"]).run
+
+    assert_predicate result, :fail?
+    finding = result.findings.find { |entry| entry.code == "MAGIK_DEV_ERROR_FIX_UNKNOWN_COMMAND" }
+
+    refute_nil finding, "the check did not report the unregistered command"
+    assert_equal "wiki/Error-Codes.md:3", finding.at
+    assert_includes finding.fix, "wiki/Error-Codes.md:3"
+  end
+
+  # The whole token is what the run judges. A cell naming `magik check_scale`
+  # used to yield no command at all, so the run passed a cell the reader
+  # cannot run; the token is captured whole and the run reports it.
+  def test_the_check_fails_on_a_command_token_the_registry_does_not_have
+    result = FixtureErrorCodes.new(commands: ["check_scale"]).run
+
+    assert_predicate result, :fail?
+    finding = result.findings.find { |entry| entry.code == "MAGIK_DEV_ERROR_FIX_UNKNOWN_COMMAND" }
+
+    refute_nil finding, "the check did not report the unregistered command"
+    assert_includes finding.cause, "magik check_scale"
+  end
+
+  # A manual whose fix cells name no command at all has not been checked:
+  # the rule would look like it had found nothing wrong.
+  def test_a_manual_naming_no_command_at_all_is_not_scanned
+    result = FixtureErrorCodes.new(commands: []).run
+
+    assert_predicate result, :fail?
+    assert_includes result.findings.map(&:code), "MAGIK_DEV_CHECK_NOTHING_SCANNED"
+  end
+
+  # A manual with no fix column at all has not been checked either: the rule
+  # finds no cells to read, and a rule that reads nothing looks exactly like a
+  # rule that found nothing wrong.
+  #
+  # The corpus the finding names is the fix columns themselves, not the
+  # commands inside them: two guards ask the same question over two corpora,
+  # and this one pins the first.
+  def test_a_manual_with_no_fix_column_is_not_scanned
+    result = FixtureErrorCodes.new(cells: []).run
+
+    assert_predicate result, :fail?
+    finding = result.findings.find { |entry| entry.code == "MAGIK_DEV_CHECK_NOTHING_SCANNED" }
+
+    refute_nil finding, "the check did not report the empty corpus"
+    assert_equal Fixes::CORPUS, finding.at
+  end
+
+  private
+
+  # @param markdown [String] a page
+  # @return [Array<MagikScripts::Checks::FixCommands::Cell>]
+  def cells(markdown)
+    Fixes.cells(markdown, "p.md")
+  end
+
+  # @param command [String] a command to put in a fix cell
+  # @return [String] a page whose fix cell names it
+  def page_with(command)
+    <<~MD
+      | Code | Fix |
+      |---|---|
+      | `MAGIK_SCALE_UNSCOPED_QUERY` | `#{command}` |
+    MD
+  end
+
+  # @param cells [Array<MagikScripts::Checks::FixCommands::Cell>]
+  # @param commands [Array<String>] the commands the registry names
+  # @return [Array<MagikScripts::Finding>]
+  def audit(cells, commands)
+    Fixes.audit(cells: cells, commands: commands)
+  end
+
+  # @param cells [Array<MagikScripts::Checks::FixCommands::Cell>]
+  # @param commands [Array<String>]
+  # @return [MagikScripts::Finding]
+  def only(cells, commands)
+    findings = audit(cells, commands)
+
+    assert_equal 1, findings.size, "expected one finding, got #{findings.map(&:code)}"
+    findings.first
+  end
+
+  # @return [Array<String>] the commands the CLI registry names
+  def registered
+    MagikScripts::Library.load!::CLI::COMMANDS.keys
+  end
+end
