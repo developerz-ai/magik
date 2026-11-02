@@ -758,6 +758,49 @@ class MagikAppTemplatesTest < Minitest::Test
     assert_includes lines, ".claude/settings.local.json"
   end
 
+  def test_the_scaffold_postgres_image_matches_the_framework
+    require "yaml"
+
+    scaffold = YAML.load(render("docker/compose.yml.erb"))
+    framework = YAML.load_file(File.expand_path("../../docker/compose.yml", __dir__))
+    image = scaffold.fetch("services").fetch("postgres").fetch("image")
+
+    assert_equal "postgres:17-alpine", image
+    assert_equal framework.fetch("services").fetch("postgres").fetch("image"), image
+  end
+
+  def test_the_scaffold_compose_preserves_its_service_settings
+    require "yaml"
+
+    compose = YAML.load(render("docker/compose.yml.erb"))
+    services = compose.fetch("services")
+
+    assert_equal "myapp", compose.fetch("name")
+    assert_equal %w[postgres redis], services.keys.sort
+    assert_equal({
+                   "image" => "postgres:17-alpine",
+                   "environment" => {
+                     "POSTGRES_USER" => "myapp", "POSTGRES_PASSWORD" => "myapp",
+                     "POSTGRES_DB" => "myapp_development", "POSTGRES_INITDB_ARGS" => "--locale=C --encoding=UTF8"
+                   },
+                   "ports" => ["5432:5432"],
+                   "volumes" => ["postgres-data:/var/lib/postgresql/data"],
+                   "healthcheck" => {
+                     "test" => ["CMD-SHELL", "pg_isready -U myapp"],
+                     "interval" => "5s", "timeout" => "5s", "retries" => 10
+                   }
+                 }, services.fetch("postgres"))
+    assert_equal({
+                   "profiles" => ["swap"], "image" => "redis:7-alpine",
+                   "command" => ["redis-server", "--appendonly", "no"], "ports" => ["6379:6379"],
+                   "healthcheck" => {
+                     "test" => %w[CMD redis-cli ping],
+                     "interval" => "5s", "timeout" => "3s", "retries" => 10
+                   }
+                 }, services.fetch("redis"))
+    assert_equal({ "postgres-data" => nil }, compose.fetch("volumes"))
+  end
+
   def test_the_generated_yaml_parses
     require "yaml"
 

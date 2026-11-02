@@ -104,6 +104,11 @@ the repository being brought back into agreement with it.
 
 ### Changed
 
+- **Scaffold Compose template correction:** `docker/compose.yml.erb` now selects
+  `postgres:17-alpine`, matching the framework's development Compose image. No other template
+  settings changed. Rendered-YAML tests pin image parity and the existing Postgres and Redis
+  settings. `magik new` remains planned and not implemented; this does not add a generator.
+
 - **The scaffold's development constraints now equal the framework's.** The generated
   [`Gemfile.erb`](apps/magik/lib/magik/cli/templates/app/Gemfile.erb) pinned minitest `~> 5.0`
   and simplecov `~> 0.22` while both framework Gemfiles pinned `~> 6.0` and `~> 1.2`, so a
