@@ -1,1 +1,6 @@
 inherit_from: apps/magik/.rubocop.yml
+
+# The inherited excludes resolve against apps/magik, so the gate's own scripts here keep main's exclusion.
+Metrics/BlockLength:
+  Exclude:
+    - "bin/**/*"

@@ -76,9 +76,19 @@ the repository being brought back into agreement with it.
   reported as escaping. 152 links across `wiki/` and `llms.txt` now point at the in-gem copies; only
   targets the gem does not carry (ROADMAP, CONTRIBUTING, `.claude/`) keep repository URLs. Re-derive:
   `ruby apps/magik/scripts/checks/shipped_links.rb`.
+- **The `install` step in `bin/check`** — the installed-gem smoke CI's gem-build job runs
+  ([.github/workflows/ci.yml](.github/workflows/ci.yml)): build the gem, install it into an empty
+  `GEM_HOME`, run the installed binary from that home, and assert exit 0, JSON that parses, and
+  name/version/status matching the artifact just built — so the local gate now covers every gate
+  CI runs. The smoke is offline today only because `magik.gemspec` declares zero runtime
+  dependencies; the first runtime dependency makes `gem install` network-dependent, unlike every
+  other step of the gate.
 
 ### Changed
 
+- **Dependabot's github-actions updates now wait out the same 14-day cooldown as the bundle.**
+  [`.github/dependabot.yml`](.github/dependabot.yml) said the ecosystem could not take one; GitHub
+  documents `default-days` for it.
 - **`bin/stop` is the teardown half of the setup→dev→check cycle**, not a `true` stub. It runs
   `docker compose -f apps/magik/docker/compose.yml --profile swap stop` — the Postgres of the default profile
   that `bin/setup --services` started, plus any swap-profile Redis, which `--services` does not
@@ -268,6 +278,18 @@ the repository being brought back into agreement with it.
 - **`apps/magik/PUBLISHING.md`'s inventory tells release reviewers the truth about `docs/`**: the gem
   ships the generated mirror tree, the checkout-root originals stay out — not "docs/ is not
   packaged".
+- **The setup action's pinning-rule comment claimed a `@main` exception that never existed.**
+  [`.github/actions/setup/action.yml`](.github/actions/setup/action.yml):14-19 named
+  `rubygems/configure-rubygems-credentials@main` as "the single documented exception", but
+  [`.github/workflows/release.yml`](.github/workflows/release.yml):296-298 pins
+  `rubygems/configure-rubygems-credentials@v2` — the major tag, like every other third-party
+  action in this repository — and its own comment above that step says so. The rule comment now
+  names the reference the release workflow actually uses and points at the reason written above
+  that step, and the stale "one documented exception" cross-reference in
+  [`.github/workflows/ci.yml`](.github/workflows/ci.yml) is gone. **No pin, permission or policy
+  changed**: every `uses:` line, `permissions:` block and `if:` condition under `.github/` is
+  byte-identical, and `grep -rn '@main' .github/` matches no `uses:` line.
+
 - **`bin/stop`'s two missing-tool messages now print a command instead of advising one.** They said
   *"install Docker before `bin/setup --services`"* and *"install docker-compose-plugin"* — an
   instruction and a package name, neither of them something a reader can paste, against the repo's

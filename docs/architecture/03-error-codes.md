@@ -2,7 +2,7 @@
 
 The design of the `MAGIK_*` catalogue: the code format, the fields every error carries, how `magik errors explain` reads it, and the seed table implied by the guardrails.
 
-**Status:** planned. No error class, no catalogue entry and no `magik errors` command exists. Every code below is a reserved name, not a shipped one. Reviewed 2026-08-26.
+**Status:** error plumbing ships; the full runtime catalogue is planned. `Magik::Error` carries a code, cause and `fix:`, with `to_h` for JSON. The eight shipped codes are `MAGIK_ERROR`, three `MAGIK_CLI_*` codes and four `MAGIK_DOCS_*` codes, listed in [`magik.manifest.json`](../../apps/magik/magik.manifest.json) and discussed in [the decision record below](#the-shipped-codes-and-the-format-a-decision-record). The richer required fields described here, the seed guardrails and the `magik errors` command remain planned, not implemented.
 
 ## Why codes
 
@@ -149,7 +149,7 @@ Text output: what the rule is, why it exists, the shortest failing example, the 
 
 ## Seed catalogue
 
-Every code implied by [`../idea/03-guardrails.md`](../idea/03-guardrails.md) and the spec's architecture decisions. **All planned** — none is registered.
+The table below names seed guardrails implied by [`../idea/03-guardrails.md`](../idea/03-guardrails.md) and the spec's architecture decisions. **These seed codes are planned/reserved** — none of these guardrails is implemented or registered in a runtime catalogue. They are distinct from the eight shipped plumbing codes described in [the decision record](#the-shipped-codes-and-the-format-a-decision-record); their reserved status does not apply to those shipped codes.
 
 | Code | Subsystem | Stage | Severity | Condition |
 |---|---|---|---|---|
