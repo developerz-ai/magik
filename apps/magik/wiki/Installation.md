@@ -12,7 +12,9 @@ magik version
 magik help
 ```
 
-That is the whole surface. You get:
+Those are the two working CLI commands, and they are the whole of the CLI the published `0.0.1`
+shipped. [CHANGELOG.md](https://github.com/developerz-ai/magik/blob/main/CHANGELOG.md#001---2026-08-26)
+is that release's inventory. You get:
 
 - `Magik::VERSION` — a version string.
 - `Magik::Error` — the `MAGIK_*` code / cause / `fix:` convention.
@@ -20,9 +22,18 @@ That is the whole surface. You get:
 - One documented stub module per planned subsystem. Calling into any of them raises
   `NotImplementedError` with a message naming the spec section it will implement.
 
-You do **not** get: `magik new`, a model DSL, a renderer, a router, a server, a worker, or a database
-connection. `magik new myapp` is not a typo you can work around — it is a command that has not been
-written. See [CLI reference](CLI-Reference.md) for exactly which two commands run.
+You do **not** get: `magik docs`, `magik new`, a model DSL, a renderer, a router, a server, a worker,
+or a database connection. `magik new myapp` is not a typo you can work around — it is a command that
+has not been written. See [CLI reference](CLI-Reference.md) for the three commands a checkout runs
+and the planned ones.
+
+**`magik docs` is the third ready command, and the release does not have it.** It reads the
+documentation packaged inside the gem, and it landed after `0.0.1`, so a checkout runs it and the
+published release does not:
+
+```bash
+ruby -Iapps/magik/lib apps/magik/exe/magik docs list    # the checkout's third command
+```
 
 Verify rather than trust:
 
