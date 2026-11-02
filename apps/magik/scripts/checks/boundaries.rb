@@ -226,7 +226,7 @@ module MagikScripts
       def self.missing_document_finding(path)
         Finding.new(code: MISSING_DOCUMENT_CODE, at: path,
                     cause: "#{path} is missing; the configured tier document cannot be checked",
-                    fix: "git restore -- #{path.delete_prefix("../../")}")
+                    fix: "git restore --source=HEAD -- #{path.delete_prefix("../../")}")
       end
 
       # @param path [String] the document

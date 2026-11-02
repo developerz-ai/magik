@@ -182,7 +182,7 @@ class MagikScriptsBoundariesTest < Minitest::Test
       refute_nil finding, json
       assert_equal "MAGIK_DEV_BOUNDARY_DOCUMENT_MISSING", finding.fetch("code")
       assert_equal "#{path} is missing; the configured tier document cannot be checked", finding.fetch("cause")
-      assert_equal "git restore -- #{path.delete_prefix("../../")}", finding.fetch("fix")
+      assert_equal "git restore --source=HEAD -- #{path.delete_prefix("../../")}", finding.fetch("fix")
       assert_includes human, path
       assert_includes human, finding.fetch("cause")
       assert_includes human, finding.fetch("fix")
