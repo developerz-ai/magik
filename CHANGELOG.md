@@ -104,6 +104,12 @@ the repository being brought back into agreement with it.
 
 ### Changed
 
+- **Documentation-only runtime pin correction:** the runtime-verification page and its packaged
+  mirror now identify `34.0.1` as the current devcontainer pin and `24.2.1` as the former pin,
+  removing the obsolete demand to move it. Historical commands, dated measurements and the
+  Native/JVM caveat are preserved, as is the guidance to probe the newest runtime. No runtime
+  configuration changed.
+
 - **Scaffold Compose template correction:** `docker/compose.yml.erb` now selects
   `postgres:17-alpine`, matching the framework's development Compose image. No other template
   settings changed. Rendered-YAML tests pin image parity and the existing Postgres and Redis
