@@ -258,6 +258,18 @@ the repository being brought back into agreement with it.
 
 ### Fixed
 
+- **The scaffold/framework constraint parity check compares every requirement a gem declares, not
+  only the first.** `gem_constraints` in
+  [`app_templates_test.rb`](apps/magik/test/magik/app_templates_test.rb) read one requirement per
+  gem, so `gem "minitest", "~> 6.0", "< 6.1"` in one bundle compared equal to
+  `gem "minitest", "~> 6.0"` in another — the second requirement was drift the parity check could
+  not see, which is the drift the check exists to catch. The parser now keeps every requirement a
+  gem declares (an option such as `require: false` is not a requirement and is still not read as
+  one), the comparison is over the whole list, and two Minitests pin it: one that the parser keeps
+  the second requirement, one that a second requirement is drift. No framework behaviour changed —
+  these are the pins a generated app is written with. Re-derive:
+  `ruby -Iapps/magik/lib -Iapps/magik/test apps/magik/test/magik/app_templates_test.rb`.
+
 - **Developer tooling: the boundary check fails closed when a configured tier document is missing.**
   Each absent document produces an actionable finding alongside existing source and table-drift
   findings; hermetic runner regressions cover human/JSON failure and successful restoration.

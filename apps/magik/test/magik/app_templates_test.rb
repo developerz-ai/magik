@@ -87,22 +87,29 @@ class MagikAppTemplatesTest < Minitest::Test
   # `gem "name", "constraint"` declarations and nothing else: `source`,
   # `gemspec` and `ruby` lines are not gem declarations and carry no
   # constraint to compare.
+  #
+  # EVERY requirement a gem declares is kept. A gem pinned twice
+  # (`gem "minitest", "~> 6.0", "< 6.1"`) is pinned by both, and a parser that
+  # read only the first requirement would call that gem equal to one pinned
+  # `gem "minitest", "~> 6.0"` — hiding exactly the drift this comparison
+  # exists to catch. Options (`require: false`) are not requirements and are
+  # not read as such.
   # @param text [String] a Gemfile's text
-  # @return [Hash{String => String, nil}] gem name to its constraint string
+  # @return [Hash{String => Array<String>}] gem name to its requirement strings
   def gem_constraints(text)
     text.lines.each_with_object({}) do |line, gems|
-      match = line.match(/^\s*gem\s+"([^"]+)"\s*(?:,\s*"([^"]+)")?/)
+      match = line.match(/^\s*gem\s+"([^"]+)"/)
 
       next unless match
 
-      gems[match[1]] = match[2]
+      gems[match[1]] = line.scan(/,\s*"([^"]+)"/).flatten
     end
   end
 
   # A bundle's gems, read from disk. A missing bundle is a broken checkout and
   # the comparison has nothing to enforce against.
   # @param path [String] a Gemfile's path
-  # @return [Hash{String => String, nil}]
+  # @return [Hash{String => Array<String>}]
   def framework_bundle(path)
     assert_path_exists path, "the framework bundle #{path} is missing"
 
@@ -111,8 +118,8 @@ class MagikAppTemplatesTest < Minitest::Test
 
   # The gems two bundles declare in common — the set a parity check compares.
   # The guard keeps the comparison from passing by comparing nothing.
-  # @param left [Hash{String => String, nil}]
-  # @param right [Hash{String => String, nil}]
+  # @param left [Hash{String => Array<String>}]
+  # @param right [Hash{String => Array<String>}]
   # @return [Array<String>]
   def shared_gems(left, right)
     shared = left.keys & right.keys
@@ -125,8 +132,8 @@ class MagikAppTemplatesTest < Minitest::Test
   end
 
   # Compare two bundles gem by gem, naming the drift and both pins.
-  # @param left [Hash{String => String, nil}]
-  # @param right [Hash{String => String, nil}]
+  # @param left [Hash{String => Array<String>}]
+  # @param right [Hash{String => Array<String>}]
   # @param left_name [String] how the left bundle is named in the failure
   # @param right_name [String] how the right bundle is named in the failure
   # @return [void]
@@ -808,7 +815,21 @@ class MagikAppTemplatesTest < Minitest::Test
       gem "magik"
     RUBY
 
-    assert_equal({ "rake" => "~> 13.0", "simplecov" => "~> 1.2", "magik" => nil }, gem_constraints(text))
+    assert_equal({ "rake" => ["~> 13.0"], "simplecov" => ["~> 1.2"], "magik" => [] }, gem_constraints(text))
+  end
+
+  # Every requirement a gem declares is part of its pin, and an option is not
+  # a requirement. A parser that read only the first requirement would call
+  # `gem "minitest", "~> 6.0", "< 6.1"` equal to `gem "minitest", "~> 6.0"`.
+  def test_gem_constraints_keeps_every_requirement_a_gem_declares
+    text = <<~RUBY
+      gem "minitest", "~> 6.0", "< 6.1"
+      gem "simplecov", "~> 1.2", require: false
+      gem "magik"
+    RUBY
+
+    assert_equal({ "minitest" => ["~> 6.0", "< 6.1"], "simplecov" => ["~> 1.2"], "magik" => [] },
+                 gem_constraints(text))
   end
 
   def test_the_comparison_refuses_two_bundles_with_nothing_in_common
@@ -818,7 +839,7 @@ class MagikAppTemplatesTest < Minitest::Test
   end
 
   def test_the_comparison_refuses_a_bundle_without_minitest
-    bundle = { "simplecov" => "~> 1.2" }
+    bundle = { "simplecov" => ["~> 1.2"] }
 
     error = assert_raises(Minitest::Assertion) { shared_gems(bundle, bundle.dup) }
 
@@ -826,7 +847,7 @@ class MagikAppTemplatesTest < Minitest::Test
   end
 
   def test_the_comparison_refuses_a_bundle_without_simplecov
-    bundle = { "minitest" => "~> 6.0" }
+    bundle = { "minitest" => ["~> 6.0"] }
 
     error = assert_raises(Minitest::Assertion) { shared_gems(bundle, bundle.dup) }
 
@@ -834,8 +855,8 @@ class MagikAppTemplatesTest < Minitest::Test
   end
 
   def test_the_drift_assertion_names_the_gem_and_both_pins
-    scaffold = { "minitest" => "~> 5.0", "simplecov" => "~> 1.2" }
-    framework = { "minitest" => "~> 6.0", "simplecov" => "~> 1.2" }
+    scaffold = { "minitest" => ["~> 5.0"], "simplecov" => ["~> 1.2"] }
+    framework = { "minitest" => ["~> 6.0"], "simplecov" => ["~> 1.2"] }
 
     error = assert_raises(Minitest::Assertion) do
       assert_same_constraints(scaffold, framework, "the scaffold", "apps/magik/Gemfile")
@@ -844,6 +865,21 @@ class MagikAppTemplatesTest < Minitest::Test
     assert_includes error.message, "minitest"
     assert_includes error.message, "~> 5.0"
     assert_includes error.message, "~> 6.0"
+  end
+
+  # A gem pinned by two requirements is pinned by both. The comparison has to
+  # see the second one, or `gem "minitest", "~> 6.0", "< 6.1"` in one Gemfile
+  # and `gem "minitest", "~> 6.0"` in another is reported as parity.
+  def test_a_second_requirement_is_drift_and_not_only_the_first
+    scaffold = { "minitest" => ["~> 6.0"], "simplecov" => ["~> 1.2"] }
+    framework = { "minitest" => ["~> 6.0", "< 6.1"], "simplecov" => ["~> 1.2"] }
+
+    error = assert_raises(Minitest::Assertion) do
+      assert_same_constraints(scaffold, framework, "the scaffold", "apps/magik/Gemfile")
+    end
+
+    assert_includes error.message, "minitest"
+    assert_includes error.message, "< 6.1"
   end
 
   def test_a_missing_framework_bundle_is_refused
