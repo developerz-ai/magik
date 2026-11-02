@@ -337,6 +337,14 @@ the repository being brought back into agreement with it.
   workflow's own comment names, and the URL it serves is the `documentation_uri` the gemspec has
   advertised since `0.0.1`.
 
+- **The two error-code links in [`apps/magik/scripts/README.md`](apps/magik/scripts/README.md) now
+  display the path that resolves.** Their labels said `../../docs/architecture/03-error-codes.md` —
+  one directory short of the checkout-root page, because that README sits three levels below the
+  repository root (`apps/` → `magik/` → `scripts/`) — while both hrefs already pointed at
+  `../../../docs/architecture/03-error-codes.md`. The labels now print
+  `../../../docs/architecture/03-error-codes.md`; the hrefs are unchanged, including the
+  `#the-dev-namespace-codes-that-never-reach-an-app` fragment on the second.
+
 ### Notes
 
 - **Nothing in this release is a measurement of Magik.** The only numbers anywhere in the repository
