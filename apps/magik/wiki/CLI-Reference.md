@@ -20,13 +20,13 @@ magik version --json
 | Convention | Detail |
 |---|---|
 | `--json` | every command accepts it and prints one machine-readable object on stdout |
-| Exit codes | `0` success · `1` the command failed, printing a typed `MAGIK_*` error · `2` usage error |
+| Exit codes | `0` success · `1` the command failed, printing a typed `MAGIK_*` error. Every `Magik::Error` the CLI raises exits `1` |
 | Errors | always `code` + `cause` + `fix`. Same three fields in the terminal, the error page and `--json`. See [Error codes](Error-Codes.md) |
 | Flags | long form, `--flag value` or `--flag=value`. Booleans negate as `--no-<flag>` |
 | Global flags | `--json`, `--help`, `--version`, `--cwd <dir>`, `--verbose` |
 | App detection | most commands walk up for `config/app.rb` and fail with `MAGIK_CLI_NOT_IN_APP` if there is none. Exceptions: `new`, `version`, `help` |
 | Not built vs not a command | a **planned** command exits `MAGIK_CLI_COMMAND_NOT_IMPLEMENTED`; an **unknown** one exits `MAGIK_CLI_UNKNOWN_COMMAND`. "Not built yet" and "not a command" are different facts and get different codes |
-| Bad flags | `MAGIK_CLI_INVALID_OPTION`, exit `2` |
+| Bad flags | `MAGIK_CLI_INVALID_OPTION`, exit `1` |
 
 ### `--json` shape
 
@@ -344,7 +344,12 @@ magik errors explain MAGIK_LEDGER_UNBALANCED --json
 |---|---|
 | `0` | success |
 | `1` | the command ran and failed. A typed `MAGIK_*` error is printed |
-| `2` | usage error: `MAGIK_CLI_UNKNOWN_COMMAND`, `MAGIK_CLI_INVALID_OPTION` |
+
+`Magik::CLI` defines `EXIT_SUCCESS` (`0`) and `EXIT_ERROR` (`1`) only, so the binary has two exit
+statuses today. Every `Magik::Error` the CLI raises exits `1` — `MAGIK_CLI_UNKNOWN_COMMAND`,
+`MAGIK_CLI_INVALID_OPTION` and `MAGIK_CLI_COMMAND_NOT_IMPLEMENTED` alike. "Not built yet" and "not a
+command" are different facts and get different codes; the exit status does not tell them apart, the
+code does.
 
 ## Next
 
