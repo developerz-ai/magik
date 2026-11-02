@@ -197,7 +197,7 @@ Deferred:   <n> — <what, and why not now>          [never omit this line]
 Falsified:  <doc claims that were wrong, now corrected>
 Codes:      <new MAGIK_* codes, or none>
 Guards:     <guardrail / repo check / test, or none>
-Gate:       bin/check <pass|fail>, <n>/7 steps, on <engine>
+Gate:       bin/check <pass|fail>, <n>/8 steps, on <engine>
 Docs:       <CHANGELOG, status rows, wiki pages touched>
 Issues:     #<parent> closed (<k> children)
 ```

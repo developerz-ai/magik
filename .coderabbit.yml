@@ -3,7 +3,7 @@
 # CodeRabbit config for Magik — an AI-first, full-stack Ruby framework on TruffleRuby.
 #
 # The review instructions below are the conventions a test cannot check. Everything a test CAN
-# check is already `bin/check` (rubocop, test, yard, build, cli, docs, checks) and there is no
+# check is already `bin/check` (rubocop, test, yard, build, install, cli, docs, checks) and there is no
 # value in a reviewer repeating it — so these instructions deliberately cover only the rules that
 # need judgement: whether a claim is true, whether an error is actionable, whether a stub is honest.
 #

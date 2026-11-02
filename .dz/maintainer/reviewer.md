@@ -21,9 +21,9 @@ Ruby + Bundler. The gate is `bin/check` (`PARALLEL_PROCESSOR_COUNT=2 bin/check`)
 - Follow the prescribed generated-app file layout and keep framework development tooling distinct from app templates.
 - Require dependency rationale, an Unreleased changelog entry and corrections to status claims affected by implementation.
 ## Gates that matter
-- Require `bin/check` as local proof; its seven steps cover RuboCop, Minitest, YARD and 100% documentation coverage, gem build, CLI JSON smoke, relative Markdown links and scripts/checks assertions.
+- Require `bin/check` as local proof; its eight steps cover RuboCop, Minitest, YARD and 100% documentation coverage, gem build, the installed-gem smoke, CLI JSON smoke, relative Markdown links and scripts/checks assertions.
 - Treat focused `bin/check --only STEP` runs as debugging aids, not replacements for the full gate.
-- Respect CI’s Ruby-engine matrix and installed-gem smoke test; do not infer TruffleRuby correctness from a local CRuby pass.
+- Respect CI’s Ruby-engine matrix; do not infer TruffleRuby correctness from a local CRuby pass.
 - Require the unconditional CI aggregator named `ci`; accept intentionally skipped area jobs but not failed or cancelled dependencies.
 - Treat pre-commit as fast changed-file checks and pre-push as the complete gate.
 - Keep external-link checks advisory while enforcing relative links locally.

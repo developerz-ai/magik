@@ -75,7 +75,7 @@ deployed or run against a real database. Add no number without a command that re
 
 **Decide and record spec-framed, reversible design questions; do not queue them for a human.**
 Owner supplies direction; agent exercises judgement only while the spec frames it, `bin/check` catches
-mistakes (seven steps, four engines in CI), and nothing shipped makes reversal costly.
+mistakes (eight steps, four engines in CI), and nothing shipped makes reversal costly.
 *If being wrong costs an edit, decide it. If being wrong costs a release, bring it back.*
 
 **Always reserved to the owner:** publishing gems, tags or other outward-facing immutable actions;
