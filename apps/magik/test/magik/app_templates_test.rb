@@ -17,6 +17,12 @@ require "test_helper"
 class MagikAppTemplatesTest < Minitest::Test
   ROOT = File.expand_path("../../lib/magik/cli/templates/app", __dir__)
 
+  # The framework's own bundles — the source of truth for the constraints the
+  # scaffold writes. `__dir__` is apps/magik/test/magik, so the app bundle is
+  # two levels up and the checkout-root bundle four.
+  APP_GEMFILE = File.expand_path("../../Gemfile", __dir__)
+  CHECKOUT_GEMFILE = File.expand_path("../../../../Gemfile", __dir__)
+
   # A manifest row. See lib/magik/cli/templates/app/MANIFEST.
   Row = Struct.new(:source, :mode, :destination, :on_update)
 
@@ -77,6 +83,59 @@ class MagikAppTemplatesTest < Minitest::Test
   def emitted_rows = manifest_rows.reject { |row| row.mode == "none" }
 
   def read(relative) = File.read(File.join(ROOT, relative))
+
+  # `gem "name", "constraint"` declarations and nothing else: `source`,
+  # `gemspec` and `ruby` lines are not gem declarations and carry no
+  # constraint to compare.
+  # @param text [String] a Gemfile's text
+  # @return [Hash{String => String, nil}] gem name to its constraint string
+  def gem_constraints(text)
+    text.lines.each_with_object({}) do |line, gems|
+      match = line.match(/^\s*gem\s+"([^"]+)"\s*(?:,\s*"([^"]+)")?/)
+
+      next unless match
+
+      gems[match[1]] = match[2]
+    end
+  end
+
+  # A bundle's gems, read from disk. A missing bundle is a broken checkout and
+  # the comparison has nothing to enforce against.
+  # @param path [String] a Gemfile's path
+  # @return [Hash{String => String, nil}]
+  def framework_bundle(path)
+    assert_path_exists path, "the framework bundle #{path} is missing"
+
+    gem_constraints(File.read(path))
+  end
+
+  # The gems two bundles declare in common — the set a parity check compares.
+  # The guard keeps the comparison from passing by comparing nothing.
+  # @param left [Hash{String => String, nil}]
+  # @param right [Hash{String => String, nil}]
+  # @return [Array<String>]
+  def shared_gems(left, right)
+    shared = left.keys & right.keys
+
+    refute_empty shared, "the two bundles declare no gem in common — the comparison would be vacuous"
+    assert_includes shared, "minitest", "the comparison must cover minitest"
+    assert_includes shared, "simplecov", "the comparison must cover simplecov"
+
+    shared
+  end
+
+  # Compare two bundles gem by gem, naming the drift and both pins.
+  # @param left [Hash{String => String, nil}]
+  # @param right [Hash{String => String, nil}]
+  # @param left_name [String] how the left bundle is named in the failure
+  # @param right_name [String] how the right bundle is named in the failure
+  # @return [void]
+  def assert_same_constraints(left, right, left_name, right_name)
+    shared_gems(left, right).each do |name|
+      assert_equal right[name], left[name],
+                   "#{name}: #{left_name} pins #{left[name].inspect}, #{right_name} pins #{right[name].inspect}"
+    end
+  end
 
   def context(layout: :flat, declarations: {})
     Context.new(
@@ -712,6 +771,87 @@ class MagikAppTemplatesTest < Minitest::Test
       assert_includes rendered, %(gem "#{gem_name}")
     end
     refute_includes rendered, "rspec"
+  end
+
+  # The scaffold writes the framework's development constraints. A generated app
+  # that pins a different minitest than the framework it came from tests itself
+  # against a different framework, and the drift is invisible until it breaks.
+  def test_the_scaffolds_dev_constraints_match_the_frameworks
+    scaffold = gem_constraints(render("Gemfile.erb"))
+    framework = framework_bundle(APP_GEMFILE)
+
+    assert_same_constraints(scaffold, framework, "the scaffold", "apps/magik/Gemfile")
+  end
+
+  # Two framework bundles, one answer. If they disagree, the parity above has
+  # no unambiguous constraint to enforce.
+  def test_the_two_framework_gemfiles_agree_with_each_other
+    app = framework_bundle(APP_GEMFILE)
+    checkout = framework_bundle(CHECKOUT_GEMFILE)
+
+    assert_same_constraints(app, checkout, "apps/magik/Gemfile", "the checkout Gemfile")
+  end
+
+  # --- the guards that keep the parity check honest ---------------------------
+  #
+  # A guard that never fires is a comment. Every case below is hermetic — the
+  # bundles are built in memory and the missing path cannot exist — so it fails
+  # for the reason it exists and for no other.
+
+  def test_gem_constraints_reads_gem_declarations_and_nothing_else
+    text = <<~RUBY
+      source "https://rubygems.org"
+      ruby ">= 3.2"
+      gemspec
+      gem "rake", "~> 13.0"
+      gem "simplecov", "~> 1.2", require: false
+      gem "magik"
+    RUBY
+
+    assert_equal({ "rake" => "~> 13.0", "simplecov" => "~> 1.2", "magik" => nil }, gem_constraints(text))
+  end
+
+  def test_the_comparison_refuses_two_bundles_with_nothing_in_common
+    error = assert_raises(Minitest::Assertion) { shared_gems({}, {}) }
+
+    assert_includes error.message, "no gem in common"
+  end
+
+  def test_the_comparison_refuses_a_bundle_without_minitest
+    bundle = { "simplecov" => "~> 1.2" }
+
+    error = assert_raises(Minitest::Assertion) { shared_gems(bundle, bundle.dup) }
+
+    assert_includes error.message, "must cover minitest"
+  end
+
+  def test_the_comparison_refuses_a_bundle_without_simplecov
+    bundle = { "minitest" => "~> 6.0" }
+
+    error = assert_raises(Minitest::Assertion) { shared_gems(bundle, bundle.dup) }
+
+    assert_includes error.message, "must cover simplecov"
+  end
+
+  def test_the_drift_assertion_names_the_gem_and_both_pins
+    scaffold = { "minitest" => "~> 5.0", "simplecov" => "~> 1.2" }
+    framework = { "minitest" => "~> 6.0", "simplecov" => "~> 1.2" }
+
+    error = assert_raises(Minitest::Assertion) do
+      assert_same_constraints(scaffold, framework, "the scaffold", "apps/magik/Gemfile")
+    end
+
+    assert_includes error.message, "minitest"
+    assert_includes error.message, "~> 5.0"
+    assert_includes error.message, "~> 6.0"
+  end
+
+  def test_a_missing_framework_bundle_is_refused
+    missing = File.join(ROOT, "no-such-Gemfile")
+
+    error = assert_raises(Minitest::Assertion) { framework_bundle(missing) }
+
+    assert_includes error.message, "is missing"
   end
 
   def test_the_rakefile_mirrors_this_repos_task_names

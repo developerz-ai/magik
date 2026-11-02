@@ -86,6 +86,17 @@ the repository being brought back into agreement with it.
 
 ### Changed
 
+- **The scaffold's development constraints now equal the framework's.** The generated
+  [`Gemfile.erb`](apps/magik/lib/magik/cli/templates/app/Gemfile.erb) pinned minitest `~> 5.0`
+  and simplecov `~> 0.22` while both framework Gemfiles pinned `~> 6.0` and `~> 1.2`, so a
+  generated app would have tested itself against a different framework than the one it came
+  from — a drift invisible until a test failed in a way the framework's own suite never could.
+  The scaffold now carries the framework's constraints, and a Minitest in
+  [`app_templates_test.rb`](apps/magik/test/magik/app_templates_test.rb) compares every gem
+  the scaffold and the framework declare in common — and the two framework Gemfiles with each
+  other — so the three cannot drift apart again. No framework behaviour changed: these are the
+  pins a generated app is written with. Re-derive:
+  `ruby -Iapps/magik/lib -Iapps/magik/test apps/magik/test/magik/app_templates_test.rb`.
 - **Documentation correction, no runtime change:** the wiki Home and Installation pages now
   enumerate `magik version`, `magik help` and `magik docs` as the three ready CLI commands — a
   fact about a **checkout**, which is one command ahead of the published `0.0.1`. That release's
