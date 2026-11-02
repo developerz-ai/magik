@@ -20,6 +20,14 @@ Documentation and planning only. **No framework behaviour changed, because there
 spec was amended from measurement and rewritten as a clean v1, and everything below is the rest of
 the repository being brought back into agreement with it.
 
+### Fixed
+
+- **Documentation only:** corrected the boundaries and feature-contribution architecture pages
+  and their packaged mirrors to describe repository checks as already executed by `bin/check`'s
+  aggregate `checks` step. Documented `bin/check --only checks` and retained direct boundary-check
+  invocation for optional focused diagnosis; conformance remains planned. No gate implementation
+  or framework runtime behaviour changed.
+
 ### Added
 
 - **Architecture decision 13 — authorization is evaluated in exactly one place.** Every surface that

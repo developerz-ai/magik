@@ -182,15 +182,15 @@ bin/check --only test     # one of them
 bin/check --json          # the same run, as data
 ```
 
-Two families of check, and only the first is wired into the gate so far:
+Both implemented families of check gate today; conformance remains planned:
 
 | Family | Where it lives | Status |
 |---|---|---|
 | lint, tests, YARD coverage, gem build, the CLI's own surface, docs packaging | `bin/check` steps | **runs today** |
-| boundaries, error-code catalogue, changelog, version consistency, doc commands, spec-only drift | one file each in [`../../apps/magik/scripts/checks/`](../../apps/magik/scripts/checks/), run directly — `ruby apps/magik/scripts/checks/<name>.rb` | **runs today, not yet a `bin/check` step** |
+| boundaries, error-code catalogue, changelog, version consistency, doc commands, spec-only drift | one file each in [`../../apps/magik/scripts/checks/`](../../apps/magik/scripts/checks/), executed by the aggregate `bin/check` step named `checks` | **runs today, gates through `checks`** |
 | conformance — swap-point suites, where the change touched a seam ([`../idea/04-swap-points.md`](../idea/04-swap-points.md)) | nowhere yet | planned; there is no seam to conform to |
 
-The boundaries check is the one to run by hand after touching `apps/magik/lib/`: `ruby apps/magik/scripts/checks/boundaries.rb`.
+Run `bin/check --only checks` for the aggregate repository-check step. It executes every `apps/magik/scripts/checks/*.rb` script in sorted order and fails if any script exits nonzero; individual scripts are not separate step names. For optional focused diagnosis after touching `apps/magik/lib/`, run the boundaries checker directly: `ruby apps/magik/scripts/checks/boundaries.rb`.
 
 ## 11. Changelog
 
