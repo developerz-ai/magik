@@ -185,6 +185,18 @@ the repository being brought back into agreement with it.
 
 ### Fixed
 
+- **The setup action's pinning-rule comment claimed a `@main` exception that never existed.**
+  [`.github/actions/setup/action.yml`](.github/actions/setup/action.yml):14-19 named
+  `rubygems/configure-rubygems-credentials@main` as "the single documented exception", but
+  [`.github/workflows/release.yml`](.github/workflows/release.yml):296-298 pins
+  `rubygems/configure-rubygems-credentials@v2` — the major tag, like every other third-party
+  action in this repository — and its own comment above that step says so. The rule comment now
+  names the reference the release workflow actually uses and points at the reason written above
+  that step, and the stale "one documented exception" cross-reference in
+  [`.github/workflows/ci.yml`](.github/workflows/ci.yml) is gone. **No pin, permission or policy
+  changed**: every `uses:` line, `permissions:` block and `if:` condition under `.github/` is
+  byte-identical, and `grep -rn '@main' .github/` matches no `uses:` line.
+
 - **`bin/stop`'s two missing-tool messages now print a command instead of advising one.** They said
   *"install Docker before `bin/setup --services`"* and *"install docker-compose-plugin"* — an
   instruction and a package name, neither of them something a reader can paste, against the repo's

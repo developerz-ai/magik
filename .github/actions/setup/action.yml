@@ -14,9 +14,9 @@ description: Ruby, the bundle and its cache — the three lines every Ruby job i
 # PINNING RULE for this repository: every third-party action is pinned to a MAJOR TAG (`@v1`,
 # `@v3`), never to `@main` and never left floating. Dependabot's `github-actions` ecosystem
 # (.github/dependabot.yml) opens one grouped PR a week that moves those majors, so the pins do not
-# rot and a bump is a reviewable diff rather than something that arrives on its own. The single
-# documented exception is `rubygems/configure-rubygems-credentials@main` in release.yml, and the
-# reason it is an exception is written above the step that uses it.
+# rot and a bump is a reviewable diff rather than something that arrives on its own. There is NO
+# exception: `rubygems/configure-rubygems-credentials@v2` in release.yml is pinned to the major
+# tag like every other action here, and the reason is written above the step that uses it.
 
 inputs:
   ruby-version:
