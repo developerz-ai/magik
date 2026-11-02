@@ -15,16 +15,19 @@
 # own scripts and checks, which ships to nobody. There is no third kind, and
 # this check is what makes that true rather than aspirational.
 #
-# **Four corpora, because a name is taken the day it is written down.** The
+# **Five corpora, because a name is taken the day it is written down.** The
 # error classes in `lib/` are eight; the names reserved by the two catalogue
 # pages are a hundred and sixteen, and until this check grew a second half they
 # drifted freely — the wiki reached 82 codes in a looser `MAGIK_<CONDITION>`
 # shape, sixteen of them a second name for a guardrail the spec had already
 # named. The third corpus is `bin/`, which used the project's prefix under no
 # rule at all until `DEV` was given one. The fourth is this directory: the
-# findings the checks themselves emit, which were a *fifth* namespace under
-# seven invented tokens — `MANIFEST`, `CHANGELOG`, `VERSION`, `SPEC`, `DUMMY`,
-# `DOC`, `ERROR_CODE` — until they were folded into `DEV` too.
+# findings the checks themselves emit, which were a namespace of their own
+# under seven invented tokens — `MANIFEST`, `CHANGELOG`, `VERSION`, `SPEC`,
+# `DUMMY`, `DOC`, `ERROR_CODE` — until they were folded into `DEV` too. The
+# fifth is the `magik` commands the shipped manual's fix cells tell an app
+# author to run: a name there is a promise, and the CLI registry is what
+# decides whether it can be kept.
 #
 # Over the **shipped classes** reachable from the `Magik` namespace:
 #
@@ -72,6 +75,22 @@
 #   MAGIK_DEV_ERROR_CODE_FINDING_UNRESOLVED       a code: argument this check cannot read,
 #                                                 so the corpus is smaller than it looks
 #   MAGIK_DEV_ERROR_FIX_ADVICE                    the same rule again, over a finding's fix:
+#
+# Over the **fix cells of the shipped manual** — the `Fix` columns of
+# `wiki/Error-Codes.md` ({MagikScripts::Checks::FixCommands}):
+#
+#   MAGIK_DEV_ERROR_FIX_UNKNOWN_COMMAND    a fix cell naming a `magik` command the CLI
+#                                          registry does not list, so running it exits
+#                                          MAGIK_CLI_UNKNOWN_COMMAND
+#
+# **A fix cell is a promise.** "Run this and the problem goes away" is what a
+# `fix:` column says, and the promise is false when the command is not in
+# `Magik::CLI::COMMANDS`: the reader pastes it, gets `MAGIK_CLI_UNKNOWN_COMMAND`
+# and exit 1, and now has two errors to read before they get back to the one
+# they came with. The registry decides, not the design pages — a command
+# planned in `docs/idea/11-dsl-as-tool-surface.md` is not a command yet, and a
+# command the registry lists as `planned` is fine here, because `magik help`
+# listing it is itself the documentation that it exists as an idea.
 #
 # A `DEV` code is deliberately **not** asked for in `wiki/Error-Codes.md`: that
 # page is the app author's manual, and an app author cannot run `bin/setup` or
@@ -280,7 +299,11 @@ module MagikScripts
         bare = ReservedCodes::PAGES.find { |page| catalogued.none? { |entry| entry.page == page } }
         return empty_corpus("`Code` columns in #{bare}") if bare
 
-        repo_internal(declared, catalogued)
+        fixes = fix_cells
+        return empty_corpus(FixCommands::CORPUS) if fixes.empty?
+        return empty_corpus(FixCommands::COMMANDS_CORPUS) if fixes.flat_map(&:commands).empty?
+
+        repo_internal(declared, catalogued, fixes)
       end
 
       private
@@ -288,20 +311,21 @@ module MagikScripts
       # The two corpora this repository emits **about itself** — what `bin/`
       # prints and what the checks build — gathered under the same
       # empty-is-a-failure guard the catalogue halves get. Split from {#run} so
-      # that each method carries one pair: `run` guards the two app-facing
+      # that each method carries one pair: `run` guards the three app-facing
       # corpora, this one guards the two `MAGIK_DEV_*` corpora.
       #
       # @param declared [Array<MagikScripts::Checks::ErrorCodes::Declared>]
       # @param catalogued [Array<MagikScripts::Checks::ReservedCodes::Code>]
+      # @param fixes [Array<MagikScripts::Checks::FixCommands::Cell>]
       # @return [MagikScripts::Result]
-      def repo_internal(declared, catalogued)
+      def repo_internal(declared, catalogued, fixes)
         raised = dev_codes
         return empty_corpus(DevCodes::CORPUS) if raised.empty?
 
         emitted = finding_codes
         return empty_corpus(FindingCodes::CORPUS) if emitted.empty?
 
-        verdict(declared, catalogued, raised, emitted)
+        verdict(declared, catalogued, fixes, raised, emitted)
       end
 
       # @return [Array<MagikScripts::Checks::ReservedCodes::Code>] every name
@@ -310,10 +334,28 @@ module MagikScripts
         ReservedCodes::PAGES.flat_map { |page| ReservedCodes.catalogued(Repo.read(page), page) }
       end
 
+      # Every fix cell on the shipped manual, with the commands each one names.
+      # Read from the tree here so that {FixCommands.cells} stays a pure
+      # function the test can feed a page to.
+      #
+      # @return [Array<MagikScripts::Checks::FixCommands::Cell>]
+      def fix_cells
+        FixCommands.cells(Repo.read(CATALOGUE), CATALOGUE)
+      end
+
+      # The commands the CLI registry names. The registry is the truth: a
+      # command that is not in it exits MAGIK_CLI_UNKNOWN_COMMAND, whatever
+      # the design pages plan.
+      #
+      # @return [Array<String>]
+      def cli_commands
+        Library.load!::CLI::COMMANDS.keys
+      end
+
       # {MagikScripts::Check#nothing_scanned} with this check's expectation and
-      # fix line filled in. Four corpora ask the same question, and a
-      # per-corpus copy of the two constant arguments is three more places for
-      # them to drift.
+      # fix line filled in. Six guards ask the same question over five corpora
+      # — did this check read anything at all? — and a per-corpus copy of the
+      # two constant arguments is four more places for them to drift.
       #
       # @param corpus [String] what was searched for, and found nothing of
       # @return [MagikScripts::Result]
@@ -321,26 +363,49 @@ module MagikScripts
         nothing_scanned(corpus: corpus, expected: expectation, fix: fix_line)
       end
 
-      # The four audits, joined. Split from {#run} so that reading `run` shows
+      # The five audits, joined. Split from {#run} so that reading `run` shows
       # what is collected and reading this shows what is asserted.
       #
       # @param declared [Array<MagikScripts::Checks::ErrorCodes::Declared>]
       # @param catalogued [Array<MagikScripts::Checks::ReservedCodes::Code>]
+      # @param fixes [Array<MagikScripts::Checks::FixCommands::Cell>]
       # @param raised [Array<MagikScripts::Checks::DevCodes::Code>]
       # @param emitted [Array<MagikScripts::Checks::FindingCodes::Code>]
       # @return [MagikScripts::Result]
-      def verdict(declared, catalogued, raised, emitted)
+      def verdict(declared, catalogued, fixes, raised, emitted)
         documented = self.class.documented_codes(Repo.read(CATALOGUE))
         findings = self.class.audit(declared: declared, documented: documented,
                                     format: Library.load!::Error::CODE_FORMAT) +
-                   ReservedCodes.audit(catalogued: catalogued) + DevCodes.audit(raised: raised) +
+                   ReservedCodes.audit(catalogued: catalogued) +
+                   FixCommands.audit(cells: fixes, commands: cli_commands) +
+                   DevCodes.audit(raised: raised) +
                    FindingCodes.audit(emitted: emitted)
-        return summary(declared, documented, catalogued, raised, emitted) if findings.empty?
+        return summary(declared, documented, catalogued, fixes, raised, emitted) if findings.empty?
 
+        note = drift_note(declared: declared, documented: documented, catalogued: catalogued,
+                          fixes: fixes, raised: raised, emitted: emitted, findings: findings)
         failure(reason: "error_code_drift", expected: expectation, fix: fix_line, findings: findings,
-                got: "#{declared.size} error classes, #{documented.size} documented as live, " \
-                     "#{catalogued.uniq(&:code).size} reserved names, #{raised.size} dev-script " \
-                     "codes, #{emitted.size} check findings, #{findings.size} finding(s)")
+                got: note)
+      end
+
+      # What a failure reports: one count per corpus, so the reader can see
+      # which corpus drifted and not only how many findings there are. Split
+      # from {#verdict} so that the method joins the audits and this one
+      # counts them.
+      #
+      # @param declared [Array<MagikScripts::Checks::ErrorCodes::Declared>]
+      # @param documented [Array<String>]
+      # @param catalogued [Array<MagikScripts::Checks::ReservedCodes::Code>]
+      # @param fixes [Array<MagikScripts::Checks::FixCommands::Cell>]
+      # @param raised [Array<MagikScripts::Checks::DevCodes::Code>]
+      # @param emitted [Array<MagikScripts::Checks::FindingCodes::Code>]
+      # @param findings [Array<MagikScripts::Finding>]
+      # @return [String]
+      def drift_note(declared:, documented:, catalogued:, fixes:, raised:, emitted:, findings:)
+        "#{declared.size} error classes, #{documented.size} documented as live, " \
+          "#{catalogued.uniq(&:code).size} reserved names, #{fixes.size} fix cells, " \
+          "#{raised.size} dev-script codes, #{emitted.size} check findings, " \
+          "#{findings.size} finding(s)"
       end
 
       # Every `MAGIK_*` code the repository's own `bin/` scripts raise. Read
@@ -387,15 +452,18 @@ module MagikScripts
       # @param declared [Array<MagikScripts::Checks::ErrorCodes::Declared>]
       # @param documented [Array<String>]
       # @param catalogued [Array<MagikScripts::Checks::ReservedCodes::Code>]
+      # @param fixes [Array<MagikScripts::Checks::FixCommands::Cell>]
       # @param raised [Array<MagikScripts::Checks::DevCodes::Code>]
       # @param emitted [Array<MagikScripts::Checks::FindingCodes::Code>]
       # @return [MagikScripts::Result]
-      def summary(declared, documented, catalogued, raised, emitted)
+      def summary(declared, documented, catalogued, fixes, raised, emitted)
         ok(expected: expectation,
            got: "#{declared.size} error classes, #{declared.map(&:code).uniq.size} unique codes, " \
                 "all #{documented.size} documented in #{CATALOGUE}; #{catalogued.uniq(&:code).size} " \
                 "reserved names across #{ReservedCodes::PAGES.size} catalogues, well-formed and " \
-                "unique; #{raised.size + emitted.size} MAGIK_#{DevCodes::TOKEN}_* codes in " \
+                "unique; #{fixes.size} fix cells in #{CATALOGUE} naming " \
+                "#{fixes.flat_map(&:commands).size} `magik` commands, every one registered; " \
+                "#{raised.size + emitted.size} MAGIK_#{DevCodes::TOKEN}_* codes in " \
                 "#{DevCodes::SCRIPTS} and #{FindingCodes::SCRIPTS}, each with a runnable fix: " \
                 "and none of them in #{ReservedCodes::MANUAL}")
       end
@@ -405,8 +473,9 @@ module MagikScripts
         "every Magik::Error subclass declares a unique, well-formed MAGIK_* code with a runnable fix:, " \
           "#{CATALOGUE}'s \"#{LIVE_SECTION}\" table lists exactly those codes, every reserved " \
           "name in #{ReservedCodes::PAGES.join(" and ")} is MAGIK_<SUBSYSTEM>_<CONDITION> with one " \
-          "code per condition and none of them repo-internal, and every code this repository emits " \
-          "about itself — printed by #{DevCodes::SCRIPTS}, or built into a finding by " \
+          "code per condition and none of them repo-internal, every `magik` command a fix cell in " \
+          "#{CATALOGUE} names is one Magik::CLI::COMMANDS lists, and every code this repository " \
+          "emits about itself — printed by #{DevCodes::SCRIPTS}, or built into a finding by " \
           "#{FindingCodes::SCRIPTS} — is MAGIK_#{DevCodes::TOKEN}_<CONDITION> with a fix: of its own"
       end
 
@@ -852,8 +921,9 @@ module MagikScripts
       end
 
       # The same rule {ErrorCodes.advice} applies to a shipped class, over the
-      # text a script prints. One list of phrases, so the two corpora cannot
-      # disagree about what counts as advice.
+      # text a script prints. One list of phrases, shared with the two other
+      # corpora that read a `fix:` — the shipped classes and the checks' own
+      # findings — so the three cannot disagree about what counts as advice.
       #
       # @param entry [MagikScripts::Checks::DevCodes::Code]
       # @return [MagikScripts::Finding, nil]
@@ -1064,8 +1134,9 @@ module MagikScripts
 
       # The same rule {ErrorCodes.advice} applies to a shipped class and
       # {DevCodes.advice} to a script, over a finding's own `fix:`. One
-      # {ErrorCodes::ADVICE} list, so the four corpora cannot disagree about
-      # what counts as advice.
+      # {ErrorCodes::ADVICE} list, so the three corpora that read a `fix:` —
+      # the shipped classes, the `bin/` scripts and the checks' own findings —
+      # cannot disagree about what counts as advice.
       #
       # @param entry [MagikScripts::Checks::FindingCodes::Code]
       # @return [MagikScripts::Finding, nil]
@@ -1197,6 +1268,177 @@ module MagikScripts
       def self.fix_in(arguments)
         found = arguments[FIX, 1]
         found.nil? ? nil : DevCodes.trim(found)
+      end
+    end
+
+    # The fifth rule: the `magik` commands the shipped manual's **fix cells**
+    # tell an app author to run.
+    #
+    # A fix cell is a promise — *"run this and the problem goes away"* — and it
+    # is false when the command is not in `Magik::CLI::COMMANDS`. The reader
+    # pastes it, gets `MAGIK_CLI_UNKNOWN_COMMAND` and exit 1, and now has two
+    # errors to read before they get back to the one they came with.
+    #
+    # **The registry decides, not the design page.**
+    # `docs/idea/11-dsl-as-tool-surface.md` plans a registry command and
+    # `docs/architecture/07-configuration-and-secrets.md` plans a credentials
+    # command; a plan is not a registration, and a fix cell may only promise
+    # what the binary can do. A command the registry lists as `planned` is
+    # allowed here: `magik help` listing it is itself the documentation that
+    # it exists as an idea, and running it exits
+    # `MAGIK_CLI_COMMAND_NOT_IMPLEMENTED` — a promise the binary keeps.
+    #
+    # Only the **fix columns** are read, and they are found by their header
+    # rather than by their position — the same discipline {ReservedCodes}
+    # applies to a `Code` column. A command in prose is an example; a command
+    # in a fix cell is an instruction, and only the instruction has to run.
+    class FixCommands
+      # The manual this rule reads, and the only page it reads.
+      # @return [String]
+      MANUAL = ReservedCodes::MANUAL
+
+      # What an empty run calls the corpus.
+      # @return [String]
+      CORPUS = "`Fix` columns in #{MANUAL}".freeze
+
+      # What an empty run calls the corpus of commands. A manual whose fix
+      # cells name no `magik` command at all asserts nothing: the rule would
+      # look like it had found nothing wrong.
+      # @return [String]
+      COMMANDS_CORPUS = "`magik` commands in the `Fix` columns of #{MANUAL}".freeze
+
+      # The headers that mark the fix column, lowercased. `fix:` and `Fix` are
+      # the same column; the colon is punctuation, not a second column.
+      # @return [Array<String>]
+      FIX_HEADERS = ["fix", "fix:"].freeze
+
+      # A `magik` command as a fix cell writes it: the binary, then the
+      # command.
+      #
+      # **The binary has to stand where a command stands.** A command is
+      # written at the start of the cell or at the start of an inline code
+      # span — the manual writes every command in backticks — and the name
+      # after it ends at a boundary. `the magik gem` is a sentence about the
+      # gem this framework ships, and `gem install magik` names the binary as
+      # an argument; neither is a command to run, and reading one as a command
+      # would report a promise the reader was never given.
+      #
+      # @return [Regexp]
+      COMMAND = /(?:`|\A)[ \t]*magik[ \t]+([a-z][a-z0-9]*(?:-[a-z0-9]+)*)(?![\w-])/
+
+      # One fix cell, and the commands it names.
+      Cell = Struct.new(:page, :line, :commands, keyword_init: true) do
+        # @return [String] `path:line`, pasteable into an editor
+        def at
+          "#{page}:#{line}"
+        end
+      end
+
+      # Every finding implied by the fix cells.
+      #
+      # @param cells [Array<MagikScripts::Checks::FixCommands::Cell>]
+      # @param commands [Array<String>] the commands the CLI registry names
+      # @return [Array<MagikScripts::Finding>]
+      def self.audit(cells:, commands:)
+        cells.flat_map do |cell|
+          cell.commands.filter_map do |command|
+            next if commands.include?(command)
+
+            unknown_command(cell, command)
+          end
+        end
+      end
+
+      # @param cell [MagikScripts::Checks::FixCommands::Cell]
+      # @param command [String] the command the cell names
+      # @return [MagikScripts::Finding]
+      def self.unknown_command(cell, command)
+        Finding.new(code: "MAGIK_DEV_ERROR_FIX_UNKNOWN_COMMAND", at: cell.at,
+                    cause: "#{cell.at} tells the reader to run `magik #{command}`, and " \
+                           "Magik::CLI::COMMANDS does not name it — running it exits " \
+                           "MAGIK_CLI_UNKNOWN_COMMAND",
+                    fix: "edit the fix cell at #{cell.at} to name a command " \
+                         "Magik::CLI::COMMANDS lists, or an edit naming a file")
+      end
+
+      # Every fix cell on a page, with the commands it names. Pure, so the
+      # test can feed it a fixture rather than edit the real manual.
+      #
+      # @param markdown [String] the page
+      # @param page [String] its root-relative path, for findings
+      # @return [Array<MagikScripts::Checks::FixCommands::Cell>]
+      def self.cells(markdown, page)
+        tables(Markdown.new(markdown).without_fences).flat_map { |block| block_cells(block, page) }
+      end
+
+      # The table blocks of a page: each a run of consecutive lines that open
+      # with a pipe. A block carries its own line numbers, so a finding names
+      # the line in the page and not the line in the block.
+      #
+      # @param text [String] the page, fences blanked
+      # @return [Array<Array<Array(String, Integer)>>] one array per block
+      def self.tables(text)
+        blocks = []
+        current = []
+        text.each_line.with_index(1) do |line, number|
+          if line.strip.start_with?("|")
+            current << [line, number]
+          elsif !current.empty?
+            blocks << current
+            current = []
+          end
+        end
+        blocks << current unless current.empty?
+        blocks
+      end
+
+      # The fix cells of one table block. The column is found by its header,
+      # and the header is the row above the separator — the only thing that
+      # distinguishes a header row from a data row.
+      #
+      # @param block [Array<Array(String, Integer)>] the block's lines
+      # @param page [String] the page, for findings
+      # @return [Array<MagikScripts::Checks::FixCommands::Cell>]
+      def self.block_cells(block, page)
+        separator = block.index { |line, _number| Markdown.separator?(line.strip) }
+        return [] if separator.nil? || separator.zero?
+
+        column = split_cells(block[separator - 1].first.strip).index { |cell| fix_header?(cell) }
+        return [] if column.nil?
+
+        block[(separator + 1)..].to_a.filter_map do |line, number|
+          row(split_cells(line.strip)[column], page, number)
+        end
+      end
+
+      # @param cell [String, nil] the row's fix cell
+      # @param page [String] the page, for findings
+      # @param number [Integer] the 1-based line
+      # @return [MagikScripts::Checks::FixCommands::Cell, nil]
+      def self.row(cell, page, number)
+        return nil if cell.nil?
+
+        Cell.new(page: page, line: number, commands: cell.scan(COMMAND).flatten.uniq)
+      end
+
+      # @param cell [String] a header cell
+      # @return [Boolean] true when it heads the fix column
+      def self.fix_header?(cell)
+        FIX_HEADERS.include?(cell.to_s.downcase.strip.delete("`"))
+      end
+
+      # The cells of a table row.
+      #
+      # `Markdown.cells` splits on every pipe, including an escaped one, and
+      # this manual writes `\|` inside a fix cell — `can :read do \|actor,
+      # invoice\|` — so a row carrying one would have its fix cell cut in half
+      # and every later cell shifted. This split ignores a pipe a backslash
+      # escapes.
+      #
+      # @param line [String] a stripped table line
+      # @return [Array<String>] its trimmed cells
+      def self.split_cells(line)
+        line.delete_prefix("|").delete_suffix("|").split(/(?<!\\)\|/).map(&:strip)
       end
     end
   end

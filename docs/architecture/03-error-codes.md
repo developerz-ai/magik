@@ -8,7 +8,7 @@ The design of the `MAGIK_*` catalogue: the code format, the fields every error c
 
 An error is the framework's only chance to be useful at the moment something is wrong, and its audience is usually an agent ([`../idea/07-ai-first.md`](../idea/07-ai-first.md)). A stable code is what makes an error searchable, matchable in a log pipeline, and answerable without reading framework source. A `fix:` line is what makes it actionable without a human.
 
-**Errors are instructions.** Prose advice is something a reader has to interpret; a command is something it can run.
+**Errors are instructions.** Prose advice is something a reader has to interpret; a command is something it can run. A command the reader cannot run is worse than prose.
 
 ## Code format
 
@@ -82,7 +82,7 @@ Every error is a `Magik::Error` subclass carrying:
 | `code` | String | the stable identifier above |
 | `cause` | String | the specific fact, with the real identifiers. Never a restatement of the code |
 | `location` | String | `file:line` in **app** code — the declaration site, not a framework frame |
-| `fix` | String | an executable command wherever one exists; advice only where none can |
+| `fix` | String | an executable command wherever one exists — and a `magik` command it names must be one the CLI registers; advice only where none can |
 | `stage` | Symbol | `:boot`, `:check`, `:runtime` — where this condition is detected |
 | `severity` | Symbol | `:error` (refuses) or `:warning` (reports, e.g. `--scale`) |
 | `doc` | String | the docs path that explains the rule |
@@ -281,7 +281,7 @@ where each is declared:
 | Family | Check | About |
 |---|---|---|
 | `MAGIK_DEV_BOUNDARY_*` | [`boundaries`](../../apps/magik/scripts/checks/boundaries.rb) | a sideways or upward dependency inside `apps/magik/lib/magik/`, a require past a front door, a tier table a document no longer agrees with |
-| `MAGIK_DEV_ERROR_CODE_*` · `MAGIK_DEV_ERROR_FIX_ADVICE` | [`error-codes`](../../apps/magik/scripts/checks/error_codes.rb) | this page's rules, over all four corpora |
+| `MAGIK_DEV_ERROR_CODE_*` · `MAGIK_DEV_ERROR_FIX_*` | [`error-codes`](../../apps/magik/scripts/checks/error_codes.rb) | this page's rules, over all five corpora |
 | `MAGIK_DEV_SPEC_ONLY_*` | [`spec-only-drift`](../../apps/magik/scripts/checks/spec_only_drift.rb) | `Magik::SPEC_ONLY_SUBSYSTEMS` disagreeing with what the modules do |
 | `MAGIK_DEV_DOC_*` | [`doc-commands`](../../apps/magik/scripts/checks/doc_commands.rb) | a command in a fenced block that this repository does not provide |
 | `MAGIK_DEV_CHANGELOG_*` | [`changelog`](../../apps/magik/scripts/checks/changelog.rb) | `CHANGELOG.md` drifting from Keep a Changelog |
@@ -305,12 +305,14 @@ codes: they are what `magik check` will raise inside somebody's application, and
 `apps/magik/scripts/checks/boundaries.rb` raising `MAGIK_DEV_BOUNDARY_TIER` about *this* tree is a different
 condition detected by a different program. One name each, and neither borrows the other's.
 
-### The rules, unchanged
+### The rules, and the fifth corpus
 
 Everything the rest of this page states applies: one code per condition, a cause naming real
 identifiers, and a `fix:` that is a command.
 [`../../apps/magik/scripts/checks/error_codes.rb`](../../apps/magik/scripts/checks/error_codes.rb) asserts all three over
-both emitters, and deliberately does **not** ask the wiki for a row — it refuses one:
+both emitters, and over the fix cells of the shipped manual it asserts only the unknown-command
+rule: a fix cell carries no code and no cause, so the other two have nothing to read there. It
+deliberately does **not** ask the wiki for a row of the check's own codes — it refuses one:
 
 | Finding | Condition |
 |---|---|
@@ -321,7 +323,8 @@ both emitters, and deliberately does **not** ask the wiki for a row — it refus
 | `MAGIK_DEV_ERROR_CODE_FINDING_UNFIXABLE` | a `Finding.new` built with no `fix:` |
 | `MAGIK_DEV_ERROR_CODE_FINDING_UNRESOLVED` | a `code:` argument the check cannot read, so the corpus is quietly smaller than it looks |
 | `MAGIK_DEV_ERROR_CODE_PUBLISHED` | a `MAGIK_DEV_*` code written into `apps/magik/wiki/Error-Codes.md` or `docs/idea/03-guardrails.md` |
-| `MAGIK_DEV_ERROR_FIX_ADVICE` | a `fix:` that tells the reader to think rather than to run something — one phrase list, shared by all four corpora |
+| `MAGIK_DEV_ERROR_FIX_ADVICE` | a `fix:` that tells the reader to think rather than to run something — one phrase list, shared by the three corpora that read a `fix:` (the shipped classes, the `bin/` scripts and the checks' own findings), so the check cannot disagree with itself about what counts as advice |
+| `MAGIK_DEV_ERROR_FIX_UNKNOWN_COMMAND` | a `fix:` naming a `magik` command the CLI does not have — the reader would run it and get `MAGIK_CLI_UNKNOWN_COMMAND` |
 
 **`MAGIK_` is also an environment-variable prefix.** `MAGIK_YARD_MIN_COVERAGE`
 ([`bin/check`](../../bin/check)) and `MAGIK_DOCS_ROOT` ([`09-shipped-docs.md`](09-shipped-docs.md))
@@ -329,6 +332,25 @@ are configuration, not codes, and nothing may rename them into the format. A che
 every `MAGIK_*` string would call both of them malformed codes — which is why the check reads the
 `Code` column of a table for the catalogues, the `CODE: cause` rendering for `bin/`, and the
 `Finding.new(code:` constructor for `apps/magik/scripts/`, rather than matching the prefix alone.
+
+### A `fix:` must name a command that exists
+
+The CLI's registry — `Magik::CLI::COMMANDS`, the table `magik help` prints — is the only
+statement of what the binary can be asked to do, and it is what a `fix:` is measured against.
+**A `fix:` that names a `magik` command must name one the registry lists.** A command counts
+whether its status is `ready` or `planned`: a `planned` command is still a command the CLI
+documents, and running one reports that it is not implemented yet. A name the registry does not
+list is not a command at all — running it exits with `MAGIK_CLI_UNKNOWN_COMMAND`, and the reader
+is sent down a path that never existed.
+
+The check holds the shipped manual to that: the fix cells of `apps/magik/wiki/Error-Codes.md` —
+the cells of the columns headed `Fix` or `fix:`, not the prose around them and not the text
+inside a fenced block. A cell with no operational command to name says so in words, that the
+command is planned and not built. That is a truthful fix line; a command that does not exist is
+not.
+
+`MAGIK_DEV_ERROR_FIX_UNKNOWN_COMMAND` is the finding: it names the cell's line in
+`apps/magik/wiki/Error-Codes.md` and the command the registry does not have.
 
 ## Option-level errors (R7)
 

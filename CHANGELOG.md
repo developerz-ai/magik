@@ -83,6 +83,21 @@ the repository being brought back into agreement with it.
   CI runs. The smoke is offline today only because `magik.gemspec` declares zero runtime
   dependencies; the first runtime dependency makes `gem install` network-dependent, unlike every
   other step of the gate.
+- **The error-codes check now holds a `fix:` to a command that exists.** The shipped manual's
+  fix cells are the check's **fifth corpus** — after the shipped error classes in `lib/`, the
+  reserved catalogue names, the `bin/` scripts and the checks' own findings. A fix cell in the
+  shipped manual — [`wiki/Error-Codes.md`](apps/magik/wiki/Error-Codes.md) — that names a
+  `magik` command the CLI does not have is a finding, `MAGIK_DEV_ERROR_FIX_UNKNOWN_COMMAND`,
+  reported against the cell's line with the edit that fixes it. The registry —
+  `Magik::CLI::COMMANDS`, the table `magik help` prints — is the only statement of what the
+  binary can be asked to do, and a command counts whether its status is `ready` or `planned`:
+  `magik help` listing a command as planned is itself the documentation that it exists as an
+  idea. A name the registry does not list is not a command — running it exits with
+  `MAGIK_CLI_UNKNOWN_COMMAND`, and the reader is sent down a path that never existed. Five fix
+  cells named `magik registry` or `magik credentials`; they now name a registered command, or
+  say plainly that the command is planned and not built. **No command was added** — the
+  registry and the CLI are unchanged. The rule and its code are described in
+  [`docs/architecture/03-error-codes.md`](docs/architecture/03-error-codes.md#a-fix-must-name-a-command-that-exists).
 
 ### Changed
 
@@ -246,6 +261,14 @@ the repository being brought back into agreement with it.
   reads and can never reach.
 
 ### Fixed
+
+- **The shipped manual no longer claims a CLI error exits 2.** Every `Magik::Error` the CLI
+  raises exits `Magik::CLI::EXIT_ERROR`, which is `1` (`apps/magik/lib/magik/cli.rb:38`) —
+  `MAGIK_CLI_UNKNOWN_COMMAND`, `MAGIK_CLI_INVALID_OPTION` and
+  `MAGIK_CLI_COMMAND_NOT_IMPLEMENTED` alike, and the page said 2. It now states the exit
+  status the binary actually returns, and what that status cannot do: "not built yet" and
+  "not a command" are different facts and get different codes. The code tells them apart; the
+  exit status does not. Documentation only — no CLI behaviour changed.
 
 - **Developer tooling: the boundary check fails closed when a configured tier document is missing.**
   Each absent document produces an actionable finding alongside existing source and table-drift

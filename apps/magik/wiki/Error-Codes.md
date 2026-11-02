@@ -93,9 +93,10 @@ and `lib/` disagree, in either direction.
 | `MAGIK_DOCS_AMBIGUOUS_PAGE` | a shorthand slug matches more than one page | `magik docs models`, where two trees carry that name | `magik docs list`, then use the full slug — `magik docs wiki/models` |
 | `MAGIK_DOCS_MISSING_TERM` | a search with nothing to search for | `magik docs search` with no argument | `magik docs search <term>`, e.g. `magik docs search ledger` |
 
-`MAGIK_CLI_UNKNOWN_COMMAND` and `MAGIK_CLI_INVALID_OPTION` exit `2`; `MAGIK_CLI_COMMAND_NOT_IMPLEMENTED` exits
-`1`. "Not built yet" and "not a command" are different facts and get different codes and different
-exits.
+Every `Magik::Error` the CLI raises exits `Magik::CLI::EXIT_ERROR`, which is `1` —
+`MAGIK_CLI_UNKNOWN_COMMAND`, `MAGIK_CLI_INVALID_OPTION` and `MAGIK_CLI_COMMAND_NOT_IMPLEMENTED`
+alike. "Not built yet" and "not a command" are different facts and get different codes; today the
+exit status does not tell them apart, the code does.
 
 ---
 
@@ -128,13 +129,13 @@ an edit the error can name. `policy` and `layout` are phase 2 constructs — see
 |---|---|---|---|
 | `MAGIK_POLICY_UNDECLARED` | a surface that reaches a model names no verb | a `screen`, `action`, `api resource`, `channel`, `job`, `flow`, `webhook :incoming` or `admin_panel` with no `policy:` and no explicit `policy: :public` / `policy: :system` | name one — `screen :Invoices, policy: %i[Invoice read]`. `magik describe policy --json` prints the grammar |
 | `MAGIK_POLICY_IO` | a policy predicate performs I/O | a `can` block issuing a query. A `live` screen re-evaluates one per subscriber per change, so a query here is a round trip per row per open socket | load the record in the surface's `state` and let the predicate read it. `magik errors explain MAGIK_POLICY_IO` |
-| `MAGIK_POLICY_UNKNOWN_VERB` | `policy:` names a verb nothing declares | `policy: %i[Invoice publish]` where `policy :Invoice` declares no `:publish` | add `can :publish` to `app/policies/invoice.rb`, or correct the verb. `magik registry --kind policy --json` lists every declared verb |
+| `MAGIK_POLICY_UNKNOWN_VERB` | `policy:` names a verb nothing declares | `policy: %i[Invoice publish]` where `policy :Invoice` declares no `:publish` | add `can :publish` to `app/policies/invoice.rb`, or correct the verb. Listing every declared verb needs a `registry` command that is planned and not built — until it lands, read the verbs in `app/policies/` |
 | `MAGIK_POLICY_NO_DEFAULT` | a policy does not state its default | a `policy` block with no `default :deny` | add `default :deny` as the block's first line. There is no implicit allow |
-| `MAGIK_POLICY_UNKNOWN_SUBJECT` | a policy guards something nothing declares | `policy :Receivables` where no `model`, `ledger` or `flow` declares that name. The subject need not be a model — it must exist | correct the name, or declare the construct. `magik registry --json` lists every declared name |
+| `MAGIK_POLICY_UNKNOWN_SUBJECT` | a policy guards something nothing declares | `policy :Receivables` where no `model`, `ledger` or `flow` declares that name. The subject need not be a model — it must exist | correct the name, or declare the construct. Listing every declared name needs a `registry` command that is planned and not built — until it lands, read the names in `app/models/`, `app/ledgers/` and `app/flows/` |
 | `MAGIK_POLICY_NULL_PASSES` | a row rule would pass on an absent record | a `can` block whose predicate returns truthy when the record is `nil` | deny the `nil` — `can :read do \|actor, invoice\| invoice && … end` |
 | `MAGIK_LAYOUT_MISSING` | a screen has no application shell | a `screen` with no `layout:` and no `layout: :None` | `magik generate layout App`, then declare `layout: :App` on the screen |
-| `MAGIK_LAYOUT_UNKNOWN_SCREEN` | navigation points at nothing | a `nav_item` naming a screen that does not exist | `magik registry --kind screen --json` lists every screen; correct the name, or declare the screen |
-| `MAGIK_LAYOUT_UNKNOWN_ACTION` | a layout names an action that does not exist | `search action: :global_search` in a `topbar` is the same rot as a `nav_item` pointing at a deleted screen. `magik registry --kind action --json` lists every action |
+| `MAGIK_LAYOUT_UNKNOWN_SCREEN` | navigation points at nothing | a `nav_item` naming a screen that does not exist | correct the name, or declare the screen. Listing every screen needs a `registry` command that is planned and not built — until it lands, read the screens in `app/screens/` |
+| `MAGIK_LAYOUT_UNKNOWN_ACTION` | a layout names an action that does not exist | `search action: :global_search` in a `topbar` is the same rot as a `nav_item` pointing at a deleted screen. | correct the name, or declare the action. Listing every action needs a `registry` command that is planned and not built — until it lands, read the actions in `app/actions/` |
 | `MAGIK_MODEL_UNCONSTRAINED_UPLOAD` | an upload field is unbounded | a `:file` field or an `attachment` with no `max_size` and no `content_types` — an unbounded upload is an unbounded storage bill and a trivial DoS | declare both — `attachment :hero, :image, max_size: "10MB", content_types: %w[image/png image/jpeg]`. `magik describe model.attachment --json` prints the options |
 
 `MAGIK_POLICY_UNDECLARED` is the load-bearing one. It makes authorization non-optional the way
@@ -149,7 +150,7 @@ than a documented risk — one code covering every surface rather than a special
 | `MAGIK_BOOT_NO_APP` | no `App.define` block was found | add one to `config/app.rb` |
 | `MAGIK_CLI_SETUP_INCOMPLETE` | no bundle or no database | `bin/setup` |
 | `MAGIK_CLI_RESTART_REQUIRED` | a changed file cannot be hot-reloaded | restart `magik server`. See [Development loop](Development-Loop.md) |
-| `MAGIK_CONFIG_MISSING_KEY` | a required config key has no value in any layer | the cause names the key; `magik credentials edit --env production` |
+| `MAGIK_CONFIG_MISSING_KEY` | a required config key has no value in any layer | the cause names the key; set that environment variable, or add it to `.env` in development. A `credentials` command is planned and not built |
 | `MAGIK_CONFIG_INVALID_VALUE` | a config value does not match its declared type or enum | the cause names the key and the expected shape; `.env.example` lists them all |
 | `MAGIK_CLI_WOULD_OVERWRITE` | a generator would clobber hand-written code | rename, or pass `--force` deliberately |
 | `MAGIK_BOOT_REDEFINED` | a second `App.define` ran in one process | one app per process. Delete the second block |
