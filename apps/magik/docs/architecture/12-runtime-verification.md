@@ -276,7 +276,7 @@ Stated precisely, because "this may change someday" is not a trigger and nobody 
 2. Run it against the **newest** TruffleRuby, not a pinned one. `.github/workflows/ci.yml` already uses `truffleruby-head` for exactly this reason, and that is the right choice — keep it.
 3. Fail the step, loudly, if `fiber_scheduler.available` or `ractor.works` flips to `true` on a TruffleRuby leg. **A green-to-red on good news is the point**: the reversal must arrive as a build failure with this page's name on it, not as something a maintainer stumbles into two years later.
 
-**The specific mistake worth naming.** The first version of this measurement probed only TruffleRuby 24.2.1, because `.devcontainer/Dockerfile` pins `TRUFFLERUBY_VERSION=24.2.1` — and a pin is where a stale version comes from. That nearly produced a finding open to the strongest available objection: *you tested an old build*. It was caught by testing 34.0.1 as well. **That pin should move**, and the general rule is the one above: probe the newest, not the pinned.
+**The specific mistake worth naming.** The first version of this measurement probed only TruffleRuby 24.2.1, the former devcontainer pin — and a pin is where a stale version can come from. That nearly produced a finding open to the strongest available objection: *you tested an old build*. It was caught by testing 34.0.1 as well, as recorded in the dated measurements above. `.devcontainer/Dockerfile` now pins `TRUFFLERUBY_VERSION=34.0.1`, and `.devcontainer/devcontainer.json` agrees. The general rule remains the one above: probe the newest, not the pinned.
 
 ## How honest these numbers are
 
