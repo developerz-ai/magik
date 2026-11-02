@@ -67,7 +67,114 @@ class CheckScriptTest < Minitest::Test
     end
   end
 
+  def test_docs_scans_hidden_markdown_and_reports_broken_links_until_restored
+    %w[.claude .github .dz apps/magik/lib/magik/cli/templates/app/.claude docs/.hidden/nested].each do |directory|
+      with_docs_checkout do |root|
+        source = "#{directory}/guide.md"
+        target = File.join(root, directory, "target.md")
+        FileUtils.mkdir_p(File.dirname(target))
+        File.write(File.join(root, source), "[target](target.md)\n")
+
+        data, status = run_docs_check(root)
+
+        assert_equal 1, status, "#{source}: #{data.inspect}"
+        refute data["ok"]
+        assert_equal "broken_markdown_links", data.dig("steps", 0, "reason")
+        assert_includes data.dig("steps", 0, "got"), "#{source}  ->  target.md"
+
+        File.write(target, "# Restored target\n")
+        data, status = run_docs_check(root)
+
+        assert_equal 0, status, data.inspect
+        assert data["ok"]
+        assert_equal "pass", data.dig("steps", 0, "status")
+        assert_includes data.dig("steps", 0, "got"), "2 Markdown files scanned"
+      end
+    end
+  end
+
+  def test_docs_keeps_visible_and_hidden_links_and_existing_target_rules
+    %w[README.md .claude/guide.md].each do |relative_source|
+      with_docs_checkout do |root|
+        source = File.join(root, relative_source)
+        FileUtils.mkdir_p(File.dirname(source))
+        File.write(File.join(File.dirname(source), "target.md"), "# Target\n")
+        File.write(source, <<~MARKDOWN)
+          [plain](target.md)
+          [fragment](target.md#heading)
+          [query](target.md?view=raw)
+          [both](target.md?view=raw#heading)
+          [titled](target.md "Target title")
+          [local fragment](#missing-heading)
+          [query only](?view=raw)
+          [web](https://example.invalid/missing)
+          [http](http://example.invalid/missing)
+          [email](mailto:missing@example.invalid)
+          [angle](<missing.md>)
+          [braces]({missing}.md)
+          [variable]($missing.md)
+          ```markdown
+          [example](missing-in-fence.md)
+          ```
+        MARKDOWN
+
+        data, status = run_docs_check(root)
+
+        assert_equal 0, status, "#{relative_source}: #{data.inspect}"
+        assert data["ok"]
+        assert_includes data.dig("steps", 0, "got"), "2 Markdown files scanned"
+
+        File.open(source, "a") { |file| file.puts("[broken](missing.md?view=raw#heading)") }
+        data, status = run_docs_check(root)
+
+        assert_equal 1, status, "#{relative_source}: #{data.inspect}"
+        assert_equal "broken_markdown_links", data.dig("steps", 0, "reason")
+        assert_includes data.dig("steps", 0, "got"), "#{relative_source}  ->  missing.md?view=raw#heading"
+      end
+    end
+  end
+
+  def test_docs_excludes_existing_ignored_directories_and_git_metadata
+    with_docs_checkout do |root|
+      %w[vendor doc node_modules tmp .git].each do |directory|
+        nested = File.join(root, directory, ".hidden", "nested")
+        FileUtils.mkdir_p(nested)
+        File.write(File.join(root, directory, "ignored.md"), "[broken](missing.md)\n")
+        File.write(File.join(nested, "ignored.md"), "[broken](missing.md)\n")
+      end
+      File.write(File.join(root, "README.md"), "# Visible\n")
+
+      data, status = run_docs_check(root)
+
+      assert_equal 0, status, data.inspect
+      assert data["ok"]
+      assert_equal "pass", data.dig("steps", 0, "status")
+      assert_includes data.dig("steps", 0, "got"), "1 Markdown files scanned"
+    end
+  end
+
   private
+
+  # Copy the actual gate into a checkout-shaped sandbox so its ROOT and cwd
+  # resolve here, without touching the real checkout or stubbing other steps.
+  def with_docs_checkout
+    Dir.mktmpdir("magik-check-docs") do |root|
+      FileUtils.mkdir_p(File.join(root, "bin"))
+      FileUtils.cp(CHECK, File.join(root, "bin", "check"))
+      yield root
+    end
+  end
+
+  def run_docs_check(root)
+    env = { "RUBYOPT" => nil, "RUBYLIB" => nil, "BUNDLE_GEMFILE" => nil }
+    out, _err, status = Open3.capture3(env, RUBY, File.join(root, "bin", "check"), "--only", "docs", "--json")
+    data = JSON.parse(out)
+
+    step_names = data.fetch("steps").map { |step| step.fetch("name") }
+
+    assert_equal ["docs"], step_names
+    [data, status.exitstatus]
+  end
 
   # Runs bin/check with `gem` resolved to a stub that records its argv, the
   # --output target and the mode of the target's directory at write time, then
