@@ -489,7 +489,11 @@ STEPS = [
     title: "docs — relative links in Markdown resolve to real files",
     command: -> { "bin/check --only docs   # in-process Markdown link scan" },
     body: lambda {
-      files = Dir.glob("**/*.md").reject { |f| f.start_with?("vendor/", "doc/", "node_modules/", "tmp/") }
+      # Include hidden documentation (agents, workflows and templates), but keep
+      # Git metadata out of the documentation corpus alongside generated roots.
+      files = Dir.glob("**/*.md", File::FNM_DOTMATCH).reject do |file|
+        file.start_with?("vendor/", "doc/", "node_modules/", "tmp/", ".git/")
+      end
       broken = []
       files.sort.each do |file|
         body = File.read(file)

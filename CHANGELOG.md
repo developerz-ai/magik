@@ -300,6 +300,14 @@ the repository being brought back into agreement with it.
   "not a command" are different facts and get different codes. The code tells them apart; the
   exit status does not. Documentation only — no CLI behaviour changed.
 
+- **Developer tooling: `bin/check`'s relative-link gate covers hidden Markdown**, including
+  `.claude/`, `.github/`, `.dz/`, template `.claude/` directories and nested hidden directories.
+  Visible and hidden documents share the existing link-target and fenced-code exclusions;
+  root `vendor/`, `doc/`, `node_modules/`, `tmp/` and `.git/` remain excluded, including hidden
+  descendants. Reproduce the docs step with `bin/check --only docs`; run the scoped regressions
+  with `ruby -Iapps/magik/lib -Iapps/magik/test apps/magik/test/check_script_test.rb`.
+  No framework runtime change.
+
 - **Developer tooling: the boundary check fails closed when a configured tier document is missing.**
   Each absent document produces an actionable finding alongside existing source and table-drift
   findings; hermetic runner regressions cover human/JSON failure and successful restoration.
