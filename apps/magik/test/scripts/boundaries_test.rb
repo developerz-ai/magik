@@ -84,6 +84,24 @@ class MagikScriptsBoundariesTest < Minitest::Test
     assert_equal 0, status, out
   end
 
+  # The header comment IS the check's `--help` prose. A tier table that drifts
+  # from `scripts/lib/tiers.rb` there is prose the reader trusts and the code
+  # does not honour.
+  def test_the_help_header_states_the_same_tier_table_as_the_code
+    description = MagikScripts::Registry.parse("scripts/checks/boundaries.rb").description
+
+    assert_equal MagikScripts::Tiers::TABLE, MagikScripts::Tiers.parse_doc(description)
+  end
+
+  def test_the_rendered_help_carries_every_tier_row
+    status, out, = run_script("scripts/checks/boundaries.rb", "--help")
+
+    assert_equal 0, status, out
+    MagikScripts::Tiers.render.lines.each do |row|
+      assert_includes out, row.strip
+    end
+  end
+
   def test_each_missing_document_fails_and_restoring_it_passes
     MagikScripts::Tiers::DOCUMENTS.each do |missing|
       with_checkout do
