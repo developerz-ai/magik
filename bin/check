@@ -322,7 +322,8 @@ STEPS = [
             next fail_with(reason: "gem_install_failed", command: install_cmd.join(" "), exit_code: code,
                            expected: "`gem install --no-document` installs the artifact into an empty GEM_HOME",
                            got: out,
-                           fix: "#{install_cmd.join(" ")}   # with GEM_HOME pointing at an empty directory")
+                           fix: %(d=$(mktemp -d) && gem build magik.gemspec --output "$d/magik.gem" && ) +
+                                %(GEM_HOME="$d/home" GEM_PATH="$d/home" gem install --no-document "$d/magik.gem"))
           end
 
           magik = File.join(gem_home, "bin", "magik")
@@ -330,15 +331,18 @@ STEPS = [
             next fail_with(reason: "install_no_executable", command: install_cmd.join(" "), exit_code: 0,
                            expected: "gem install to place a `magik` executable in the GEM_HOME's bin directory",
                            got: "#{out}\n\n#{magik} does not exist or is not executable",
-                           fix: "set spec.bindir = \"exe\" and spec.executables = [\"magik\"] in magik.gemspec")
+                           fix: %(ruby -e 'g = Gem::Specification.load("magik.gemspec"); p [g.bindir, g.executables]') +
+                                %(   # must print ["exe", ["magik"]]; set both in magik.gemspec))
           end
 
           printed = "GEM_HOME=#{gem_home} #{magik} version --json"
-          ok, out, code = scoped.call(env, magik, "version", "--json")
-          unless ok
-            next fail_with(reason: "install_nonzero_exit", command: printed, exit_code: code,
+          # Stdout alone is the JSON, as in ci.yml's `$(...)`: a warning a healthy binary prints on
+          # stderr must not fail the parse. Stderr stays in the failure excerpt below.
+          out, err, status = Open3.capture3(env, magik, "version", "--json")
+          unless status.success?
+            next fail_with(reason: "install_nonzero_exit", command: printed, exit_code: status.exitstatus,
                            expected: "the installed binary exits 0",
-                           got: out,
+                           got: "#{out}#{err}",
                            fix: "bin/check --only cli   # the source tree runs the same code; " \
                                 "diff the two if they disagree")
           end

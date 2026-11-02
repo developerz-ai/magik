@@ -5,6 +5,7 @@ require_relative "../test_helper"
 require "json"
 require "open3"
 require "rbconfig"
+require "tmpdir"
 
 # The gate's contract, pinned from OUTSIDE bin/check.
 #
@@ -124,7 +125,94 @@ class BinCheckGateTest < Minitest::Test
     refute_nil step["fix"], "a failing step without a fix: line is an incomplete step (bin/check 21)"
   end
 
+  # The real-gem test above cannot tell whether the step's verdicts fire: a body that returned
+  # pass right after the version read would satisfy it. These run the whole body against a stub
+  # `gem` on PATH, so the install is observed and the installed binary's output is controlled.
+  def test_install_step_installs_the_built_artifact_into_the_empty_gem_home
+    step, log = run_install_with_stub(valid_version_json)
+
+    assert_equal "pass", step["status"], step.inspect
+    build, install = log.lines.map(&:strip)
+
+    assert_match(/\Abuild .*magik-#{Regexp.escape(Magik::VERSION)}\.gem\z/o, build)
+    artifact = build.split.last
+
+    assert_match(/\Ainstall home=.*magik-gem-home.* target=#{Regexp.escape(artifact)}\z/, install)
+  end
+
+  def test_install_step_parses_only_stdout_when_the_binary_warns_on_stderr
+    step, = run_install_with_stub(valid_version_json, stderr: "warning: a healthy binary may warn")
+
+    assert_equal "pass", step["status"], step.inspect
+  end
+
+  def test_install_step_rejects_a_wrong_name
+    step, = run_install_with_stub(JSON.generate(name: "other", version: Magik::VERSION, status: "ok"))
+
+    assert_equal "install_json_wrong_name", step["reason"], step.inspect
+  end
+
+  def test_install_step_rejects_a_mismatched_version
+    step, = run_install_with_stub(JSON.generate(name: "magik", version: "0.0.0-other", status: "ok"))
+
+    assert_equal "install_json_version_mismatch", step["reason"], step.inspect
+  end
+
+  def test_install_step_rejects_missing_keys
+    step, = run_install_with_stub(JSON.generate(name: "magik", version: Magik::VERSION))
+
+    assert_equal "install_json_missing_keys", step["reason"], step.inspect
+    assert_includes step["got"], "status"
+  end
+
   private
+
+  # @return [String] what a correct installed binary prints
+  def valid_version_json
+    JSON.generate(name: "magik", version: Magik::VERSION, status: "ok")
+  end
+
+  # Run the install step with a stub `gem` first on PATH: `build` records and creates the
+  # artifact, `install` records GEM_HOME and writes a `magik` printing the given output.
+  #
+  # @param stdout [String] what the installed binary prints on stdout
+  # @param stderr [String, nil] what it prints on stderr
+  # @return [Array(Hash, String)] the step's JSON verdict and the stub's call log
+  def run_install_with_stub(stdout, stderr: nil)
+    Dir.mktmpdir("magik-gem-stub") do |dir|
+      log = File.join(dir, "calls.log")
+      stub = File.join(dir, "gem")
+      File.write(stub, <<~SH)
+        #!/bin/sh
+        case "$1" in
+          build)
+            target="$4"
+            echo "build $target" >> "#{log}"
+            : > "$target"
+            ;;
+          install)
+            for last; do :; done
+            echo "install home=$GEM_HOME target=$last" >> "#{log}"
+            mkdir -p "$GEM_HOME/bin"
+            printf '#!/bin/sh\ncat "%s"\ncat "%s" >&2\n' "#{dir}/out" "#{dir}/err" > "$GEM_HOME/bin/magik"
+            chmod +x "$GEM_HOME/bin/magik"
+            ;;
+        esac
+      SH
+      File.chmod(0o755, stub)
+      File.write(File.join(dir, "out"), stdout)
+      File.write(File.join(dir, "err"), stderr.to_s)
+
+      child_env = {
+        "PATH" => "#{dir}#{File::PATH_SEPARATOR}#{ENV.fetch("PATH")}",
+        "RUBYOPT" => nil, "BUNDLER_SETUP" => nil, "BUNDLE_GEMFILE" => nil,
+        "BUNDLE_BIN_PATH" => nil, "BUNDLER_VERSION" => nil
+      }
+      out, = Open3.capture3(child_env, RbConfig.ruby, CHECK, "--only", "install", "--json")
+
+      [JSON.parse(out)["steps"].first, File.exist?(log) ? File.read(log) : ""]
+    end
+  end
 
   # A file this test reads must exist, so a moved path fails as itself instead
   # of as a mysteriously empty match or a stale contract.
