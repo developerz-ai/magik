@@ -57,6 +57,9 @@ the repository being brought back into agreement with it.
 
 ### Changed
 
+- **Dependabot's github-actions updates now wait out the same 14-day cooldown as the bundle.**
+  [`.github/dependabot.yml`](.github/dependabot.yml) said the ecosystem could not take one; GitHub
+  documents `default-days` for it.
 - **`bin/stop` is the teardown half of the setup→dev→check cycle**, not a `true` stub. It runs
   `docker compose -f docker/compose.yml --profile swap stop` — the Postgres of the default profile
   that `bin/setup --services` started, plus any swap-profile Redis, which `--services` does not
