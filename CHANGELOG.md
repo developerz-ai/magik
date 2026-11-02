@@ -104,6 +104,17 @@ the repository being brought back into agreement with it.
 
 ### Changed
 
+- **The scaffold's development constraints now equal the framework's.** The generated
+  [`Gemfile.erb`](apps/magik/lib/magik/cli/templates/app/Gemfile.erb) pinned minitest `~> 5.0`
+  and simplecov `~> 0.22` while both framework Gemfiles pinned `~> 6.0` and `~> 1.2`, so a
+  generated app would have tested itself against a different framework than the one it came
+  from — a drift invisible until a test failed in a way the framework's own suite never could.
+  The scaffold now carries the framework's constraints, and a Minitest in
+  [`app_templates_test.rb`](apps/magik/test/magik/app_templates_test.rb) compares every gem
+  the scaffold and the framework declare in common — and the two framework Gemfiles with each
+  other — so the three cannot drift apart again. No framework behaviour changed: these are the
+  pins a generated app is written with. Re-derive:
+  `ruby -Iapps/magik/lib -Iapps/magik/test apps/magik/test/magik/app_templates_test.rb`.
 - **Documentation correction, no runtime change:** the wiki Home and Installation pages now
   enumerate `magik version`, `magik help` and `magik docs` as the three ready CLI commands — a
   fact about a **checkout**, which is one command ahead of the published `0.0.1`. That release's
@@ -265,6 +276,17 @@ the repository being brought back into agreement with it.
 
 ### Fixed
 
+- **The scaffold/framework constraint parity check compares every requirement a gem declares, not
+  only the first.** `gem_constraints` in
+  [`app_templates_test.rb`](apps/magik/test/magik/app_templates_test.rb) read one requirement per
+  gem, so `gem "minitest", "~> 6.0", "< 6.1"` in one bundle compared equal to
+  `gem "minitest", "~> 6.0"` in another — the second requirement was drift the parity check could
+  not see, which is the drift the check exists to catch. The parser now keeps every requirement a
+  gem declares (an option such as `require: false` is not a requirement and is still not read as
+  one), the comparison is over the whole list, and two Minitests pin it: one that the parser keeps
+  the second requirement, one that a second requirement is drift. No framework behaviour changed —
+  these are the pins a generated app is written with. Re-derive:
+  `ruby -Iapps/magik/lib -Iapps/magik/test apps/magik/test/magik/app_templates_test.rb`.
 - **The shipped manual no longer claims a CLI error exits 2.** Every `Magik::Error` the CLI
   raises exits `Magik::CLI::EXIT_ERROR`, which is `1` (`apps/magik/lib/magik/cli.rb:38`) —
   `MAGIK_CLI_UNKNOWN_COMMAND`, `MAGIK_CLI_INVALID_OPTION` and
