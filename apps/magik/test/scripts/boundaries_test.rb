@@ -1,6 +1,8 @@
 # frozen_string_literal: true
 
 require_relative "helper"
+require "fileutils"
+require "tmpdir"
 
 # The tier rule. The pure half takes fixtures, so the negative cases are strings
 # here rather than a require typed into `lib/` to watch it fail — and the last
@@ -82,7 +84,111 @@ class MagikScriptsBoundariesTest < Minitest::Test
     assert_equal 0, status, out
   end
 
+  def test_each_missing_document_fails_and_restoring_it_passes
+    MagikScripts::Tiers::DOCUMENTS.each do |missing|
+      with_checkout do
+        MagikScripts::Repo.path(missing).delete
+
+        assert_missing_documents([missing])
+
+        MagikScripts::Repo.path(missing).write(MagikScripts::Tiers.render)
+        [[], ["--json"]].each do |argv|
+          status, out, = run_script("scripts/checks/boundaries.rb", *argv)
+
+          assert_equal 0, status, out
+        end
+      end
+    end
+  end
+
+  def test_both_missing_documents_are_reported
+    with_checkout do
+      MagikScripts::Tiers::DOCUMENTS.each { |path| MagikScripts::Repo.path(path).delete }
+
+      assert_missing_documents(MagikScripts::Tiers::DOCUMENTS)
+    end
+  end
+
+  def test_missing_document_does_not_hide_companion_drift_or_source_violations
+    with_checkout do
+      missing, companion = MagikScripts::Tiers::DOCUMENTS
+      MagikScripts::Repo.path(missing).delete
+      MagikScripts::Repo.path(companion).write("no table here")
+      MagikScripts::Repo.path("lib/magik/model.rb").write(%(require "magik/action"\n))
+
+      findings = assert_missing_documents([missing], total: 3)
+      drift = findings.find { |finding| finding.fetch("code") == Boundaries::DRIFT_CODE }
+
+      assert_equal companion, drift.fetch("at")
+      assert_includes drift.fetch("cause"), "states no `tier N"
+      tier = findings.find { |finding| finding.fetch("code") == Boundaries::TIER_CODE }
+
+      assert_equal "lib/magik/model.rb:1", tier.fetch("at")
+    end
+  end
+
   private
+
+  # A temporary checkout preserves apps/magik-relative ../../docs resolution.
+  # @yield runs with only Repo.root stubbed; real checkout files are never changed
+  # @return [void]
+  def with_checkout(&block)
+    script = MagikScripts::Repo.path("scripts/checks/boundaries.rb")
+    Dir.mktmpdir("magik-boundaries") do |dir|
+      root = Pathname.new(dir).join("apps/magik")
+      FileUtils.mkdir_p(root.join("lib/magik"))
+      FileUtils.mkdir_p(root.join("scripts/checks"))
+      FileUtils.cp(script, root.join("scripts/checks/boundaries.rb"))
+      root.join("lib/magik/model.rb").write("# valid source\n")
+      MagikScripts::Tiers::DOCUMENTS.each do |path|
+        document = root.join(path)
+        FileUtils.mkdir_p(document.dirname)
+        document.write(MagikScripts::Tiers.render)
+      end
+      with_repo_root(root, &block)
+    end
+  end
+
+  # @param root [Pathname] temporary apps/magik directory
+  # @yield runs with Repo.root replaced only for this block
+  # @return [void]
+  def with_repo_root(root)
+    original = MagikScripts::Repo.method(:root)
+    MagikScripts::Repo.define_singleton_method(:root) { root }
+    yield
+  ensure
+    MagikScripts::Repo.define_singleton_method(:root, original)
+  end
+
+  # @param paths [Array<String>] missing configured documents
+  # @param total [Integer] total findings, including any other violations
+  # @return [Array<Hash>] JSON findings emitted by the real runner
+  def assert_missing_documents(paths, total: paths.size)
+    status, human, = run_script("scripts/checks/boundaries.rb")
+
+    assert_equal 1, status, human
+    status, json, = run_script("scripts/checks/boundaries.rb", "--json")
+
+    assert_equal 1, status, json
+    result = JSON.parse(json)
+
+    assert_equal "fail", result.fetch("status")
+    findings = result.fetch("findings")
+
+    assert_equal total, findings.size
+    paths.each do |path|
+      finding = findings.find { |item| item.fetch("at") == path }
+
+      refute_nil finding, json
+      assert_equal "MAGIK_DEV_BOUNDARY_DOCUMENT_MISSING", finding.fetch("code")
+      assert_equal "#{path} is missing; the configured tier document cannot be checked", finding.fetch("cause")
+      assert_equal "git restore -- #{path.delete_prefix("../../")}", finding.fetch("fix")
+      assert_includes human, path
+      assert_includes human, finding.fetch("cause")
+      assert_includes human, finding.fetch("fix")
+    end
+    findings
+  end
 
   # @param path [String]
   # @param subsystem [String]

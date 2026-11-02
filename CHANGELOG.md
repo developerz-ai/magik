@@ -247,6 +247,11 @@ the repository being brought back into agreement with it.
 
 ### Fixed
 
+- **Developer tooling: the boundary check fails closed when a configured tier document is missing.**
+  Each absent document produces an actionable finding alongside existing source and table-drift
+  findings; hermetic runner regressions cover human/JSON failure and successful restoration.
+  Verify: `rake -C apps/magik test TEST=test/scripts/boundaries_test.rb`. No framework implementation added.
+
 - **The build-step smoke test's child runs the gate on plain rubygems, not inside the
   suite's bundle.** `CheckScriptTest` spawns `bin/check` with a PATH holding nothing but
   its `gem` stub, and Open3's partial-environment form inherits everything else — under

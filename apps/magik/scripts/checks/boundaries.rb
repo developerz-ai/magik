@@ -19,7 +19,7 @@
 #     tier 5   check, testing
 #     tier 6   cli
 #
-# Three findings:
+# Four findings:
 #
 #   MAGIK_DEV_BOUNDARY_TIER               a sideways or upward require, or a
 #                                         sideways or upward constant reference
@@ -27,6 +27,7 @@
 #                                         door, even when the tier would allow it
 #   MAGIK_DEV_BOUNDARY_TABLE_DRIFT        a document restates the table and no
 #                                         longer agrees with the code
+#   MAGIK_DEV_BOUNDARY_DOCUMENT_MISSING   a configured tier document is absent
 #
 # `lib/magik.rb` and `lib/magik/version.rb` are exempt and are not subsystems.
 # The entry point's whole job is to know every subsystem — it registers the
@@ -57,6 +58,10 @@ module MagikScripts
       # A document whose tier table no longer matches `scripts/lib/tiers.rb`.
       # @return [String]
       DRIFT_CODE = "MAGIK_DEV_BOUNDARY_TABLE_DRIFT"
+
+      # A configured tier document that cannot be checked because it is absent.
+      # @return [String]
+      MISSING_DOCUMENT_CODE = "MAGIK_DEV_BOUNDARY_DOCUMENT_MISSING"
 
       # Everything this check reads.
       # @return [String]
@@ -198,19 +203,30 @@ module MagikScripts
         )
       end
 
-      # Every document that restates the tier table and no longer agrees with
-      # `scripts/lib/tiers.rb`. Pure: `documents` is path => Markdown text.
+      # Every missing or disagreeing tier document. Pure: `documents` maps each
+      # configured path to Markdown text, or nil when the file is absent.
       #
-      # @param documents [Hash{String => String}]
+      # @param documents [Hash{String => String, nil}]
       # @return [Array<MagikScripts::Finding>]
       def self.drift(documents)
         documents.filter_map do |path, text|
+          next missing_document_finding(path) if text.nil?
+
           stated = Tiers.parse_doc(text)
           next if stated == Tiers::TABLE
 
           Finding.new(code: DRIFT_CODE, at: path, cause: drift_cause(path, stated),
                       fix: "edit the `tier N` block in #{path} to read exactly:\n#{indent(Tiers.render)}")
         end
+      end
+
+      # Restore only the absent document, from the checkout root.
+      # @param path [String] the configured path relative to apps/magik
+      # @return [MagikScripts::Finding]
+      def self.missing_document_finding(path)
+        Finding.new(code: MISSING_DOCUMENT_CODE, at: path,
+                    cause: "#{path} is missing; the configured tier document cannot be checked",
+                    fix: "git restore -- #{path.delete_prefix("../../")}")
       end
 
       # @param path [String] the document
@@ -258,9 +274,9 @@ module MagikScripts
         end
       end
 
-      # @return [Hash{String => String}] the documents that restate the table
+      # @return [Hash{String => String, nil}] all configured documents; nil marks an absent file
       def documents
-        Tiers::DOCUMENTS.select { |path| Repo.exist?(path) }.to_h { |path| [path, Repo.read(path)] }
+        Tiers::DOCUMENTS.to_h { |path| [path, Repo.exist?(path) ? Repo.read(path) : nil] }
       end
 
       # @param sources [Array<MagikScripts::Checks::Boundaries::Source>]
