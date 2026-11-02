@@ -109,7 +109,7 @@ are machine-indistinguishable.
 }
 ```
 
-A finding is the shape [`../../docs/architecture/03-error-codes.md`](../../../docs/architecture/03-error-codes.md)
+A finding is the shape [`../../../docs/architecture/03-error-codes.md`](../../../docs/architecture/03-error-codes.md)
 prescribes — `code`, `cause`, `fix`, `at`:
 
 ```text
@@ -135,7 +135,7 @@ closed token set over `wiki/Error-Codes.md`: it reads every `Finding.new(code: .
 `scripts/`, resolving a `NAME = "MAGIK_DEV_..."` constant against the file that declares it, and
 refuses a code outside `MAGIK_DEV_<CONDITION>` — hardest of all one that claims a **framework**
 token, because that is the mistake that reads as correct
-([`../../docs/architecture/03-error-codes.md`](../../../docs/architecture/03-error-codes.md#the-dev-namespace-codes-that-never-reach-an-app)).
+([`../../../docs/architecture/03-error-codes.md`](../../../docs/architecture/03-error-codes.md#the-dev-namespace-codes-that-never-reach-an-app)).
 The reserved framework names stay reserved: `MAGIK_BOUNDARY_TIER` is what `magik check` will raise
 in somebody's application, and `MAGIK_DEV_BOUNDARY_TIER` is what this repository raises about
 itself.
