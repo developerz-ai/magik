@@ -12,7 +12,7 @@
 # and this check is what makes the copy authoritative:
 #
 #     tier 0   core
-#     tier 1   schema, router, i18n
+#     tier 1   schema, router, i18n, policy
 #     tier 2   model, render, realtime, jobs
 #     tier 3   action, ledger, api, auth, notify, pwa
 #     tier 4   billing, admin, domains

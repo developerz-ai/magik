@@ -27,6 +27,10 @@ the repository being brought back into agreement with it.
   aggregate `checks` step. Documented `bin/check --only checks` and retained direct boundary-check
   invocation for optional focused diagnosis; conformance remains planned. No gate implementation
   or framework runtime behaviour changed.
+- **Documentation only:** the boundaries check's `--help` tier table now names `policy` at tier 1,
+  so the prose it prints agrees with `apps/magik/scripts/lib/tiers.rb` and both architecture pages
+  (`docs/architecture/01-module-map.md` and `docs/architecture/02-boundaries.md`). No enforcement
+  rule, finding code, tier or checked document changed.
 
 ### Added
 
