@@ -86,6 +86,9 @@ the repository being brought back into agreement with it.
 
 ### Changed
 
+- **Documentation correction, no runtime change:** the wiki Home and Installation pages now
+  enumerate `magik version`, `magik help` and `magik docs` as the three ready CLI commands,
+  while framework features remain planned.
 - **Dependabot's github-actions updates now wait out the same 14-day cooldown as the bundle.**
   [`.github/dependabot.yml`](.github/dependabot.yml) said the ecosystem could not take one; GitHub
   documents `default-days` for it.

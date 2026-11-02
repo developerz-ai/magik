@@ -10,19 +10,21 @@ Everything it would install *for building an app* is `Planned — not implemente
 gem install magik
 magik version
 magik help
+magik docs
 ```
 
-That is the whole surface. You get:
+Those are the three working CLI commands. You get:
 
 - `Magik::VERSION` — a version string.
 - `Magik::Error` — the `MAGIK_*` code / cause / `fix:` convention.
-- `magik version` and `magik help` — two working commands.
+- `magik version`, `magik help` and `magik docs` — three working commands; `docs` reads the
+  documentation packaged inside the gem.
 - One documented stub module per planned subsystem. Calling into any of them raises
   `NotImplementedError` with a message naming the spec section it will implement.
 
 You do **not** get: `magik new`, a model DSL, a renderer, a router, a server, a worker, or a database
 connection. `magik new myapp` is not a typo you can work around — it is a command that has not been
-written. See [CLI reference](CLI-Reference.md) for exactly which two commands run.
+written. See [CLI reference](CLI-Reference.md) for the three ready commands and the planned ones.
 
 Verify rather than trust:
 

@@ -1,8 +1,9 @@
 # Magik wiki
 
-**Status:** `Spec only — no framework code exists`. Every page on this wiki documents **intended**
-behaviour drawn from [`docs/idea/00-build-spec.md`](../docs/idea/00-build-spec.md). Nothing here
-describes something you can run. `As of 2026-08-26`.
+**Status:** `Spec only — no framework code exists`. Framework behaviour on this wiki is **intended**,
+drawn from [`docs/idea/00-build-spec.md`](../docs/idea/00-build-spec.md), not implemented.
+The exception is runnable CLI plumbing: `magik version`, `magik help` and `magik docs`.
+`As of 2026-08-26`.
 
 Magik is an opinionated, full-stack Ruby framework for TruffleRuby: one DSL for models, screens,
 actions, realtime channels, background jobs, ledgers, APIs and admin panels. The server renders HTML
@@ -18,7 +19,7 @@ entry point is [`llms.txt`](../llms.txt).
 ## Read this before anything else
 
 `magik 0.0.1` on RubyGems is a **name reservation**. It ships a version constant, the `MAGIK_*` error
-convention, a `magik version` / `magik help` shim, and one documented stub per planned subsystem. It
+convention, a `magik version` / `magik help` / `magik docs` shim, and one documented stub per planned subsystem. It
 does not render a page, connect to a database, or run a job. `gem install magik` succeeds and gives
 you nothing that builds an app.
 
@@ -42,7 +43,7 @@ magik help                                             # the commands that actua
 | [Getting started](Getting-Started.md) | the intended first run end to end: `magik new` → `bin/setup` → `magik server` | you want to see the target developer experience |
 | [Development loop](Development-Loop.md) | hot reload, the console, generators, `--watch`, and the error page. No JS build step | you are working on an app day to day |
 | [Project layout](Project-Layout.md) | the directories a generated app has, and separately the layout of this framework repo | you are deciding where a file goes |
-| [CLI reference](CLI-Reference.md) | every command, flag, `--json` shape and exit code — with the two that exist today marked | you are driving the CLI, or an agent is |
+| [CLI reference](CLI-Reference.md) | every command, flag, `--json` shape and exit code — with the three ready commands (`version`, `help` and `docs`) marked | you are driving the CLI, or an agent is |
 | [Models](Models.md) | `model`, `migrate`, fields, tenancy, UUIDv7, the Sequel seam | you are modelling data |
 | [Screens and components](Screens-And-Components.md) | `component`, `screen`, `policy`, `layout`, the component kit, theming, htmx | you are building UI |
 | [Actions](Actions.md) | `action`, params, routing by convention, idempotency, the statelessness rule | you are writing a mutation |
