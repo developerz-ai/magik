@@ -679,17 +679,39 @@ class MagikScriptsFixCommandsTest < Minitest::Test
     assert_empty cells(page).flat_map(&:commands)
   end
 
-  # The name after the binary ends at a boundary: `magik check_scale` is one
-  # token, and reading `check` out of it would clear a command the CLI does
-  # not have.
-  def test_a_command_token_must_end_at_a_boundary
+  # The name after the binary is one token: `magik check_scale` is a command
+  # the registry does not have, not `check` with a suffix to ignore. Reading
+  # `check` out of it would clear a command the CLI cannot run, and reading
+  # nothing out of it would let the cell past the gate unremarked — so the
+  # whole token is captured and the registry rejects it.
+  def test_a_command_token_is_read_whole_and_held_to_the_registry
     page = <<~MD
       | Code | Fix |
       |---|---|
       | `MAGIK_POLICY_UNKNOWN_VERB` | `magik check_scale` |
     MD
 
-    assert_empty cells(page).flat_map(&:commands)
+    assert_equal %w[check_scale], cells(page).first.commands
+
+    finding = only(cells(page), %w[check])
+
+    assert_equal "MAGIK_DEV_ERROR_FIX_UNKNOWN_COMMAND", finding.code
+    assert_includes finding.cause, "magik check_scale"
+  end
+
+  # The unknown-command finding carries a `fix:` of its own, and that fix is a
+  # command: the registry to read, and the cell to edit. An instruction to
+  # edit the manual leaves an agent with nothing to run.
+  def test_the_unknown_command_finding_carries_a_runnable_fix
+    page = <<~MD
+      | Code | Fix |
+      |---|---|
+      | `MAGIK_POLICY_UNKNOWN_VERB` | `magik registry --json` |
+    MD
+    finding = only(cells(page), %w[check])
+
+    assert_includes finding.fix, "ruby -Iapps/magik/lib apps/magik/exe/magik help --json"
+    assert_includes finding.fix, "p.md:3"
   end
 
   # The other branch of the command pattern: a cell that *begins* with the
@@ -784,6 +806,19 @@ class MagikScriptsFixCommandsTest < Minitest::Test
     refute_nil finding, "the check did not report the unregistered command"
     assert_equal "wiki/Error-Codes.md:3", finding.at
     assert_includes finding.fix, "wiki/Error-Codes.md:3"
+  end
+
+  # The whole token is what the run judges. A cell naming `magik check_scale`
+  # used to yield no command at all, so the run passed a cell the reader
+  # cannot run; the token is captured whole and the run reports it.
+  def test_the_check_fails_on_a_command_token_the_registry_does_not_have
+    result = FixtureErrorCodes.new(commands: ["check_scale"]).run
+
+    assert_predicate result, :fail?
+    finding = result.findings.find { |entry| entry.code == "MAGIK_DEV_ERROR_FIX_UNKNOWN_COMMAND" }
+
+    refute_nil finding, "the check did not report the unregistered command"
+    assert_includes finding.cause, "magik check_scale"
   end
 
   # A manual whose fix cells name no command at all has not been checked:

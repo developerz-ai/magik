@@ -1323,8 +1323,15 @@ module MagikScripts
       # an argument; neither is a command to run, and reading one as a command
       # would report a promise the reader was never given.
       #
+      # **The name is captured whole, because the registry decides.** The
+      # token after the binary is read to its end — `magik check_scale` is one
+      # name, not `check` with a suffix to drop. Reading the prefix would
+      # clear a command the CLI does not have, and reading nothing at all
+      # would let the cell past the gate unremarked; captured whole, the
+      # registry rejects it and the cell is reported.
+      #
       # @return [Regexp]
-      COMMAND = /(?:`|\A)[ \t]*magik[ \t]+([a-z][a-z0-9]*(?:-[a-z0-9]+)*)(?![\w-])/
+      COMMAND = /(?:`|\A)[ \t]*magik[ \t]+([a-z][a-z0-9_]*(?:-[a-z0-9_]+)*)(?![\w-])/
 
       # One fix cell, and the commands it names.
       Cell = Struct.new(:page, :line, :commands, keyword_init: true) do
@@ -1357,8 +1364,8 @@ module MagikScripts
                     cause: "#{cell.at} tells the reader to run `magik #{command}`, and " \
                            "Magik::CLI::COMMANDS does not name it — running it exits " \
                            "MAGIK_CLI_UNKNOWN_COMMAND",
-                    fix: "edit the fix cell at #{cell.at} to name a command " \
-                         "Magik::CLI::COMMANDS lists, or an edit naming a file")
+                    fix: "ruby -Iapps/magik/lib apps/magik/exe/magik help --json   # the registered " \
+                         "commands; then edit the fix cell at #{cell.at} to name one of them")
       end
 
       # Every fix cell on a page, with the commands it names. Pure, so the

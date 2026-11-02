@@ -93,10 +93,13 @@ the repository being brought back into agreement with it.
   binary can be asked to do, and a command counts whether its status is `ready` or `planned`:
   `magik help` listing a command as planned is itself the documentation that it exists as an
   idea. A name the registry does not list is not a command — running it exits with
-  `MAGIK_CLI_UNKNOWN_COMMAND`, and the reader is sent down a path that never existed. Five fix
-  cells named `magik registry` or `magik credentials`; they now name a registered command, or
-  say plainly that the command is planned and not built. **No command was added** — the
-  registry and the CLI are unchanged. The rule and its code are described in
+  `MAGIK_CLI_UNKNOWN_COMMAND`, and the reader is sent down a path that never existed. The command
+  is read as the **whole token** — `magik check_scale` is one name the registry does not have,
+  not `check` with a suffix to drop — and the finding's own `fix:` is a command:
+  `ruby -Iapps/magik/lib apps/magik/exe/magik help --json`, the registry to read, followed by the
+  cell to edit. Five fix cells named `magik registry` or `magik credentials`; they now name a
+  registered command, or say plainly that the command is planned and not built. **No command was
+  added** — the registry and the CLI are unchanged. The rule and its code are described in
   [`docs/architecture/03-error-codes.md`](docs/architecture/03-error-codes.md#a-fix-must-name-a-command-that-exists).
 
 ### Changed

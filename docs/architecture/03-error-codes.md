@@ -350,7 +350,11 @@ command is planned and not built. That is a truthful fix line; a command that do
 not.
 
 `MAGIK_DEV_ERROR_FIX_UNKNOWN_COMMAND` is the finding: it names the cell's line in
-`apps/magik/wiki/Error-Codes.md` and the command the registry does not have.
+`apps/magik/wiki/Error-Codes.md` and the command the registry does not have. The command is read
+as the **whole token** — `magik check_scale` is one name the registry does not have, not `check`
+with a suffix to drop — and the finding's own `fix:` is a command:
+`ruby -Iapps/magik/lib apps/magik/exe/magik help --json`, the registry to read, followed by the
+cell to edit.
 
 ## Option-level errors (R7)
 
