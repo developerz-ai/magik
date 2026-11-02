@@ -481,7 +481,7 @@ rake test        # the suite alone; works on bare Ruby, no bundle needed
 | docs | `rake yard` · coverage: `rake docs:coverage` |
 | the CLI, from source | `ruby -Ilib exe/magik version --json` · `ruby -Ilib exe/magik help` |
 | a console | `bin/console` |
-| the CLI against the demo app | `bin/dev` · [`dummy/`](dummy/) |
+| the dev loop — rerun the tests on save | `bin/dev` · one pass: `bin/dev --once` |
 | release pre-flight (prints, never publishes) | `bin/release` · [PUBLISHING.md](PUBLISHING.md) |
 | Postgres and friends, in containers | `docker/compose.yml` · [`.devcontainer/`](.devcontainer/) |
 

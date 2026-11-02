@@ -73,8 +73,8 @@ jobs:
 
       # Third-party actions in this repository are pinned to a MAJOR TAG, and Dependabot's
       # `github-actions` ecosystem (.github/dependabot.yml) opens one grouped PR a week that moves
-      # them — so the pins do not rot and every bump is a reviewable diff. The rule, and the one
-      # documented exception to it, are written out in .github/actions/setup/action.yml.
+      # them — so the pins do not rot and every bump is a reviewable diff. The rule is written out
+      # in .github/actions/setup/action.yml.
       - id: filter
         if: github.event_name == 'pull_request'
         uses: dorny/paths-filter@v4

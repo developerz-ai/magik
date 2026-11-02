@@ -1,7 +1,31 @@
 #!/usr/bin/env bash
-# one-command stop, run by developerz.ai when a session ends — established by dz-runner setup mode. One command; adjust as the repo grows.
+# bin/stop — the teardown half of the setup→dev→check cycle: stop what
+# `bin/setup --services` started (the local Postgres, plus any swap-profile
+# Redis, from docker/compose.yml).
+#
+# Contract: idempotent, exit 0 when nothing runs, never remove data. This stops
+# containers only — never `down`, never `-v` — so the named Postgres and Redis
+# volumes keep their data for the next session. Run by developerz.ai when a
+# session ends. One command; adjust as the repo grows.
 set -euo pipefail
 cd "$(dirname "$0")/.."
-# Nothing detected to stop (no compose file at the repo root). Replace with the command
-# that stops what bin/dev starts: idempotent, exit 0 when nothing runs, never remove data.
-true
+
+if ! command -v docker >/dev/null 2>&1; then
+  echo "bin/stop: docker is not on PATH — nothing was started here to stop"
+  echo "  fix: sudo apt-get install -y docker.io docker-compose-v2   # Debian/Ubuntu; macOS: brew install --cask docker"
+  exit 0
+fi
+if ! docker compose version >/dev/null 2>&1; then
+  echo "bin/stop: the docker compose plugin is not available — nothing to stop"
+  echo "  fix: sudo apt-get install -y docker-compose-v2   # Debian/Ubuntu; macOS: brew install docker-compose"
+  exit 0
+fi
+
+# --profile swap so Redis (the swap profile) stops alongside the default
+# Postgres; plain `stop`, so containers and their volumes survive untouched.
+if docker compose -f docker/compose.yml --profile swap stop; then
+  echo "bin/stop: stopped the docker compose project (containers kept, volumes kept — no data removed)"
+else
+  echo "bin/stop: docker compose stop failed — containers may still be running; fix: docker compose -f docker/compose.yml ps" >&2
+fi
+exit 0

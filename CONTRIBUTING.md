@@ -35,7 +35,7 @@ installed on a contributor's machine; anything TruffleRuby-specific is verified 
 | `rake rubocop` | lint · `bundle exec rubocop -A` to autocorrect |
 | `bin/release` | the release pre-flight — it prints the commands and runs none of them |
 | `bin/console` | an IRB session with the gem loaded |
-| `bin/dev` | the CLI against [`dummy/`](dummy/) |
+| `bin/dev` | rerun `bin/check --only test` on every change · `--once` for a single pass |
 | `ruby -Ilib exe/magik version --json` | the CLI, from source |
 
 **`bin/` is not the gem.** Nothing in it ships, and no app author can reach one of these scripts —
