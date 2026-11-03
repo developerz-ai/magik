@@ -266,11 +266,33 @@ says *this is about the repository, not about your app*.
 
 | Code | Raised by | Condition | `fix:` |
 |---|---|---|---|
-| `MAGIK_DEV_NO_RUBY` | [`bin/setup`](../../bin/setup) | no `ruby` on `PATH` | install Ruby ≥ 3.2, then re-run `bin/setup` |
-| `MAGIK_DEV_RUBY_TOO_OLD` | [`bin/setup`](../../bin/setup) | Ruby below the gemspec's `required_ruby_version` | install the version named in `apps/magik/.ruby-version`, then re-run `bin/setup` |
+| `MAGIK_DEV_NO_RUBY` | [`bin/setup`](../../bin/setup) | no `ruby` on `PATH` | `curl https://mise.run \| sh && export PATH="$HOME/.local/bin:$PATH" && mise install ruby@3.4.10 && mise exec ruby@3.4.10 -- bin/setup` |
+| `MAGIK_DEV_RUBY_TOO_OLD` | [`bin/setup`](../../bin/setup) | Ruby below the gemspec's `required_ruby_version` | `curl https://mise.run \| sh && export PATH="$HOME/.local/bin:$PATH" && mise install ruby@3.4.10 && mise exec ruby@3.4.10 -- bin/setup` |
 | `MAGIK_DEV_NO_RAKE` | [`bin/rake`](../../bin/rake) | `rake` is not installed | `gem install rake` |
 | `MAGIK_DEV_NO_WATCHER` | [`bin/dev`](../../bin/dev) | no file watcher on the machine, so `--watch` has nothing to watch with | install `watchexec`, `entr`, `fswatch` or `inotify-tools` |
 | `MAGIK_DEV_NO_VERSION` | [`bin/release`](../../bin/release) | `apps/magik/lib/magik/version.rb` defines no `Magik::VERSION` | set `VERSION` to a `MAJOR.MINOR.PATCH` string in that file |
+
+The two Ruby rows name one release, **3.4.10**, because both failures have the same remedy: the
+development Ruby this checkout develops against. It is the release pinned in
+[`apps/magik/.ruby-version`](../../apps/magik/.ruby-version) and in [`mise.toml`](../../mise.toml),
+and it is a release the ruby-lang.org advisory for CVE-2024-27282 never lists among the affected
+ones — that advisory names Ruby 3.0.6, 3.1.4, 3.2.3 or lower and Ruby 3.3.0 as affected, and
+3.0.7, 3.1.5, 3.2.4, 3.3.1 as fixed, a rule it applies per series, each series affected up to
+its own fixed release. It names no series above 3.3, so 3.4.10 is in a series it never marks
+affected, and it postdates the advisory. The pin is dev-box only: CI installs its own engine
+matrix, the gemspec's `required_ruby_version` stays `>= 3.2`, and TruffleRuby stays the production
+runtime target.
+
+`curl https://mise.run | sh` installs mise when the machine does not have it;
+`export PATH="$HOME/.local/bin:$PATH"` puts the directory the installer wrote it into on the
+PATH of the shell running the fix — the installer cannot change the PATH of the shell that ran
+it, so on a fresh machine the next command would die with `mise: command not found`;
+`mise install ruby@3.4.10` installs the release; and `mise exec ruby@3.4.10 -- bin/setup`
+re-runs this repository's setup under it, which is the whole fix. The command is one line
+because a fix that stops at "now install it" leaves the reader to work out how the rest of the
+checkout runs under the release it just installed. On a machine that already has mise,
+`bin/setup` prints the same fix without the installer prefix. The pipeline's pipe is escaped
+(`\|`) in the table above because a bare `|` ends a Markdown table cell even inside backticks.
 
 ### `apps/magik/scripts/checks/`: the gate's own findings
 
