@@ -19,6 +19,12 @@ require_relative "helper"
 # the tree — in `apps/magik/.ruby-version` — so the claim is checkable without
 # the network, and this test reads that record rather than keeping a second
 # copy of it.
+#
+# "Marked affected" is read the way the advisory states it: per series. The
+# advisory marks a series affected up to that series' fixed release — 3.2.x is
+# affected through 3.2.3 and fixed in 3.2.4, 3.3.x is affected at 3.3.0 and
+# fixed in 3.3.1 — and names no series above 3.3. Comparing one series with
+# another would reject the very releases the advisory lists as fixed.
 class MagikScriptsRubyPinTest < Minitest::Test
   # The checkout root: this file lives under apps/magik/test/scripts/, four
   # levels down, but `bin/setup` and `mise.toml` are at the root and the two
@@ -118,37 +124,65 @@ class MagikScriptsRubyPinTest < Minitest::Test
     refute advice?("mise install ruby@3.4.10 && mise exec ruby@3.4.10 -- bin/setup")
   end
 
+  # A fix cell that names a stale release BEFORE the pipe used to read as a
+  # cell naming only the pinned release: the cell was split on every pipe, so
+  # the half in front of the pipeline was dropped and the assertion that
+  # refuses a second release never saw it. The whole cell is read now, and a
+  # stale release on either side of a pipeline is refused.
+  def test_a_stale_release_before_the_pipeline_pipe_is_read_and_refused
+    cell = fix_cell(row_with("mise install ruby@3.2.3 && curl https://mise.run \\| sh && " \
+                             "mise install ruby@#{pin_version} && " \
+                             "mise exec ruby@#{pin_version} -- bin/setup"))
+
+    assert_includes named_releases(cell), "3.2.3",
+                    "the cell is read whole: the release before the pipe is part of it"
+    assert_raises(Minitest::Assertion) { assert_names_only_the_pin(cell, "the cell") }
+  end
+
+  def test_a_stale_release_after_the_pipeline_pipe_is_read_and_refused
+    cell = fix_cell(row_with("curl https://mise.run \\| sh && mise install ruby@3.2.3 && " \
+                             "mise exec ruby@#{pin_version} -- bin/setup"))
+
+    assert_includes named_releases(cell), "3.2.3",
+                    "the cell is read whole: the release after the pipe is part of it"
+    assert_raises(Minitest::Assertion) { assert_names_only_the_pin(cell, "the cell") }
+  end
+
   # --- the real tree ------------------------------------------------------------
 
   def test_the_pin_names_a_release_the_advisory_does_not_mark_affected
     pin = pin_version
 
     refute_empty pin, "apps/magik/.ruby-version must name a release"
-    affected = affected_versions
-
-    refute_empty affected, "the tree must record the advisory's affected versions"
-    refute_includes affected, pin,
-                    "the pin names #{pin}, which the recorded advisory marks affected"
+    refute_empty affected_versions, "the tree must record the advisory's affected versions"
+    refute_empty fixed_versions, "the tree must record the advisory's fixed versions"
+    refute affected?(pin), "the pin names #{pin}, which the recorded advisory marks affected"
   end
 
-  def test_the_pin_is_above_every_release_the_advisory_marks_affected
-    pin = pin_version
-
-    affected_versions.each do |version|
-      assert_operator Gem::Version.new(pin), :>, Gem::Version.new(version),
-                      "the pin #{pin} must be above the affected release #{version}"
+  # A release below the fixed release of its own series is affected: that is
+  # what the advisory's lists say, series by series.
+  def test_a_release_below_the_fixed_release_of_its_own_series_is_affected
+    %w[3.0.6 3.1.4 3.2.3 3.3.0].each do |version|
+      assert affected?(version),
+             "#{version} sits below the fixed release of its own series, so the advisory marks it affected"
     end
   end
 
-  def test_the_pin_is_above_every_release_the_advisory_records_as_fixed
-    pin = pin_version
+  # The fixed release of a series is not affected — equality is the boundary,
+  # not a crossing of it. 3.3.1 is the release the advisory lists as fixed,
+  # and a pin naming it is exactly as safe as a pin naming a later release.
+  def test_the_fixed_release_of_a_series_is_not_affected
+    %w[3.0.7 3.1.5 3.2.4 3.3.1].each do |version|
+      refute affected?(version),
+             "#{version} is the release the advisory records as fixed, so it is not affected"
+    end
+  end
 
-    fixed = fixed_versions
-
-    refute_empty fixed, "the tree must record the advisory's fixed versions"
-    fixed.each do |version|
-      assert_operator Gem::Version.new(pin), :>, Gem::Version.new(version),
-                      "the pin #{pin} must be above the fixed release #{version}"
+  # A series the advisory never names cannot be affected by it.
+  def test_a_release_in_a_series_the_advisory_does_not_name_is_not_affected
+    %w[3.4.0 3.5.1].each do |version|
+      refute affected?(version),
+             "#{version} is in a series the advisory never names, so it cannot be one it marks affected"
     end
   end
 
@@ -305,7 +339,7 @@ class MagikScriptsRubyPinTest < Minitest::Test
   # @return [void]
   def assert_names_only_the_pin(text, what)
     pin = pin_version
-    named = text.scan(/ruby@(\d+(?:\.\d+)*)/).flatten.uniq
+    named = named_releases(text)
 
     assert_includes named, pin,
                     "#{what} must name the pinned release #{pin}, so the command a reader pastes " \
@@ -313,6 +347,42 @@ class MagikScriptsRubyPinTest < Minitest::Test
     assert_equal [pin], named,
                  "#{what} must name one release and it must be the pinned one, but it names " \
                  "#{named.inspect}"
+  end
+
+  # Every release a fix text names, in the order it names them, without
+  # duplicates.
+  #
+  # @param text [String] the fix text
+  # @return [Array<String>]
+  def named_releases(text)
+    text.scan(/ruby@(\d+(?:\.\d+)*)/).flatten.uniq
+  end
+
+  # Whether the recorded advisory marks a release affected, judged the way the
+  # advisory states it: per series. A release in a series the advisory names
+  # is affected while it sits below that series' fixed release — the fixed
+  # release IS the boundary, so equality is not affected — and a release in a
+  # series the advisory never names is not affected at all.
+  #
+  # @param pin [String] the release to judge
+  # @return [Boolean]
+  def affected?(pin)
+    series = series_of(pin)
+    patched = fixed_versions.find { |version| series_of(version) == series }
+    return Gem::Version.new(pin) < Gem::Version.new(patched) unless patched.nil?
+
+    ceiling = affected_versions.find { |version| series_of(version) == series }
+    return false if ceiling.nil?
+
+    Gem::Version.new(pin) <= Gem::Version.new(ceiling)
+  end
+
+  # The series a release belongs to: "3.2.4" is in the "3.2" series.
+  #
+  # @param version [String] a release
+  # @return [String]
+  def series_of(version)
+    version.split(".").first(2).join(".")
   end
 
   # The `fix:` line a script prints under a code.
@@ -335,13 +405,32 @@ class MagikScriptsRubyPinTest < Minitest::Test
   # The row is a Markdown table row, so the cells are the segments between the
   # pipes — and the last segment is empty, because the row ends with one.
   #
+  # A pipe INSIDE a cell is written escaped (`\|`), because a bare one ends
+  # the cell even inside backticks; only an unescaped pipe separates cells
+  # here. The whole cell is read, both sides of every pipeline included: a
+  # cell that names a stale release in front of the pipe is a cell that
+  # installs the wrong Ruby, and a parser that dropped that half would let it
+  # through.
+  #
   # @param source [String] the page's text
   # @return [String]
   def fix_cell(source)
     row = source.lines.find { |line| line.include?("`MAGIK_DEV_RUBY_TOO_OLD`") }
     raise "no MAGIK_DEV_RUBY_TOO_OLD row" if row.nil?
 
-    row.split("|").map(&:strip).reject(&:empty?).last.to_s
+    cells = row.split(/(?<!\\)\|/).map { |cell| cell.strip.gsub("\\|", "|") }.reject(&:empty?)
+    cells.last.to_s
+  end
+
+  # A one-row error-code table, as the page writes it, carrying the given
+  # fix cell.
+  #
+  # @param fix [String] the fix cell's contents
+  # @return [String]
+  def row_with(fix)
+    "| Code | Raised by | Condition | `fix:` |\n" \
+      "|---|---|---|---|\n" \
+      "| `MAGIK_DEV_RUBY_TOO_OLD` | `bin/setup` | Ruby below the floor | #{fix} |\n"
   end
 
   # Whether a fix line reads as advice rather than as a command. The gate's own

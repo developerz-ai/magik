@@ -37,6 +37,9 @@ class DevScriptsTest < Minitest::Test
   DIRNAME = find_tool("dirname", "/usr/bin/dirname", "/bin/dirname").freeze
   FIND = find_tool("find", "/usr/bin/find", "/bin/find").freeze
   CAT = find_tool("cat", "/usr/bin/cat", "/bin/cat").freeze
+  SH = find_tool("sh", "/bin/sh", "/usr/bin/sh").freeze
+  MKDIR = find_tool("mkdir", "/bin/mkdir", "/usr/bin/mkdir").freeze
+  CHMOD = find_tool("chmod", "/bin/chmod", "/usr/bin/chmod").freeze
 
   # What `bin/dev` must exec watchexec with: `--clear`, then one `--watch` per
   # WATCH_PATHS entry and per WATCH_FILES entry — the same set the entr,
@@ -86,14 +89,19 @@ class DevScriptsTest < Minitest::Test
 
   # The command bin/setup prints when mise itself is absent. The installer is
   # part of the fix because a remedy that starts with `mise` cannot run on a
-  # box that has no mise.
+  # box that has no mise. The export is part of it because the installer
+  # writes mise into ~/.local/bin and cannot put that directory on the PATH
+  # of the shell that ran it: without the export, the next command in the
+  # chain dies with "mise: command not found" on a fresh machine.
   RUBY_FIX_WITHOUT_MISE =
-    "curl https://mise.run | sh && mise install ruby@#{PINNED_RUBY} && " \
+    "curl https://mise.run | sh && export PATH=\"$HOME/.local/bin:$PATH\" && " \
+    "mise install ruby@#{PINNED_RUBY} && " \
     "mise exec ruby@#{PINNED_RUBY} -- bin/setup".freeze
 
   def setup
-    skip "bash, dirname, find and cat are required to run the dev scripts" if
-      BASH.nil? || DIRNAME.nil? || FIND.nil? || CAT.nil?
+    skip "bash, dirname, find, cat, sh, mkdir and chmod are required to run the dev scripts" if
+      BASH.nil? || DIRNAME.nil? || FIND.nil? || CAT.nil? ||
+      SH.nil? || MKDIR.nil? || CHMOD.nil?
   end
 
   # --- bin/stop ----------------------------------------------------------------
@@ -197,6 +205,32 @@ class DevScriptsTest < Minitest::Test
       assert_includes output, "fix: #{RUBY_FIX}",
                       "with mise already installed, the fix needs no installer:\n#{output}"
       refute_includes output, RUBY_FIX_WITHOUT_MISE
+    end
+  end
+
+  # The remedy a refusal prints has to work on the machine that prints it: one
+  # whose PATH does not carry ~/.local/bin, the directory the mise installer
+  # writes its binary into. The installer cannot change the PATH of the shell
+  # that ran it, so a remedy that does not export the directory itself dies
+  # with "mise: command not found" on the very next command — and a fix: that
+  # does not run is not a fix.
+  def test_the_remedy_for_a_missing_ruby_installs_mise_and_then_uses_it
+    in_setup_sandbox do |root, bin|
+      status, output = run_script(File.join(root, "bin", "setup"), bin)
+
+      assert_equal 1, status, "a missing Ruby is a failed setup:\n#{output}"
+      assert_remedy_installs_mise_and_runs_the_pinned_release(output, root)
+    end
+  end
+
+  def test_the_remedy_for_a_too_old_ruby_installs_mise_and_then_uses_it
+    in_setup_sandbox do |root, bin|
+      write_ruby_stub(bin, version: "3.1.4")
+
+      status, output = run_script(File.join(root, "bin", "setup"), bin)
+
+      assert_equal 1, status, "a Ruby below the gemspec's floor is a failed setup:\n#{output}"
+      assert_remedy_installs_mise_and_runs_the_pinned_release(output, root)
     end
   end
 
@@ -371,6 +405,72 @@ class DevScriptsTest < Minitest::Test
   end
 
   private
+
+  # Runs the fix: a refusal printed, exactly as the reader would paste it, on
+  # a machine with no mise, no ~/.local/bin on PATH, and a curl that stands in
+  # for the mise installer: it writes a mise into ~/.local/bin — where the
+  # real installer writes it, and the directory this PATH does not carry.
+  #
+  # @param output [String] what bin/setup printed
+  # @param root [String] the sandbox root
+  # @return [void]
+  def assert_remedy_installs_mise_and_runs_the_pinned_release(output, root)
+    remedy = remedy_from(output)
+    home = File.join(root, "home")
+    FileUtils.mkdir_p(home)
+    bin = File.join(root, "remedy-bin")
+    FileUtils.mkdir_p(bin)
+    { "sh" => SH, "mkdir" => MKDIR, "cat" => CAT, "chmod" => CHMOD }.each do |name, tool|
+      FileUtils.ln_s(tool, File.join(bin, name))
+    end
+    curl_log = File.join(root, "curl.log")
+    mise_log = File.join(root, "mise.log")
+    write_mise_installer(bin, curl_log, mise_log)
+
+    out, status = Open3.capture2e({ "PATH" => bin, "HOME" => home }, BASH, "-c", remedy)
+
+    assert_predicate status, :success?, "the printed fix: must run as printed:\n#{remedy}\n#{out}"
+    assert_equal ["https://mise.run"], logged(curl_log),
+                 "the remedy installs mise before it uses mise:\n#{remedy}\n#{out}"
+    assert_equal ["install", "ruby@#{PINNED_RUBY}", "exec", "ruby@#{PINNED_RUBY}", "--", "bin/setup"],
+                 logged(mise_log),
+                 "the remedy must reach the mise it just installed — it lives in ~/.local/bin, which " \
+                 "the installer cannot put on PATH — and run the pinned release:\n#{remedy}\n#{out}"
+  end
+
+  # The fix: line a refusal printed.
+  #
+  # @param output [String] what bin/setup printed
+  # @return [String]
+  def remedy_from(output)
+    line = output.lines.find { |candidate| candidate.include?("fix:") }
+    raise "no fix: line in:\n#{output}" if line.nil?
+
+    line.sub(/.*fix:\s*/, "").strip
+  end
+
+  # Writes a `curl` into +bin+ that stands in for the mise installer: it logs
+  # the arguments it was called with and writes an executable `mise` into
+  # ~/.local/bin — the directory the real installer writes into, and the one
+  # this machine's PATH does not carry.
+  #
+  # @param bin [String] the sandbox bin directory
+  # @param curl_log [String] where curl's arguments are appended
+  # @param mise_log [String] where the installed mise's arguments are appended
+  # @return [void]
+  def write_mise_installer(bin, curl_log, mise_log)
+    File.write(File.join(bin, "curl"), <<~SH)
+      #!/bin/sh
+      printf '%s\\n' "$@" >> "#{curl_log}"
+      mkdir -p "$HOME/.local/bin"
+      cat > "$HOME/.local/bin/mise" <<'MISE'
+      #!/bin/sh
+      printf '%s\\n' "$@" >> "#{mise_log}"
+      MISE
+      chmod +x "$HOME/.local/bin/mise"
+    SH
+    FileUtils.chmod(0o755, File.join(bin, "curl"))
+  end
 
   # Yields [root, bin]. The bin directory holds the `dirname` stand-in both
   # scripts open with (`cd "$(dirname "$0")/.."`) and the `cat` `bin/dev`

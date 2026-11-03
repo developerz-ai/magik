@@ -9,8 +9,8 @@
 #
 # This file pinned 3.2.3, which the ruby-lang.org advisory for CVE-2024-27282
 # lists as affected ("Ruby 3.2.3 or lower"). 3.4.10 is not affected: it is a
-# later release in a series the advisory never lists, and it is above the
-# advisory's own fixed release for every series the advisory names.
+# later release in a series the advisory never lists, and the series the
+# advisory does list are affected only up to their own fixed release.
 #
 # Advisory (authoritative, ruby-lang.org):
 #   https://www.ruby-lang.org/en/news/2024/04/23/arbitrary-memory-address-read-regexp-cve-2024-27282/
@@ -26,11 +26,13 @@
 # Fixed versions, verbatim from that advisory:
 #   Ruby 3.0.7, Ruby 3.1.5, Ruby 3.2.4, Ruby 3.3.1
 #
-# 3.4.10 satisfies that record on its own terms: it is greater than every
-# affected version above and greater than every fixed version above, so it is
-# not among the releases the advisory marks affected. It is also a real
-# upstream release, not a local build — ruby-lang.org published it on
-# 2026-06-30 (https://www.ruby-lang.org/en/news/2026/06/30/ruby-3-4-10-released/).
+# The rule this record states is per series: a series is affected up to its own
+# fixed release — 3.0.x through 3.0.6, 3.1.x through 3.1.4, 3.2.x through
+# 3.2.3, 3.3.x at 3.3.0 — and the advisory names no series above 3.3. 3.4.10
+# is in a series the advisory never marks affected, so it is not among the
+# releases it lists as affected. It is also a real upstream release, not a
+# local build — ruby-lang.org published it on 2026-06-30
+# (https://www.ruby-lang.org/en/news/2026/06/30/ruby-3-4-10-released/).
 #
 # Two constraints this pin has to satisfy at the same time:
 #

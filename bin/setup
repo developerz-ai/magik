@@ -92,13 +92,21 @@ say "Checking Ruby"
 # the command a reader copies — a fix that only expands at runtime names no
 # release to the checker that holds it to the runnable-fix rule. Keep the two
 # fix lines, apps/magik/.ruby-version and mise.toml in step with each other.
+#
+# The branch that installs mise exports ~/.local/bin before the two mise
+# calls. The mise installer writes its binary there and cannot change the
+# PATH of the shell that ran it, so on a fresh machine — one without
+# ~/.local/bin on PATH — the next command would die with "mise: command not
+# found" and the remedy would fail at the step it was written to fix. The
+# export is part of the fix, not a nicety: the remedy has to work on the
+# machine that prints it.
 
 if ! command -v ruby >/dev/null 2>&1; then
   echo "MAGIK_DEV_NO_RUBY: ruby is not on PATH" >&2
   if command -v mise >/dev/null 2>&1; then
     echo "  fix: mise install ruby@3.4.10 && mise exec ruby@3.4.10 -- bin/setup" >&2
   else
-    echo "  fix: curl https://mise.run | sh && mise install ruby@3.4.10 && mise exec ruby@3.4.10 -- bin/setup" >&2
+    echo "  fix: curl https://mise.run | sh && export PATH=\"\$HOME/.local/bin:\$PATH\" && mise install ruby@3.4.10 && mise exec ruby@3.4.10 -- bin/setup" >&2
   fi
   exit 1
 fi
@@ -108,7 +116,7 @@ if ! ruby -e 'exit(Gem::Version.new(RUBY_VERSION) >= Gem::Version.new("3.2"))'; 
   if command -v mise >/dev/null 2>&1; then
     echo "  fix: mise install ruby@3.4.10 && mise exec ruby@3.4.10 -- bin/setup" >&2
   else
-    echo "  fix: curl https://mise.run | sh && mise install ruby@3.4.10 && mise exec ruby@3.4.10 -- bin/setup" >&2
+    echo "  fix: curl https://mise.run | sh && export PATH=\"\$HOME/.local/bin:\$PATH\" && mise install ruby@3.4.10 && mise exec ruby@3.4.10 -- bin/setup" >&2
   fi
   exit 1
 fi
