@@ -15,6 +15,12 @@ require "test_helper"
 # real absence rather than a mocked return value, and the real `bin/check`
 # never runs from inside the suite — `bin/dev` reaches it only through a stub
 # placed beside a byte-identical copy of itself in the sandbox.
+#
+# `bin/setup` is here too, for one reason: its two Ruby refusals are the only
+# places this repository tells a reader WHICH Ruby to install, and a fix: line
+# that names a release the checkout does not pin is a fix that installs the
+# wrong thing. Running the script settles it — the fix has to be there, on
+# stderr, in the shape a reader can paste.
 class DevScriptsTest < Minitest::Test
   # The checkout root: this suite lives under apps/magik/test/, three levels
   # down, but bin/dev and bin/stop stayed at the root and are still run from
@@ -61,6 +67,29 @@ class DevScriptsTest < Minitest::Test
     -o -r apps/magik/lib apps/magik/exe apps/magik/test
     apps/magik/Rakefile apps/magik/Gemfile apps/magik/magik.gemspec
   ].freeze
+
+  # The development Ruby this checkout pins. `bin/setup`'s two fix lines have
+  # to name this release: the fix is "install this Ruby", and a fix naming a
+  # different one installs a Ruby the checkout does not develop against.
+  #
+  # The pin is the first word of the first non-empty line: rbenv reads the
+  # first word, mise reads the first line, and every comment in that file sits
+  # below the version for exactly that reason.
+  PINNED_RUBY = begin
+    path = File.join(REPO, "apps", "magik", ".ruby-version")
+    File.readlines(path).find { |line| !line.strip.empty? }.split(/\s+/).first
+  end.freeze
+
+  # The command bin/setup prints when mise is already installed: install the
+  # pinned release, then re-run this repository's setup under it.
+  RUBY_FIX = "mise install ruby@#{PINNED_RUBY} && mise exec ruby@#{PINNED_RUBY} -- bin/setup".freeze
+
+  # The command bin/setup prints when mise itself is absent. The installer is
+  # part of the fix because a remedy that starts with `mise` cannot run on a
+  # box that has no mise.
+  RUBY_FIX_WITHOUT_MISE =
+    "curl https://mise.run | sh && mise install ruby@#{PINNED_RUBY} && " \
+    "mise exec ruby@#{PINNED_RUBY} -- bin/setup".freeze
 
   def setup
     skip "bash, dirname, find and cat are required to run the dev scripts" if
@@ -126,6 +155,63 @@ class DevScriptsTest < Minitest::Test
       assert_equal 0, status, "teardown is idempotent: exit 0 in every path, compose failure included:\n#{output}"
       assert_includes output, "compose stop failed"
       assert_equal STOP_AND_NOTHING_ELSE, logged(log)
+    end
+  end
+
+  # --- bin/setup --------------------------------------------------------------
+
+  def test_setup_refuses_with_the_no_ruby_code_when_ruby_is_not_on_path
+    in_setup_sandbox do |root, bin|
+      status, output = run_script(File.join(root, "bin", "setup"), bin)
+
+      assert_equal 1, status, "a missing Ruby is a failed setup, not a broken one:\n#{output}"
+      assert_includes output, "MAGIK_DEV_NO_RUBY: ruby is not on PATH"
+      assert_includes output, "fix: #{RUBY_FIX_WITHOUT_MISE}",
+                      "the fix: installs mise before it uses mise, and names the pinned " \
+                      "release #{PINNED_RUBY}:\n#{output}"
+    end
+  end
+
+  def test_setup_refuses_with_the_ruby_too_old_code_and_its_fix_names_the_pinned_release
+    in_setup_sandbox do |root, bin|
+      write_ruby_stub(bin, version: "3.1.4")
+
+      status, output = run_script(File.join(root, "bin", "setup"), bin)
+
+      assert_equal 1, status, "a Ruby below the gemspec's floor is a failed setup:\n#{output}"
+      assert_includes output, "MAGIK_DEV_RUBY_TOO_OLD:"
+      assert_includes output, "fix: #{RUBY_FIX_WITHOUT_MISE}",
+                      "the fix: installs mise before it uses mise, and names the pinned " \
+                      "release #{PINNED_RUBY}, so the command a reader pastes installs the " \
+                      "Ruby this checkout develops against:\n#{output}"
+    end
+  end
+
+  def test_setup_prints_the_mise_fix_when_mise_is_already_installed
+    in_setup_sandbox do |root, bin|
+      write_stub(bin, "mise", File.join(root, "mise.log"), "exit 0")
+
+      status, output = run_script(File.join(root, "bin", "setup"), bin)
+
+      assert_equal 1, status
+      assert_includes output, "fix: #{RUBY_FIX}",
+                      "with mise already installed, the fix needs no installer:\n#{output}"
+      refute_includes output, RUBY_FIX_WITHOUT_MISE
+    end
+  end
+
+  def test_setup_refuses_before_it_touches_the_checkout
+    in_setup_sandbox do |root, bin|
+      write_ruby_stub(bin, version: "3.1.4")
+
+      status, = run_script(File.join(root, "bin", "setup"), bin)
+
+      assert_equal 1, status
+      refute_path_exists File.join(root, ".git", "hooks", "pre-push"),
+                         "the Ruby refusal happens before any other step, so nothing in the " \
+                         "checkout is written while the Ruby is wrong"
+      refute_path_exists File.join(root, ".env"),
+                         "the Ruby refusal happens before the environment file is copied"
     end
   end
 
@@ -303,6 +389,59 @@ class DevScriptsTest < Minitest::Test
       FileUtils.ln_s(CAT, File.join(bin, "cat"))
       yield root, bin
     end
+  end
+
+  # Yields [root, bin] for a `bin/setup` run.
+  #
+  # `bin/setup` opens with `cd "$(dirname "$0")/.."` and then writes into
+  # `$ROOT/.git/hooks` and `$ROOT/.env` — so it is copied into a sandbox ROOT
+  # and run from there, and the checkout it would otherwise write into is
+  # never touched. The sandbox's `bin/` is the child's whole PATH, so "ruby is
+  # not installed" is a real absence rather than a mocked return value.
+  #
+  # @yieldparam root [String] the sandbox root, which is also the script's ROOT
+  # @yieldparam bin [String] the sandbox bin directory, the child's whole PATH
+  # @return [void]
+  def in_setup_sandbox
+    Dir.mktmpdir("magik-setup-scripts") do |root|
+      bin = File.join(root, "bin")
+      FileUtils.mkdir_p(bin)
+      FileUtils.ln_s(DIRNAME, File.join(bin, "dirname"))
+      FileUtils.ln_s(CAT, File.join(bin, "cat"))
+      FileUtils.cp(File.join(REPO, "bin", "setup"), File.join(bin, "setup"))
+      FileUtils.chmod(0o755, File.join(bin, "setup"))
+      yield root, bin
+    end
+  end
+
+  # Writes a `ruby` into the sandbox that reports +version+ and answers the
+  # two questions `bin/setup` asks it: the version it prints, and whether it
+  # is at least 3.2.
+  #
+  # @param bin [String] the sandbox bin directory
+  # @param version [String] the version the stub claims to be
+  # @return [void]
+  def write_ruby_stub(bin, version:)
+    File.write(File.join(bin, "ruby"), <<~SH)
+      #!/bin/sh
+      if [ "$1" = "-v" ]; then
+        echo "ruby #{version} (2024-01-18 revision 1c0d1f0a0a) [x86_64-linux]"
+        exit 0
+      fi
+      if [ "$1" = "-e" ]; then
+        case "$2" in
+          # bin/setup asks whether the Ruby is at least 3.2. The stub answers
+          # for itself, in shell: re-running `ruby -e` here would call the
+          # stub again, for ever, and the sandbox PATH holds nothing else.
+          *"3.2"*) [ "#{version}" = "3.1.4" ] && exit 1 || exit 0 ;;
+          *RUBY_VERSION*) echo "#{version}" ;;
+          *RUBY_ENGINE*) echo "ruby" ;;
+        esac
+        exit 0
+      fi
+      exit 0
+    SH
+    FileUtils.chmod(0o755, File.join(bin, "ruby"))
   end
 
   # Writes an executable stub named +name+ into +bin+. Each invocation appends

@@ -1,9 +1,35 @@
-# Toolchain — established by dz-runner setup mode from the version this repo already pinned.
-# Corrected `As of 2026-10-30` (re-derive with `mise ls`): this box's mise has no
-# core:ruby@3.2.3 — the .ruby-version pin — so every `ruby` through the shim stalled in a
-# from-source build and bin/setup died with MAGIK_DEV_RUBY_TOO_OLD. Pin a version `mise ls`
-# shows installed (3.4.10), still above the gemspec floor of >= 3.2. CI installs its own
-# Ruby-engine matrix and never reads this file: it is dev-box-only. (bin/setup does not run
-# `mise install`; the pin has to name a version that is already installed.)
+# Toolchain — the Ruby this box runs, and why it is the version it is.
+#
+# `ruby = "3.4.10"` below is the SAME release apps/magik/.ruby-version pins. They
+# agree on purpose: one file for the version the dev box runs, one line that
+# names it, and a mismatch between them is a bug rather than a nuance. Re-derive
+# the installed set with `mise ls`.
+#
+# Why 3.4.10 and not the 3.2.x the pin used to name (`As of 2026-08-26`):
+#
+#   * 3.2.3 — the old pin — is an AFFECTED release of CVE-2024-27282
+#     ("Ruby 3.2.3 or lower"). The advisory, its affected list and its fixed
+#     list are recorded in apps/magik/.ruby-version next to the pin.
+#   * 3.4.10 is not affected, is above the gemspec floor of >= 3.2, and is an
+#     upstream release mise installs and then resolves.
+#
+# The rule this value follows: it names the release the box resolves — the
+# same release apps/magik/.ruby-version pins and the same release the two
+# bin/setup fix lines install. It need NOT be installed already:
+# `mise install ruby@3.4.10 && mise exec ruby@3.4.10 -- bin/setup` is the
+# shipped remedy, and it installs the release when it is missing.
+#
+# The compatibility reason 3.4.10 and not a 3.2.x: this box's mise has no
+# core:ruby@3.2.x, so a 3.2.x here means a from-source build on first
+# `ruby` — every `ruby` through the shim stalled that way, and bin/setup
+# died with MAGIK_DEV_RUBY_TOO_OLD. 3.4.10 needs no such build. Separately,
+# bin/setup runs no `mise install` of its own, so a release this box
+# resolves by default keeps `ruby` working without the reader having to
+# install anything first; `mise ls` shows 3.4.10 in that set.
+#
+# CI installs its own Ruby-engine matrix (3.2 / 3.3 / 3.4 / truffleruby-head)
+# and never reads this file: it is dev-box-only. The gemspec's
+# `required_ruby_version` stays ">= 3.2", and TruffleRuby stays the production
+# runtime target — neither is affected by this file.
 [tools]
 ruby = "3.4.10"
