@@ -29,7 +29,7 @@ jobs:
     # once — the same service docker/compose.yml starts locally.
     services:
       postgres:
-        image: postgres:16-alpine
+        image: postgres:17-alpine
         env:
           POSTGRES_USER: <%= app_name %>
           POSTGRES_PASSWORD: <%= app_name %>

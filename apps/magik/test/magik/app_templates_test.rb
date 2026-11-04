@@ -767,6 +767,15 @@ class MagikAppTemplatesTest < Minitest::Test
 
     assert_equal "postgres:17-alpine", image
     assert_equal framework.fetch("services").fetch("postgres").fetch("image"), image
+
+    # The CI workflow starts the same Postgres the scaffold's Compose declares —
+    # a drift here means CI tests against a database local development never sees.
+    ci = YAML.load(render(".github/workflows/ci.yml.erb"))
+    ci_image = ci.fetch("jobs").fetch("check").fetch("services").fetch("postgres").fetch("image")
+
+    assert_equal "postgres:17-alpine", ci_image
+    assert_equal image, ci_image,
+                 "the scaffold Compose pins #{image.inspect}, the CI service pins #{ci_image.inspect}"
   end
 
   def test_the_scaffold_compose_preserves_its_service_settings
