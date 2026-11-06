@@ -127,6 +127,18 @@ the repository being brought back into agreement with it.
   settings changed. Rendered-YAML tests pin image parity and the existing Postgres and Redis
   settings. `magik new` remains planned and not implemented; this does not add a generator.
 
+- **Scaffold CI workflow template correction:** the generated
+  [`.github/workflows/ci.yml.erb`](apps/magik/lib/magik/cli/templates/app/.github/workflows/ci.yml.erb)
+  now pins its `postgres` service to `postgres:17-alpine`, matching the scaffold's
+  `docker/compose.yml.erb` and the framework's development Compose; it still pinned
+  `postgres:16-alpine`, so a generated app's CI would test against a database a laptop's
+  `bin/check` never sees. The parity test in
+  [`app_templates_test.rb`](apps/magik/test/magik/app_templates_test.rb) also fetches the CI
+  workflow's service image, so the three pins cannot drift apart again. No other template line
+  changed. `magik new` remains planned and not implemented; this does not add a generator.
+  Re-derive:
+  `ruby -Iapps/magik/lib -Iapps/magik/test apps/magik/test/magik/app_templates_test.rb`.
+
 - **The scaffold's development constraints now equal the framework's.** The generated
   [`Gemfile.erb`](apps/magik/lib/magik/cli/templates/app/Gemfile.erb) pinned minitest `~> 5.0`
   and simplecov `~> 0.22` while both framework Gemfiles pinned `~> 6.0` and `~> 1.2`, so a
