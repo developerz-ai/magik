@@ -31,6 +31,10 @@ the repository being brought back into agreement with it.
   so the prose it prints agrees with `apps/magik/scripts/lib/tiers.rb` and both architecture pages
   (`docs/architecture/01-module-map.md` and `docs/architecture/02-boundaries.md`). No enforcement
   rule, finding code, tier or checked document changed.
+- **Documentation only:** the app-template developer README no longer links `dummy/README.md`
+  through a `../` path that resolves only in a checkout (`dummy/` is not packaged in the gem); it
+  names `apps/magik/dummy/README.md` in prose and says the reference app is not packaged. No gate
+  scans `lib/` for dead links; that is not addressed here.
 
 ### Added
 
