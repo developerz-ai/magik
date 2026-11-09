@@ -778,6 +778,20 @@ class MagikAppTemplatesTest < Minitest::Test
                  "the scaffold Compose pins #{image.inspect}, the CI service pins #{ci_image.inspect}"
   end
 
+  def test_the_scaffold_ci_workflow_token_is_read_only
+    require "yaml"
+
+    ci = YAML.load(render(".github/workflows/ci.yml.erb"))
+
+    assert_equal({ "contents" => "read" }, ci.fetch("permissions"))
+    ci.fetch("jobs").each do |name, job|
+      granted = job.fetch("permissions", {})
+      writes = granted.is_a?(Hash) ? granted.reject { |_scope, level| level == "read" } : granted
+
+      assert_empty writes, "job #{name.inspect} elevates the token beyond read: #{granted.inspect}"
+    end
+  end
+
   def test_the_scaffold_compose_preserves_its_service_settings
     require "yaml"
 

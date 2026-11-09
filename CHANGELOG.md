@@ -136,6 +136,14 @@ the repository being brought back into agreement with it.
   a generator. Re-derive:
   `ruby -Iapps/magik/lib -Iapps/magik/test apps/magik/test/magik/app_templates_test.rb`.
 
+- **Scaffold CI workflow least-privilege token:** the generated
+  `.github/workflows/ci.yml.erb` declared no top-level `permissions:`, so generated apps
+  inherited the default `GITHUB_TOKEN` scope. It now declares `permissions: contents: read`;
+  the single `check` job elevates nothing, and `test_the_scaffold_ci_workflow_token_is_read_only`
+  pins it. `magik new` remains planned and not implemented; this does not add a generator.
+  Re-derive:
+  `ruby -Iapps/magik/lib -Iapps/magik/test apps/magik/test/magik/app_templates_test.rb`.
+
 - **The scaffold's development constraints now equal the framework's.** The generated
   [`Gemfile.erb`](apps/magik/lib/magik/cli/templates/app/Gemfile.erb) pinned minitest `~> 5.0`
   and simplecov `~> 0.22` while both framework Gemfiles pinned `~> 6.0` and `~> 1.2`, so a
