@@ -80,8 +80,9 @@ It does **not** hold the code templates — `Gemfile`, `config/app.rb`, `config/
 separate, unwritten set that lands with Phase 1, because they must be generated against a
 `model`/`screen`/`action` DSL that does not exist yet. A code template written before the DSL is a
 template that ships wrong. They are exactly the rows in the *"What a generated app has that this
-does not"* table in [`dummy/README.md`](../../../../../dummy/README.md) — the two lists are meant to
-agree, and a row appearing in one and not the other is a defect in whichever is newer.
+does not"* table in `apps/magik/dummy/README.md` (a path in the framework source repository; the reference
+app is not packaged in the gem, so an installed gem or a generated app does not have it) — the two
+lists are meant to agree, and a row appearing in one and not the other is a defect in whichever is newer.
 
 The three stages, in one line each:
 
@@ -168,7 +169,8 @@ text; it is not the preferred outcome.
 - **Any DSL you put in a template must parse.** `ruby -c` it. The reference app caught two spellings
   in the spec that are not valid Ruby — it is `retries`, not `retry` (a Ruby keyword), and
   `computed(:name, :type) { … }`, not `computed :name, :type { … }` (a brace block binds to the
-  symbol, not the call). See [`dummy/README.md`](../../../../../dummy/README.md).
+  symbol, not the call). See `apps/magik/dummy/README.md` in the framework source repository (not packaged in the gem, so
+  not reachable from an installed gem or a generated app).
 
 ## Verify
 
