@@ -33,8 +33,10 @@ the repository being brought back into agreement with it.
   rule, finding code, tier or checked document changed.
 - **Documentation only:** the app-template developer README no longer links `dummy/README.md`
   through a `../` path that resolves only in a checkout (`dummy/` is not packaged in the gem); it
-  names `apps/magik/dummy/README.md` in prose and says the reference app is not packaged. No gate
-  scans `lib/` for dead links; that is not addressed here.
+  names `apps/magik/dummy/README.md` in prose and says the reference app is not packaged.
+  `bin/check --only docs` does scan `lib/` for links broken in the checkout, but no gate catches a
+  link that resolves there yet dies once rendered into a generated app or shipped in the installed
+  gem; that gap is not addressed here.
 
 ### Added
 
