@@ -19,6 +19,11 @@ concurrency:
   group: ci-${{ github.ref }}
   cancel-in-progress: true
 
+# Least privilege: the single `check` job only checks out the code and runs
+# bin/check, so the token stays read-only and no job elevates it.
+permissions:
+  contents: read
+
 jobs:
   check:
     name: bin/check
