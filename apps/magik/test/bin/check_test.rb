@@ -27,7 +27,7 @@ class BinCheckGateTest < Minitest::Test
   # The ordered steps the gate must print. Renaming one or moving one is a
   # change to this contract, not a free move: ci.yml names steps in its `run:`
   # lines, and the parity test below is what holds the two sides together.
-  EXPECTED_STEPS = %w[rubocop test yard build install cli docs checks].freeze
+  EXPECTED_STEPS = %w[rubocop test yard build install cli docs checks public-tree].freeze
 
   def test_list_prints_the_gate_steps_in_contract_order
     assert_path CHECK, "the gate script itself"

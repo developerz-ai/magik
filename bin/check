@@ -576,6 +576,27 @@ STEPS = [
       pass("#{scripts.size} repo checks pass",
            command: "for f in apps/magik/scripts/checks/*.rb; do ruby \"$f\"; done")
     }
+  ),
+
+  # This repository is public, so every tracked file is a public document. bin/check-public-tree
+  # refuses an internal host, a private repository, a home path, the setup mode's name and the
+  # private words, which come from the PUBLIC_TREE_PRIVATE_WORDS CI secret (never from the tree).
+  Step.new(
+    name: "public-tree",
+    title: "public tree — no internal host, private repository, home path or private word",
+    command: -> { "bash bin/check-public-tree --self-test && bash bin/check-public-tree" },
+    body: lambda {
+      ok, out, = sh("bash", "-c", "bash bin/check-public-tree --self-test && bash bin/check-public-tree")
+      unless ok
+        next fail_with(reason: "public_tree", command: "bash bin/check-public-tree", exit_code: nil,
+                       expected: "no tracked file or path names anything private",
+                       got: out.strip,
+                       fix: "bash bin/check-public-tree   # each line names a file and a rule; remove that reference")
+      end
+
+      pass(out.lines.grep(/read \d+ of/).first.to_s.strip.sub("check-public-tree: ", ""),
+           command: "bash bin/check-public-tree")
+    }
   )
 ].freeze
 
