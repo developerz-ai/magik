@@ -4,7 +4,7 @@ description: Prove a change in developerz-ai/magik before committing or opening 
 
 # Verify a change in developerz-ai/magik
 
-> House skill — established by dz-runner setup mode from this repo’s own
+> House skill — owned by this repository's maintainers, and written from this repository's own
 > detected commands. Correct it in place; setup never overwrites a skill that exists.
 
 ## The one gate
