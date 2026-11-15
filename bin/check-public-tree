@@ -63,6 +63,21 @@ violations() {
     return 0
 }
 
+# The findings for one tracked entry, one per line. Its path is published whatever the file is
+# (empty, binary, a symlink), so the path is always checked; the content only when it is text.
+scan_entry() {
+    local path=$1 full=$2 words_file=$3 rule
+    while IFS= read -r rule; do
+        [[ -n $rule ]] && printf '%s: %s (in the path)\n' "$path" "$rule"
+    done < <(violations "$path" "$words_file")
+    [[ -f $full && ! -L $full ]] || return 0
+    grep -qI . "$full" 2>/dev/null || return 0
+    while IFS= read -r rule; do
+        [[ -n $rule ]] && printf '%s: %s\n' "$path" "$rule"
+    done < <(violations "$(cat "$full")" "$words_file")
+    return 0
+}
+
 words_file=$(mktemp "${TMPDIR:-/tmp}/public-tree.XXXXXXXX")
 trap 'rm -f -- "$words_file"' EXIT
 printf '%s' "${PUBLIC_TREE_PRIVATE_WORDS:-}" | tr ',' '\n' | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//' | grep -v '^$' > "$words_file" || true
@@ -82,7 +97,7 @@ if [[ ${1:-} == --self-test ]]; then
     }
     expect 'internal host on our own domain' "url: https://mcp.developerz.""ai/v1"
     expect '' "see https://www.developerz.ai"
-    expect 'setup-mode name' "a ${p1^^}-${p2^^} box"
+    expect 'setup-mode name' "a $(printf '%s-%s' "$p1" "$p2" | tr '[:lower:]' '[:upper:]') box"
     expect "someone's home directory" "cd /ho""me/someone/src"
     expect '' "runs-on: /home/runner/work"
     expect 'private repository' "see ${org}/vault#12"
@@ -101,6 +116,16 @@ $big"
 $big" "quimtel"
     expect 'private repository' "(${p1}#1026)
 $big"
+    # The path is checked even where the content is not: an empty file named after a private word.
+    tmp_entry=$(mktemp -d "${TMPDIR:-/tmp}/public-tree.XXXXXXXX")
+    : > "$tmp_entry/keep"
+    printf 'quimtel\n' > "$tmp_entry/words"
+    got=$(scan_entry "vendor/quimtel/.keep" "$tmp_entry/keep" "$tmp_entry/words")
+    rm -rf -- "$tmp_entry"
+    if [[ $got != "vendor/quimtel/.keep: private word (from the secret) (in the path)" ]]; then
+        printf 'check-public-tree self-test: an empty file'"'"'s path was not checked (got [%s])\n' "$got" >&2
+        fails=$((fails + 1))
+    fi
     # CI must pass the secret and the required flag on live (uncommented) lines: deleting,
     # commenting out or weakening either would switch the private-word check off silently.
     ci=$repo_root/.github/workflows/ci.yml
@@ -126,27 +151,21 @@ if [[ ! -s $words_file ]]; then
 fi
 
 [[ $(git -C "$repo_root" rev-parse --show-toplevel) == "$repo_root" ]] || { echo "check-public-tree: git answers for another repository's tree" >&2; exit 1; }
-mapfile -d '' files < <(git -C "$repo_root" ls-files -z)
+# A read loop, not mapfile: bash 3.2 (stock macOS) has no mapfile.
+files=()
+while IFS= read -r -d '' f; do files+=("$f"); done < <(git -C "$repo_root" ls-files -z)
 # A here-string, not a pipe: under pipefail an early \`grep -q\` match would SIGPIPE a long listing.
 grep -qxF "$self" <<< "$(printf '%s\n' "${files[@]}")" || { echo 'check-public-tree: the scan does not see this file, so its root is wrong' >&2; exit 1; }
 read=0
 failures=0
 for path in "${files[@]}"; do
     full=$repo_root/$path
-    [[ -f $full ]] || continue
-    grep -qI . "$full" 2>/dev/null || continue
-    read=$((read + 1))
-    while IFS= read -r rule; do
-        [[ -z $rule ]] && continue
-        printf '%s: %s\n' "$path" "$rule" >&2
+    if [[ -f $full && ! -L $full ]] && grep -qI . "$full" 2>/dev/null; then read=$((read + 1)); fi
+    while IFS= read -r finding; do
+        [[ -z $finding ]] && continue
+        printf '%s\n' "$finding" >&2
         failures=$((failures + 1))
-    done < <(violations "$(cat "$full")" "$words_file")
-    # The path is published too: a file named after a private word or repository is a finding.
-    while IFS= read -r rule; do
-        [[ -z $rule ]] && continue
-        printf '%s: %s (in the path)\n' "$path" "$rule" >&2
-        failures=$((failures + 1))
-    done < <(violations "$path" "$words_file")
+    done < <(scan_entry "$path" "$full" "$words_file")
 done
 echo "check-public-tree: read $read of ${#files[@]} tracked files, $(wc -l < "$words_file" | tr -d ' ') private words" >&2
 [[ $read -ge $min_tracked ]] || { echo "check-public-tree: read only $read tracked files" >&2; exit 1; }

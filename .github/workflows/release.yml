@@ -209,6 +209,11 @@ jobs:
       - uses: ./.github/actions/setup
 
       - name: bin/check
+        env:
+          # The public-tree step's private words: a release is cut from this repository, where the
+          # secret exists, so an empty one fails here too (bin/check-public-tree).
+          PUBLIC_TREE_PRIVATE_WORDS: ${{ secrets.PUBLIC_TREE_PRIVATE_WORDS }}
+          PUBLIC_TREE_PRIVATE_WORDS_REQUIRED: "1"
         run: bin/check
 
       # Built ONCE, here, and handed to the publish job as an artifact. Building again next to the
