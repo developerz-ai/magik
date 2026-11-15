@@ -70,7 +70,14 @@ scan_entry() {
     while IFS= read -r rule; do
         [[ -n $rule ]] && printf '%s: %s (in the path)\n' "$path" "$rule"
     done < <(violations "$path" "$words_file")
-    [[ -f $full && ! -L $full ]] || return 0
+    # Git publishes a symlink's target string as its blob, so the target is content too.
+    if [[ -L $full ]]; then
+        while IFS= read -r rule; do
+            [[ -n $rule ]] && printf '%s: %s (in the link target)\n' "$path" "$rule"
+        done < <(violations "$(readlink "$full")" "$words_file")
+        return 0
+    fi
+    [[ -f $full ]] || return 0
     grep -qI . "$full" 2>/dev/null || return 0
     while IFS= read -r rule; do
         [[ -n $rule ]] && printf '%s: %s\n' "$path" "$rule"
@@ -121,7 +128,13 @@ $big"
     : > "$tmp_entry/keep"
     printf 'quimtel\n' > "$tmp_entry/words"
     got=$(scan_entry "vendor/quimtel/.keep" "$tmp_entry/keep" "$tmp_entry/words")
+    ln -s "/ho""me/jane/src" "$tmp_entry/link"
+    got_link=$(scan_entry "docs/link" "$tmp_entry/link" "$tmp_entry/words")
     rm -rf -- "$tmp_entry"
+    if [[ $got_link != "docs/link: someone's home directory (in the link target)" ]]; then
+        printf 'check-public-tree self-test: a symlink'"'"'s target was not checked (got [%s])\n' "$got_link" >&2
+        fails=$((fails + 1))
+    fi
     if [[ $got != "vendor/quimtel/.keep: private word (from the secret) (in the path)" ]]; then
         printf 'check-public-tree self-test: an empty file'"'"'s path was not checked (got [%s])\n' "$got" >&2
         fails=$((fails + 1))
