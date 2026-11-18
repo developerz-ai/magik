@@ -15,9 +15,25 @@
 #   DATABASE_URL=postgres://... ruby apps/magik/scripts/probes/pg_concurrency.rb [--json]
 #
 # See docs/architecture/12-runtime-verification.md for recorded results.
+#
+# The `pg` gem is **optional here** — this repository and its gem do not depend
+# on it — so a checkout without it gets a `MAGIK_DEV_PROBE_PG_MISSING`
+# diagnostic on stderr and exit 69 (`EX_UNAVAILABLE`, this repository's code for
+# "a tool the check needs is not installed" — nothing is broken, the fix it
+# prints is the whole remedy), rather than a bare `LoadError` and a backtrace.
+# The diagnostic goes to stderr, never stdout: `--json` is parsed.
 
 require "json"
-require "pg"
+
+begin
+  require "pg"
+rescue LoadError => e
+  warn "MAGIK_DEV_PROBE_PG_MISSING: the pg gem is not installed (#{e.message})"
+  warn "  cause: this probe opens one PG connection per thread to time concurrent " \
+       "SELECT pg_sleep(S) queries, which needs the pg gem"
+  warn "  fix:   gem install pg"
+  exit 69 # EX_UNAVAILABLE: not installed is not broken; `fix:` above is the remedy
+end
 
 THREADS = Integer(ENV.fetch("MAGIK_PROBE_THREADS", 8))
 SLEEP_S = Float(ENV.fetch("MAGIK_PROBE_SLEEP", 1.0))
