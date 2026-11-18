@@ -16,9 +16,12 @@ without notice, and `0.0.1` in particular ships no API at all.
 
 ## [Unreleased]
 
-Documentation and planning only. **No framework behaviour changed, because there is none** — the
-spec was amended from measurement and rewritten as a clean v1, and everything below is the rest of
-the repository being brought back into agreement with it.
+Documentation and planning only, with one exception: **no framework behaviour changed, because there
+is none** — the spec was amended from measurement and rewritten as a clean v1, and everything below
+is the rest of the repository being brought back into agreement with it. The single
+non-documentation entry is a change to a repository script — the optional PostgreSQL probe now
+reports its missing `pg` prerequisite instead of raising a bare `LoadError`. No framework code and
+no dependency changed.
 
 ### Fixed
 
@@ -37,6 +40,14 @@ the repository being brought back into agreement with it.
   `bin/check --only docs` does scan `lib/` for links broken in the checkout, but no gate catches a
   link that resolves there yet dies once rendered into a generated app or shipped in the installed
   gem; that gap is not addressed here.
+- **The optional PostgreSQL probe reports its missing prerequisite instead of raising a bare
+  `LoadError`.** `apps/magik/scripts/probes/pg_concurrency.rb` needs the `pg` gem, which is
+  deliberately not a dependency of this repository or the gem — no `pg` row was added to
+  `apps/magik/Gemfile` or `apps/magik/magik.gemspec`. A checkout without it now prints
+  `MAGIK_DEV_PROBE_PG_MISSING: the pg gem is not installed (<LoadError message>)` with a runnable
+  `fix:   gem install pg` line on stderr and exits nonzero, instead of a bare backtrace; stdout stays
+  clean for `--json`. With `pg` present the probe behaves exactly as before. Both cases are pinned by
+  `apps/magik/test/scripts/pg_probe_test.rb`.
 
 ### Added
 

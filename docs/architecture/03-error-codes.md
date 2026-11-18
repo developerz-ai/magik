@@ -242,15 +242,16 @@ exception list grows, and a rule with one satisfying object cannot.
 > app author can hit — or a **repo-internal** code under `MAGIK_DEV_*`, emitted by this repository's
 > own scripts and checks, which ships to nobody. There is no third kind.
 
-Two things in this repository emit the second kind, and they have one audience between them — a
+Three things in this repository emit the second kind, and they have one audience between them — a
 contributor or an agent working in this checkout:
 
 | Emitter | What it is | Example |
 |---|---|---|
 | [`bin/`](../../bin) | the developer scripts — `setup`, `check`, `dev`, `rake`, `release`, `console` | `MAGIK_DEV_NO_RAKE` from [`bin/rake`](../../bin/rake) |
 | [`apps/magik/scripts/checks/`](../../apps/magik/scripts/checks) | the gate's own findings — every `Finding.new(code: ...)` this repository raises about itself | `MAGIK_DEV_MANIFEST_DRIFT` from [`apps/magik/scripts/checks/manifest.rb`](../../apps/magik/scripts/checks/manifest.rb) |
+| [`apps/magik/scripts/probes/`](../../apps/magik/scripts/probes) | the engine probes — optional measurements a checkout without their prerequisite cannot run | `MAGIK_DEV_PROBE_PG_MISSING` from [`apps/magik/scripts/probes/pg_concurrency.rb`](../../apps/magik/scripts/probes/pg_concurrency.rb) |
 
-Neither ships: they are not in the gem, they are not generated into an app, and no app author can
+None of them ships: they are not in the gem, they are not generated into an app, and no app author can
 reach one. Their failures are therefore **not framework failures**, and they are not in
 [`../../apps/magik/wiki/Error-Codes.md`](../../apps/magik/wiki/Error-Codes.md), which is the app author's manual and would
 be lying if it listed them — `MAGIK_DEV_ERROR_CODE_PUBLISHED` is the finding that says so.
@@ -294,6 +295,23 @@ checkout runs under the release it just installed. On a machine that already has
 `bin/setup` prints the same fix without the installer prefix. The pipeline's pipe is escaped
 (`\|`) in the table above because a bare `|` ends a Markdown table cell even inside backticks.
 
+### `apps/magik/scripts/probes/`: the engine probes
+
+The probes are measurements, not gate steps: they answer questions the spec's decisions rest on, and
+they run only where someone asks them to. `pg_concurrency.rb` is the optional one — it needs the `pg`
+gem, which is deliberately not a dependency of this repository or of the gem, so a checkout without
+it is told what is missing instead of dying with a bare `LoadError`.
+
+| Code | Raised by | Condition | `fix:` |
+|---|---|---|---|
+| `MAGIK_DEV_PROBE_PG_MISSING` | [`pg_concurrency.rb`](../../apps/magik/scripts/probes/pg_concurrency.rb) | the `pg` gem is not installed | `gem install pg` |
+
+It prints on **stderr** and exits nonzero, because the probe also has a `--json` mode whose stdout a
+parser consumes. `error_codes.rb` reads `bin/` and the `Finding.new` sites under
+`apps/magik/scripts/`, so nothing enforces this row: this page is its documented home, and
+[`../../apps/magik/test/scripts/pg_probe_test.rb`](../../apps/magik/test/scripts/pg_probe_test.rb) is
+what pins it.
+
 ### `apps/magik/scripts/checks/`: the gate's own findings
 
 **Do not read this list for a verdict — run `for check in apps/magik/scripts/checks/*.rb; do ruby "$check" --help; done`,**
@@ -332,9 +350,10 @@ condition detected by a different program. One name each, and neither borrows th
 Everything the rest of this page states applies: one code per condition, a cause naming real
 identifiers, and a `fix:` that is a command.
 [`../../apps/magik/scripts/checks/error_codes.rb`](../../apps/magik/scripts/checks/error_codes.rb) asserts all three over
-both emitters, and over the fix cells of the shipped manual it asserts only the unknown-command
-rule: a fix cell carries no code and no cause, so the other two have nothing to read there. It
-deliberately does **not** ask the wiki for a row of the check's own codes — it refuses one:
+the two emitters it reads — `bin/` and the checks' own findings — and over the fix cells of the
+shipped manual it asserts only the unknown-command rule: a fix cell carries no code and no cause, so
+the other two have nothing to read there. It deliberately does **not** ask the wiki for a row of the
+check's own codes — it refuses one:
 
 | Finding | Condition |
 |---|---|

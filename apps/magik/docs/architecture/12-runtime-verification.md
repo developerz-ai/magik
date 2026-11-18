@@ -54,6 +54,22 @@ DATABASE_URL=postgres://localhost/postgres ruby apps/magik/scripts/probes/pg_con
 DATABASE_URL=postgres://localhost/postgres ruby apps/magik/scripts/probes/pg_concurrency.rb --json
 ```
 
+The IO half has two prerequisites: a reachable `DATABASE_URL`, and the `pg` gem. **`pg` is
+deliberately not a dependency of this repository or the gem** — `apps/magik/Gemfile` lists none and
+`apps/magik/magik.gemspec` declares no runtime dependency — because the probe measures a backend the
+framework has not adopted yet, and adding it would make every checkout install libpq to run a check
+nobody asked for. A checkout without it is therefore not a broken checkout. The probe reports the
+missing prerequisite on **stderr** and exits 69 (`EX_UNAVAILABLE`) instead of raising a bare `LoadError`:
+
+```text
+MAGIK_DEV_PROBE_PG_MISSING: the pg gem is not installed (cannot load such file -- pg)
+  cause: this probe opens one PG connection per thread to time concurrent SELECT pg_sleep(S) queries, which needs the pg gem
+  fix:   gem install pg
+```
+
+The diagnostic never appears on stdout: `--json` is parsed, so the machine-readable output stays
+clean. With `pg` present the probe runs unchanged and prints no diagnostic.
+
 The exact commands that produced the table below, on this machine:
 
 ```bash

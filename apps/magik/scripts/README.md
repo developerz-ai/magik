@@ -126,9 +126,11 @@ prescribes — `code`, `cause`, `fix`, `at`:
 
 A finding is the second kind. It is not a `Magik::Error` subclass, it is not in
 `wiki/Error-Codes.md` — nobody outside this checkout can run a check — and it shares the token with
-the `MAGIK_DEV_*` refusals `bin/setup` and `bin/rake` print, because it has exactly their audience:
-a contributor or an agent working in this repository. The `DEV_` you read off a red gate is signal.
-It says *this is about the repository, not about your app*.
+the `MAGIK_DEV_*` refusals `bin/setup` and `bin/rake` print, and with the
+`MAGIK_DEV_PROBE_PG_MISSING` diagnostic [`scripts/probes/pg_concurrency.rb`](probes/pg_concurrency.rb)
+prints when the optional `pg` gem is absent, because it has exactly their audience: a contributor or
+an agent working in this repository. The `DEV_` you read off a red gate is signal. It says *this is
+about the repository, not about your app*.
 
 `scripts/checks/error_codes.rb` enforces that over this directory the same way it enforces the
 closed token set over `wiki/Error-Codes.md`: it reads every `Finding.new(code: ...)` under
