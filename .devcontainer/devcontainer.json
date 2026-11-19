@@ -4,7 +4,7 @@
     "dockerfile": "Dockerfile",
     "context": "..",
     "args": {
-      "RUBY_VERSION": "3.2",
+      "RUBY_VERSION": "4.0",
       "TRUFFLERUBY_VERSION": "34.0.1"
     }
   },

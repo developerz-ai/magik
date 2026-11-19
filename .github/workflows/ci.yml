@@ -194,6 +194,7 @@ jobs:
           - ruby: '3.2'
           - ruby: '3.3'
           - ruby: '3.4'
+          - ruby: '4.0'
           # TruffleRuby is Magik's PRODUCTION runtime target (docs/idea/00-build-spec.md, decision
           # 1: concurrency is real parallel OS threads) and it is ADVISORY here. That pairing is
           # uncomfortable and deliberate. Why it cannot block today: the target is a decision about
