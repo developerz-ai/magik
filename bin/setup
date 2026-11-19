@@ -84,7 +84,9 @@ say "Checking Ruby"
 # lines below name. It is the release pinned in apps/magik/.ruby-version, and
 # it is a release the ruby-lang.org advisory for CVE-2024-27282 records as
 # patched: Ruby 3.2.3 or lower is affected, the 3.2 series was fixed in 3.2.4,
-# and every 3.4 release postdates that fix. It is also the release mise.toml
+# and every 4.0 release postdates that fix. It is also patched for
+# GHSA-34m4-m9fh-gqp5 (String case conversion heap overflow; fixed in 3.3.14,
+# 3.4.13, 4.0.10). It is also the release mise.toml
 # names, so the toolchain this box resolves is the one the fix installs.
 #
 # The release is written out in each fix line rather than held in a variable,
@@ -104,9 +106,9 @@ say "Checking Ruby"
 if ! command -v ruby >/dev/null 2>&1; then
   echo "MAGIK_DEV_NO_RUBY: ruby is not on PATH" >&2
   if command -v mise >/dev/null 2>&1; then
-    echo "  fix: mise install ruby@3.4.10 && mise exec ruby@3.4.10 -- bin/setup" >&2
+    echo "  fix: mise install ruby@4.0.10 && mise exec ruby@4.0.10 -- bin/setup" >&2
   else
-    echo "  fix: curl https://mise.run | sh && export PATH=\"\$HOME/.local/bin:\$PATH\" && mise install ruby@3.4.10 && mise exec ruby@3.4.10 -- bin/setup" >&2
+    echo "  fix: curl https://mise.run | sh && export PATH=\"\$HOME/.local/bin:\$PATH\" && mise install ruby@4.0.10 && mise exec ruby@4.0.10 -- bin/setup" >&2
   fi
   exit 1
 fi
@@ -114,9 +116,9 @@ note "$(ruby -v)"
 if ! ruby -e 'exit(Gem::Version.new(RUBY_VERSION) >= Gem::Version.new("3.2"))'; then
   echo "MAGIK_DEV_RUBY_TOO_OLD: magik requires Ruby >= 3.2, found $(ruby -e 'print RUBY_VERSION')" >&2
   if command -v mise >/dev/null 2>&1; then
-    echo "  fix: mise install ruby@3.4.10 && mise exec ruby@3.4.10 -- bin/setup" >&2
+    echo "  fix: mise install ruby@4.0.10 && mise exec ruby@4.0.10 -- bin/setup" >&2
   else
-    echo "  fix: curl https://mise.run | sh && export PATH=\"\$HOME/.local/bin:\$PATH\" && mise install ruby@3.4.10 && mise exec ruby@3.4.10 -- bin/setup" >&2
+    echo "  fix: curl https://mise.run | sh && export PATH=\"\$HOME/.local/bin:\$PATH\" && mise install ruby@4.0.10 && mise exec ruby@4.0.10 -- bin/setup" >&2
   fi
   exit 1
 fi

@@ -23,11 +23,12 @@
 #   bin/check                              # CRuby, the fast answer
 #   truffleruby -Iapps/magik/lib -Iapps/magik/test apps/magik/test/...  # TruffleRuby, the real answer
 #
-# The base image already ships CRuby, rbenv, bundler, git and a non-root
+# The base image (devcontainers/ruby template 4.0, CRuby 4.0 — patched for
+# GHSA-34m4-m9fh-gqp5 from 4.0.10) already ships CRuby, rbenv, bundler, git and a non-root
 # `vscode` user, so this file only adds TruffleRuby.
 
-ARG RUBY_VERSION=3.2
-FROM mcr.microsoft.com/devcontainers/ruby:1-${RUBY_VERSION}-bookworm
+ARG RUBY_VERSION=4.0
+FROM mcr.microsoft.com/devcontainers/ruby:4.0-${RUBY_VERSION}-bookworm
 
 # The TruffleRuby standalone release to install. PINNED, and pins go stale:
 # check https://github.com/oracle/truffleruby/releases and bump this, or

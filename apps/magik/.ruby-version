@@ -1,4 +1,4 @@
-3.4.10
+4.0.10
 # The development Ruby pin. Line 1 is the version and nothing else, and every
 # other line is a `#` comment — because the common readers of this file each
 # take the FIRST WORD or the FIRST LINE (rbenv's `rbenv-version-file-read`
@@ -7,8 +7,14 @@
 #
 # Why this version, and what it replaced:
 #
-# This file pinned 3.2.3, which the ruby-lang.org advisory for CVE-2024-27282
-# lists as affected ("Ruby 3.2.3 or lower"). 3.4.10 is not affected: it is a
+# This file pinned 3.4.10 until 2026-11-19, when ruby-lang.org published
+# GHSA-34m4-m9fh-gqp5 (heap overflow in String case conversion, critical):
+#   https://www.ruby-lang.org/en/news/2026/11/18/multiple-vulnerabilities-in-regexp-and-string/
+# Patched releases: 3.3.14, 3.4.13, 4.0.10. 3.4.10 is affected; 4.0.10 is the
+# patched release of the newest series, so the pin moved there.
+#
+# Before 3.4.10 it pinned 3.2.3, which the ruby-lang.org advisory for CVE-2024-27282
+# lists as affected ("Ruby 3.2.3 or lower"). 4.0.10 is not affected: it is a
 # later release in a series the advisory never lists, and the series the
 # advisory does list are affected only up to their own fixed release.
 #
@@ -28,36 +34,36 @@
 #
 # The rule this record states is per series: a series is affected up to its own
 # fixed release — 3.0.x through 3.0.6, 3.1.x through 3.1.4, 3.2.x through
-# 3.2.3, 3.3.x at 3.3.0 — and the advisory names no series above 3.3. 3.4.10
+# 3.2.3, 3.3.x at 3.3.0 — and the advisory names no series above 3.3. 4.0.10
 # is in a series the advisory never marks affected, so it is not among the
 # releases it lists as affected. It is also a real upstream release, not a
-# local build — ruby-lang.org published it on 2026-06-30
-# (https://www.ruby-lang.org/en/news/2026/06/30/ruby-3-4-10-released/).
+# local build — ruby-lang.org published it on 2026-11-18
+# (https://www.ruby-lang.org/en/news/2026/11/18/ruby-4-0-10-released/).
 #
 # Two constraints this pin has to satisfy at the same time:
 #
 #   * It must be >= 3.2, the gemspec's `required_ruby_version`
-#     (apps/magik/magik.gemspec). 3.4.10 is above that floor. The floor is
+#     (apps/magik/magik.gemspec). 4.0.10 is above that floor. The floor is
 #     NOT changed by this pin: the gem still supports CRuby >= 3.2, and CI
-#     still proves that floor on its own 3.2 / 3.3 / 3.4 matrix.
+#     still proves that floor on its own 3.2 / 3.3 / 3.4 / 4.0 matrix.
 #   * It must name an UPSTREAM RELEASE that a Ruby manager on the reader's
 #     box can install and resolve — the same release `mise.toml` names and
 #     the same release the two bin/setup fix lines install. It need NOT be
-#     installed already: `mise install ruby@3.4.10 && mise exec ruby@3.4.10
+#     installed already: `mise install ruby@4.0.10 && mise exec ruby@4.0.10
 #     -- bin/setup` is the shipped remedy, and it installs what is not there
-#     yet. 3.4.10 satisfies that — it is an upstream release a manager
+#     yet. 4.0.10 satisfies that — it is an upstream release a manager
 #     installs and then resolves.
 #
 #     The advisory's minimum patched release, 3.2.4, is not named here for a
 #     compatibility reason, not a security one: this box's mise has no
 #     core:ruby@3.2.x, so a 3.2.x here means a from-source build on first
 #     `ruby` — the stall that made bin/setup die with
-#     MAGIK_DEV_RUBY_TOO_OLD before. 3.4.10 needs no such build. See
+#     MAGIK_DEV_RUBY_TOO_OLD before. 4.0.10 needs no such build. See
 #     mise.toml.
 #
 # A box that does not run mise at all resolves the pin through whichever
 # manager it does run — rbenv on the reference dev container
-# (.devcontainer/Dockerfile ships CRuby 3.2 and rbenv, no mise). The pin is
+# (.devcontainer/Dockerfile ships CRuby 4.0 and rbenv, no mise). The pin is
 # the single statement of which release this checkout develops against; the
 # fix lines are what put that release in front of the reader's box.
 #

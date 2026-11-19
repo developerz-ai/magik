@@ -133,6 +133,11 @@ no dependency changed.
 
 ### Changed
 
+- **Development Ruby 3.4.10 → 4.0.10** (GHSA-34m4-m9fh-gqp5, heap overflow in String case
+  conversion; patched in 3.3.14 / 3.4.13 / 4.0.10): `apps/magik/.ruby-version`, `mise.toml`, the
+  `bin/setup` fix lines and the error-code page name 4.0.10; the devcontainer moves from CRuby 3.2 to
+  4.0; CI adds a `4.0` leg. The gemspec floor (`>= 3.2`) is unchanged.
+
 - **Documentation-only runtime pin correction:** the runtime-verification page and its packaged
   mirror now identify `34.0.1` as the current devcontainer pin and `24.2.1` as the former pin,
   removing the obsolete demand to move it. Historical commands, dated measurements and the

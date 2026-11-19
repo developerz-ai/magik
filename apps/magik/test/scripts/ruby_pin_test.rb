@@ -69,8 +69,8 @@ class MagikScriptsRubyPinTest < Minitest::Test
   # below the version for exactly that reason. A version on the second line
   # would be read by neither.
   def test_the_pin_is_the_first_word_of_the_first_line
-    assert_equal "3.4.10", pin_version_of(<<~PIN)
-      3.4.10
+    assert_equal "4.0.10", pin_version_of(<<~PIN)
+      4.0.10
       # a comment below the version
     PIN
   end
@@ -78,7 +78,7 @@ class MagikScriptsRubyPinTest < Minitest::Test
   def test_a_pin_whose_comment_sits_above_the_version_is_read_as_the_comment
     assert_equal "#", pin_version_of(<<~PIN)
       # 3.2.3 is the version
-      3.4.10
+      4.0.10
     PIN
   end
 
@@ -86,10 +86,10 @@ class MagikScriptsRubyPinTest < Minitest::Test
   # mention of a release is prose, not the value — the same discipline the
   # version-consistency check applies to a stamp.
   def test_the_mise_value_is_the_one_under_the_tools_table
-    assert_equal "3.4.10", mise_ruby_of(<<~TOML)
+    assert_equal "4.0.10", mise_ruby_of(<<~TOML)
       # `ruby = "9.9.9"` is only a mention in this comment.
       [tools]
-      ruby = "3.4.10"
+      ruby = "4.0.10"
     TOML
   end
 
@@ -99,12 +99,12 @@ class MagikScriptsRubyPinTest < Minitest::Test
   def test_the_fix_line_under_a_code_is_the_one_below_it
     source = <<~SH
       echo "MAGIK_DEV_NO_RUBY: ruby is not on PATH" >&2
-      echo "  fix: mise install ruby@3.4.10 && mise exec ruby@3.4.10 -- bin/setup" >&2
+      echo "  fix: mise install ruby@4.0.10 && mise exec ruby@4.0.10 -- bin/setup" >&2
       echo "MAGIK_DEV_OTHER: something else" >&2
       echo "  fix: gem install rake" >&2
     SH
 
-    assert_equal "mise install ruby@3.4.10 && mise exec ruby@3.4.10 -- bin/setup",
+    assert_equal "mise install ruby@4.0.10 && mise exec ruby@4.0.10 -- bin/setup",
                  fix_line_for(source, "MAGIK_DEV_NO_RUBY")
   end
 
@@ -121,7 +121,7 @@ class MagikScriptsRubyPinTest < Minitest::Test
   # test uses it so the two cannot disagree.
   def test_a_fix_line_that_is_advice_is_not_a_command
     assert advice?("make sure Ruby >= 3.2 is installed, then re-run bin/setup")
-    refute advice?("mise install ruby@3.4.10 && mise exec ruby@3.4.10 -- bin/setup")
+    refute advice?("mise install ruby@4.0.10 && mise exec ruby@4.0.10 -- bin/setup")
   end
 
   # A fix cell that names a stale release BEFORE the pipe used to read as a

@@ -44,7 +44,7 @@ inputs:
 outputs:
   ruby-version:
     description: >-
-      The engine and version that actually resolved, e.g. `ruby-3.2.3` or `truffleruby-25.0.0`.
+      The engine and version that actually resolved, e.g. `ruby-4.0.10` or `truffleruby-25.0.0`.
       The matrix asks for `truffleruby-head`, which is a moving target — this is what it moved to
       on this run, and it belongs in the log of any job whose result someone will quote later.
     value: ${{ steps.resolved.outputs.ruby-version }}

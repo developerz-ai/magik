@@ -110,7 +110,7 @@ body:
         run, say that here instead and paste `ruby -v` and `gem --version`.
       render: json
       placeholder: |
-        {"name":"magik","version":"0.0.1","status":"spec only","ruby":"3.2.3","ruby_engine":"ruby"}
+        {"name":"magik","version":"0.0.1","status":"spec only","ruby":"4.0.10","ruby_engine":"ruby"}
     validations:
       required: true
 
