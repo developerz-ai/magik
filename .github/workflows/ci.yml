@@ -10,7 +10,7 @@ name: ci
 # loop there is.
 #
 # So CI's own addition to the gate is the ENGINE MATRIX (every engine on a push to main; a pull
-# request runs 4.0 only) — 3.2, 3.3, 3.4, 4.0 and TruffleRuby, which no
+# request runs the 3.2 floor and 4.0) — 3.2, 3.3, 3.4, 4.0 and TruffleRuby, which no
 # dev machine has all of. The gem-build job below proves the installed-gem smoke — build the
 # artifact, install it into an empty GEM_HOME, run the binary from there, a different question from
 # running `apps/magik/exe/magik` off the load path — and `bin/check` now runs the same smoke locally as its
@@ -212,11 +212,11 @@ jobs:
           - ruby: truffleruby-head
             experimental: true
     continue-on-error: ${{ matrix.experimental == true }}
-    # A pull request does the work on the newest CRuby leg only; a push to main runs every engine
-    # (2026-11-28 sweep: the engine matrix answers a support-window question, not one each PR
-    # revision asks). The other legs still report, their steps skipped.
+    # A pull request does the work on the support floor (3.2, `required_ruby_version`: a too-new
+    # API fails here) and the newest CRuby; a push to main runs every engine (2026-11-28 sweep). The
+    # middle legs still report on a PR, their steps skipped.
     env:
-      RUN: ${{ github.event_name != 'pull_request' || matrix.ruby == '4.0' }}
+      RUN: ${{ github.event_name != 'pull_request' || matrix.ruby == '3.2' || matrix.ruby == '4.0' }}
     steps:
       - uses: actions/checkout@v7
         if: env.RUN == 'true'

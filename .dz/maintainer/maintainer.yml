@@ -83,7 +83,9 @@ escalate:
   always: [hostile_tone, direct_mention]
 
 # scout: off (2026-11-28 fleet dz standard for an idea/pre-alpha repo: a full survey run is ~14M
-# tokens, and there is no shipped code for it to find broken). `broken_only` turns it back on.
+# tokens). What ships today (the `magik` CLI in the gem) is graded by CI on every PR and push,
+# including the installed-gem smoke, so a survey would re-find what CI already reports.
+# `broken_only` turns it back on once runtime work starts.
 scout:
   survey: off
 
