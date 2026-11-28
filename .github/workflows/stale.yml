@@ -65,7 +65,8 @@ jobs:
             the case, add the `roadmap` label and it will be left alone from now on.
 
 
-            Otherwise: a comment reopens the clock, and with nothing further this closes in 30 days.
+            Otherwise: a comment reopens the clock, and with nothing further this closes on the
+            first weekly sweep after 30 more days.
             A closed issue is still searchable and can be reopened.
           stale-pr-message: >
             No activity here for four months. This is a marker, not a deadline — nothing closes
