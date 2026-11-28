@@ -65,8 +65,9 @@ jobs:
             the case, add the `roadmap` label and it will be left alone from now on.
 
 
-            Otherwise: a comment reopens the clock, and with nothing further this closes on the
-            first weekly sweep after 30 more days.
+            Otherwise: a comment reopens the clock, and with nothing further this workflow closes it
+            after 30 more days of inactivity (the maintainer bot's own 60-day inactivity rule in
+            `.dz/maintainer/maintainer.yml` can close it independently).
             A closed issue is still searchable and can be reopened.
           stale-pr-message: >
             No activity here for four months. This is a marker, not a deadline — nothing closes
