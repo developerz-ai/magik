@@ -82,11 +82,15 @@ triage:
 escalate:
   always: [hostile_tone, direct_mention]
 
-# scout: the platform's daily survey of this repo files only what is already BROKEN
-# (red CI, failing tests, a security advisory, a broken build or link) — never an
-# improvement idea. `full` lets it file ideas too; `off` stops the survey.
+# scout: off (2026-11-28 fleet dz standard for an idea/pre-alpha repo: a full survey run is ~14M
+# tokens, and there is no shipped code for it to find broken). `broken_only` turns it back on.
 scout:
-  survey: broken_only
+  survey: off
+
+# care.docs_drift: off (2026-11-28 standard: fleet-wide 47 docs-drift tasks gave 8 docs-only merges
+# and 33 failures; this repo is mostly spec docs).
+care:
+  docs_drift: off
 
 # Proactive checkups, each a scout reading a brief you commit. Off by default: the
 # platform maintains this repo, it does not hunt for improvements. Uncomment the
