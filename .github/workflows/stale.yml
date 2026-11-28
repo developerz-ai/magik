@@ -17,8 +17,9 @@ name: stale
 
 on:
   schedule:
-    # Daily, at an hour nothing else in this repository runs.
-    - cron: '23 5 * * *'
+    # Weekly (Monday), at an hour nothing else in this repository runs: with six months to stale and
+    # a month to close, a daily sweep only found the same answer six times more (2026-11-28 sweep).
+    - cron: '23 5 * * 1'
   workflow_dispatch:
 
 permissions:
